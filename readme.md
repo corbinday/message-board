@@ -7,6 +7,8 @@ A web app that allows people to send messages to each other's Pimoroni Unicorn b
 - flask server
 - htmx and tailwindcss front-end
 - vercel deployment
+- raspberry pico
+- python script controlling the boards
 
 ### Functions
 - Ability to create user accounts
@@ -19,3 +21,11 @@ A web app that allows people to send messages to each other's Pimoroni Unicorn b
 - The ability to save messages to your account
 - A cool animation around the border when there is a new message that you have to acknowledge by pushing `A`
 - `C` for cycle
+
+## To Do
+- [ ] Auth and user accounts
+- [ ] "Friending"
+- [ ] Build UI for creating messages
+- [ ] Sending messages amongst friends
+- [ ] Python code for receiving and presenting messages on the Unicord board
+- [ ] Flashing from the web app
