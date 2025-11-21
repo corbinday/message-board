@@ -1,0 +1,17 @@
+{
+    "version": "0.0.1",
+    "dependencies": {
+        "@tailwindcss/cli": "^4.0.6",
+        "tailwindcss": "^4.0.6"
+    },
+    "scripts": {
+        "dev:flask": "uv run -- flask --app api.app run --debug --port 3000 --host localhost",
+        "dev:css": "npx @tailwindcss/cli -i static/css/style.css -o static/css/app.css --watch",
+        "dev": "concurrently --raw \"npm run dev:flask\" \"npm run dev:css\"",
+        "generate:queries": "gel-py --target blocking --file api/queries.py"
+    },
+    "devDependencies": {
+        "concurrently": "^9.1.0",
+        "prettier-plugin-tailwindcss": "^0.6.9"
+    }
+}

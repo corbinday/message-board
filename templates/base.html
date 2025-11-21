@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>{{ title }}</title>
+
+    <!-- htmx tags -->
+    <meta name="htmx-config" content='{"inlineStyleNonce":"{{ nonce }}"}' />
+    <meta name="htmx-config" content='{"includeIndicatorStyles": false}' />
+    <script
+      src="{{ url_for('static', filename='js/htmx.min.js') }}"
+      integrity="sha384-Ri8up/SiblE6wBETLc3+o4905XRyjy/tp0qz7g/qDmkyre0ncpVywAdvFSwAKYdV"
+      crossorigin="anonymous"
+    ></script>
+
+    <!-- TailwindCSS -->
+    <link
+      rel="stylesheet"
+      href="{{ url_for('static', filename='css/app.css') }}"
+    />
+  </head>
+  <body class="text-white bg-black min-h-screen flex flex-col items-center">
+    <div
+      class="flex flex-col items-center min-h-screen w-full xl:max-w-6xl px-8 md:px-16 bg-zinc-900"
+    >
+      {% block layout %}
+      <p>Inject another template here.</p>
+      {% endblock %}
+    </div>
+  </body>
+</html>

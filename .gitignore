@@ -1,0 +1,27 @@
+# Python cache files
+__pycache__/
+*.py[cod]
+*.pyo
+
+# Environment / local config
+.env
+.python-version
+gel.local.toml
+
+# Node modules
+node_modules/
+uv.lock
+
+# Logs
+*.log
+
+# OS / editor files
+.DS_Store
+*.swp
+*.swo
+.idea/
+.vscode/
+
+# Optional: coverage / test cache
+.coverage
+.pytest_cache/
