@@ -1,8 +1,53 @@
-{% extends 'primary_layout.html' %} {% block content %}
+{% extends 'layout/lander.html' %} {% block content %}
 <div
   id="pixel-canvas"
-  class="grid gap-[1px] mx-auto w-fit p-px border-8 border-[rgb(255,0,0)]"
+  class="grid gap-px mx-auto w-fit p-px border-8 border-[rgb(255,0,0)]"
 ></div>
+
+<div class="mt-12 flex flex-col gap-12">
+  <p class="text-pretty">
+    Turn your
+    <span
+      class="text-blue-600 whitespace-nowrap inline-flex items-center gap-1"
+    >
+      <a
+        href="https://shop.pimoroni.com/products/space-unicorns"
+        class="hover:underline"
+      >
+        Pimoroni Pico 2 W Unicorn
+      </a>
+      {% include 'icon/arrow-top-right-on-square.html' %}
+    </span>
+    into a living, breathing digital canvas. Pico Message Board is a web-based
+    bridge that connects your browser directly to your Unicorn LED hardware.
+    Whether you are rocking the compact Stellar, the widescreen Galactic, or the
+    massive Cosmic Unicorn, this platform transforms that grid of LEDs into a
+    personal marquee for art, notifications, and messages. It&apos;s not just a
+    display—it&apos;s a dedicated slice of the internet sitting right on your
+    desk.
+  </p>
+  <p>
+    Forget fumbling with SD cards or constantly reflashing firmware. By
+    leveraging the wireless capabilities of the Raspberry Pi Pico 2 W, your
+    board stays connected to our cloud continuously. Once you pair your device,
+    it listens for real-time updates. You simply visit the web app, select your
+    device, and the changes happen instantly over Wi-Fi. It’s the simplicity of
+    a web page with the tactile satisfaction of glowing hardware.
+  </p>
+  <p>
+    At the heart of the experience is our powerful pixel editor. Design your
+    masterpiece using our browser-based tools—featuring dynamic effects like
+    organic "rain" animations, interactive hover states, and live previews. But
+    the real magic happens when you share. Have a friend with a Galactic
+    Unicorn? You can "beam" a piece of pixel art directly to their device from
+    miles away, lighting up their room with a surprise message or a custom
+    design.
+  </p>
+</div>
+
+<div class="flex flex-row w-full justify-center mt-12">
+  <a class="w-fit bg-[rgb(255,0,0)] p-2" href="/start">Press A to Start</a>
+</div>
 
 {% endblock %} {% block extra_scripts %}
 <script
