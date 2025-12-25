@@ -23,7 +23,12 @@ A web app that allows people to send messages to each other's Pimoroni Unicorn b
 - `C` for cycle
 
 ## To Do
-- [ ] Auth and user accounts
+- [x] Auth and user accounts
+- [ ] Onboarding
+  - [ ] Create username (single onboarding page that flows downward as you progress)
+  - [ ] Example of how the app works
+  - [ ] Add board
+  - [ ] Add/invite a friend
 - [ ] "Friending"
 - [ ] Build UI for creating messages
 - [ ] Sending messages amongst friends

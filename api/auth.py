@@ -4,7 +4,16 @@ import os
 import requests
 import secrets
 from dotenv import load_dotenv
-from flask import Blueprint, redirect, request, make_response, current_app, url_for
+from flask import (
+    Blueprint,
+    redirect,
+    request,
+    make_response,
+    current_app,
+    url_for,
+    g,
+    render_template,
+)
 from urllib.parse import urljoin
 from api.user import create_new_user
 
@@ -13,6 +22,12 @@ bp = Blueprint("auth", __name__, template_folder="templates")
 # Load environment variables
 load_dotenv()
 GEL_AUTH_BASE_URL = os.getenv("GEL_AUTH_BASE_URL").rstrip("/") + "/"
+COOKIE_OPTS = {
+    "httponly": True,
+    "secure": False,
+    "samesite": "Lax",
+    "path": "/",
+}
 
 
 def generate_pkce():
@@ -57,17 +72,16 @@ def retrieve_auth_token():
     return exchange_resp.json()
 
 
+def authenticate_gel_client(data):
+    auth_token = data.get("auth_token")
+    if auth_token:
+        g.client = g.client.with_globals({"ext::auth::client_token": auth_token})
+
+
 def login(auth_token, redirect_endpoint="home"):
     redirect_url = url_for(redirect_endpoint)
     response = make_response(redirect(redirect_url))
-    response.set_cookie(
-        "gel-auth-token",
-        auth_token,
-        httponly=True,
-        secure=not current_app.debug,
-        samesite="Lax" if current_app.debug else "Strict",
-        path="/",
-    )
+    response.set_cookie("gel-auth-token", auth_token, **COOKIE_OPTS)
     return response
 
 
@@ -82,14 +96,7 @@ def signup():
     response = make_response(redirect(redirect_url, code=301))
 
     # Set HttpOnly cookie
-    response.set_cookie(
-        "gel-pkce-verifier",
-        verifier,
-        httponly=True,
-        secure=not current_app.debug,
-        samesite="Lax" if current_app.debug else "Strict",
-        path="/",
-    )
+    response.set_cookie("gel-pkce-verifier", verifier, **COOKIE_OPTS)
 
     return response
 
@@ -98,11 +105,16 @@ def signup():
 def callback_signup():
     current_app.logger.info("Handling SIGN-UP")
     data = retrieve_auth_token()
+    authenticate_gel_client(data)
     current_app.logger.info(data)
     auth_token = data.get("auth_token")
 
     # Create new User
-    # create_new_user(data)
+    try:
+        create_new_user(data)
+    except Exception as e:
+        error_message = str(e)
+        return make_response(render_template("error.html", message=error_message), 401)
 
     # Set the auth token cookie
     return login(auth_token, redirect_endpoint="welcome")
@@ -112,24 +124,15 @@ def callback_signup():
 def signin():
     verifier, challenge = generate_pkce()
 
-    # Build redirect URL (equivalent to new URL("ui/signin", base))
+    # Build redirect URL
     redirect_url = urljoin(GEL_AUTH_BASE_URL, "ui/signin")
     redirect_url = f"{redirect_url}?challenge={challenge}"
 
     # Create a 301 redirect response
     response = make_response(redirect(redirect_url, code=301))
 
-    # Set the PKCE verifier cookie (HttpOnly, Secure, Strict)
-    response.set_cookie(
-        "gel-pkce-verifier",
-        verifier,
-        httponly=True,
-        # secure=not current_app.debug,
-        # samesite="Lax" if current_app.debug else "Strict",
-        secure=False,
-        samesite="Lax",
-        path="/",
-    )
+    # Set the PKCE verifier cookie
+    response.set_cookie("gel-pkce-verifier", verifier, **COOKIE_OPTS)
 
     return response
 
@@ -138,6 +141,7 @@ def signin():
 def callback_signin():
     current_app.logger.info("Handling SIGN-IN")
     data = retrieve_auth_token()
+    authenticate_gel_client(data)
     current_app.logger.info(data)
     auth_token = data.get("auth_token")
 

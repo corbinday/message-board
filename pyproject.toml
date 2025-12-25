@@ -10,4 +10,5 @@ dependencies = [
     "gel>=3.1.0",
     "python-dotenv>=1.2.1",
     "requests>=2.32.5",
+    "resend>=2.19.0",
 ]

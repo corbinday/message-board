@@ -1,3 +1,39 @@
 {% extends 'primary_layout.html' %} {% block content %}
-<p>Pico Message Board</p>
+<div
+  id="pixel-canvas"
+  class="grid gap-[1px] mx-auto w-fit p-px border-8 border-[rgb(255,0,0)]"
+></div>
+
+{% endblock %} {% block extra_scripts %}
+<script
+  src="{{ url_for('static', filename='js/pixel.js') }}"
+  integrity="sha384-6s/B5SZysp0tpuJuZAOZDqDae2rftePxkPsTNS74XDZpYl/IBJ5wHJwju7nJUSTY"
+  crossorigin="anonymous"
+></script>
+
+<style nonce="{{ nonce }}">
+  .pixel {
+    position: relative;
+    overflow: hidden;
+  }
+
+  /* The Overlay Layer */
+  .pixel::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    /* This variable is injected by JS */
+    background-color: var(--bg, white);
+    opacity: 0;
+    /* Fades back to transparent over 5 seconds */
+    transition: opacity 5s ease-out;
+    pointer-events: none;
+  }
+
+  /* When this class is added, opacity snaps to visible instantly */
+  .pixel.active-flash::after {
+    opacity: 0.9;
+    transition: opacity 0s;
+  }
+</style>
 {% endblock %}

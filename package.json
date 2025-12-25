@@ -5,7 +5,7 @@
         "tailwindcss": "^4.0.6"
     },
     "scripts": {
-        "dev:flask": "uv run -- flask --app api.app run --debug --port 3000 --host localhost",
+        "dev:flask": "uv run -- flask --app api.app run --debug --port 3000 --host 0.0.0.0",
         "dev:css": "npx @tailwindcss/cli -i static/css/style.css -o static/css/app.css --watch",
         "dev": "concurrently --raw \"npm run dev:flask\" \"npm run dev:css\"",
         "generate:queries": "gel-py --target blocking --file api/queries.py"

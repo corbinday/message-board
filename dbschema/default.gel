@@ -1,6 +1,6 @@
 module default {
 
-      global current_user := (
+    global current_user := (
         assert_single((
             select User
             filter .identity = global ext::auth::ClientTokenIdentity
@@ -12,10 +12,20 @@ module default {
             constraint exclusive;
             # on source delete delete target;
         }
-        required email: str {
+        email: str {
             constraint exclusive;
         }
-        required firstName: str;
-        required lastName: str;
+        username: str {
+            constraint exclusive;
+        }
+    }
+
+    type Message {
+        payload: bytes;
+        sender: User;
+        recipient: User;
+        required created_at: datetime {
+            rewrite insert using (datetime_of_statement());
+        }
     }
 }

@@ -2,19 +2,22 @@
 
 <header class="grid grid-flow-row center mt-8">
   <ul
-    class="flex gap-8 justify-self-center bg-zinc-800/90 rounded-md py-2 px-4 w-fit"
+    class="flex gap-8 justify-self-center py-2 px-4 w-fit font-bold"
   >
-    <li class="hover:text-emerald-500 cursor-pointer">
+    <li class="hover:text-[rgb(255,0,0)] cursor-pointer">
       <a href="{{url_for('index')}}">About</a>
     </li>
-    <li class="hover:text-emerald-500 cursor-pointer">
+    <li class="hover:text-[rgb(255,0,0)] cursor-pointer">
       <a href="{{url_for('home')}}">Home</a>
     </li>
-    <li class="hover:text-emerald-500 cursor-pointer">
+    <li class="hover:text-[rgb(255,0,0)] cursor-pointer">
       <a href="{{url_for('auth.signup')}}">Sign Up</a>
     </li>
-    <li class="hover:text-emerald-500 cursor-pointer">
+    <li class="hover:text-[rgb(255,0,0)] cursor-pointer">
       <a href="{{url_for('auth.signin')}}">Sign In</a>
+    </li>
+    <li class="hover:text-[rgb(255,0,0)] cursor-pointer">
+      <a href="{{url_for('email_test')}}">Email Test</a>
     </li>
   </ul>
 </header>
