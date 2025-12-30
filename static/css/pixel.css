@@ -1,0 +1,58 @@
+:root {
+  --pixel-size: 20px;
+  --pixel-gap: 2px;
+}
+
+.glass-panel {
+  /* Stronger blur and light saturation to make the LED colors "bleed" beautifully */
+  backdrop-filter: blur(25px) saturate(160%);
+  -webkit-backdrop-filter: blur(25px) saturate(160%);
+
+  /* A milky, semi-transparent white base */
+  background: rgba(20, 20, 20, 0.4);
+
+  /* This border acts like the edge of the acrylic sheet */
+  border: 1px solid rgba(255, 255, 255, 0.15);
+
+  /* Inner glow to simulate light trapped in the plastic */
+  box-shadow:
+    inset 0 0 20px rgba(255, 255, 255, 0.05),
+    0 15px 35px rgba(0, 0, 0, 0.5);
+
+  border-radius: 12px;
+}
+
+/* Section snapping for clean scrolling */
+.snap-section {
+  scroll-snap-align: start;
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* Hide scrollbar for a cleaner hardware look */
+.content-layer::-webkit-scrollbar {
+  display: none;
+}
+.content-layer {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
+.pixel-art-container {
+  display: grid;
+  /* Variables must match CONFIG in pixel-bg.js */
+  grid-gap: 2px;
+  width: max-content;
+  height: max-content;
+  /* This ensures it stays on the grid lines when scrolling */
+  scroll-snap-align: start;
+}
+
+.pixel-unit {
+  width: 20px;
+  height: 20px;
+  /* Optional: subtle glow for content pixels */
+  box-shadow: 0 0 5px rgba(255, 255, 255, 0.1);
+}

@@ -1,0 +1,78 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>{{ title }}</title>
+
+    <!-- htmx tags -->
+    <meta name="htmx-config" content='{"inlineStyleNonce":"{{ nonce }}"}' />
+    <meta name="htmx-config" content='{"includeIndicatorStyles": false}' />
+    <script
+      src="{{ url_for('static', filename='js/htmx.min.js') }}"
+      integrity="sha384-Ri8up/SiblE6wBETLc3+o4905XRyjy/tp0qz7g/qDmkyre0ncpVywAdvFSwAKYdV"
+      crossorigin="anonymous"
+    ></script>
+
+    <!-- TailwindCSS -->
+    <link
+      rel="stylesheet"
+      href="{{ url_for('static', filename='css/app.css') }}"
+    />
+
+    <!-- Fonts -->
+    <style nonce="{{ nonce }}">
+      /* JetBrains Mono - Clean Body Text */
+      @font-face {
+        font-family: 'JetBrains Mono';
+        src: url("{{ url_for('static', filename='fonts/JetBrainsMono-Regular.woff2') }}")
+          format('woff2');
+        font-weight: normal;
+        font-style: normal;
+      }
+
+      /* Press Start 2P - Pixel Art Headers */
+      @font-face {
+        font-family: 'Press Start 2P';
+        src: url("{{ url_for('static', filename='fonts/PressStart2P-Regular.ttf') }}")
+          format('truetype');
+        font-weight: normal;
+        font-style: normal;
+      }
+
+      /* Pixel-perfect CSS utility */
+      .font-pixel {
+        font-family: 'Press Start 2P', cursive;
+        text-rendering: pixelated;
+        -webkit-font-smoothing: none;
+        -moz-osx-font-smoothing: grayscale;
+      }
+    </style>
+
+    <!-- Pixel effects -->
+    <script
+      src="{{ url_for('static', filename='js/pixel-art.js') }}"
+      integrity="sha384-"
+      crossorigin="anonymous"
+    ></script>
+    <script
+      src="{{ url_for('static', filename='js/pixel-animation.js') }}"
+      integrity="sha384-"
+      crossorigin="anonymous"
+    ></script>
+  </head>
+  <body
+    class="font-['JetBrains_Mono'] text-sm md:text-lg text-white bg-black min-h-screen flex flex-col items-center"
+  >
+    <div
+      class="flex flex-col items-center min-h-screen w-full xl:max-w-6xl px-8 md:px-16"
+    >
+      {% block layout %}
+      <p>Inject another template here.</p>
+      {% endblock %}
+    </div>
+
+    <!-- extra scripts -->
+    {% block extra_scripts %} {% endblock %}
+  </body>
+</html>

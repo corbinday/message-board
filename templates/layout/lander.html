@@ -1,0 +1,13 @@
+{% extends 'layout/base.html' %} {% block layout %}
+
+<main class="mt-16 grow h-full w-full">
+  {% block content %}
+  <p>Inject another template here.</p>
+  {% endblock %}
+</main>
+
+<footer class="mt-12 py-12">
+  <p class="text-zinc-500">&copy; {{ current_year }} Corbin Day</p>
+</footer>
+
+{% endblock %}
