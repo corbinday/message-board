@@ -1,84 +1,110 @@
-{% extends 'layout/lander.html' %} {% block content %}
-<div
-  id="pixel-canvas"
-  class="grid gap-px mx-auto w-fit p-px border-8 border-[rgb(255,0,0)]"
-></div>
+{% extends "layout/lander.html" %} {% block content %}
+<div class="flex flex-col gap-12 items-center">
+  <pixel-art
+    src="{{ url_for('static', filename='img/PMB1.png') }}"
+    color-override="255,0,0"
+    hover-trail
+    digital-rain
+    alt="Pico Message Board"
+    class="mb-12"
+  ></pixel-art>
 
-<div class="mt-12 flex flex-col gap-12">
-  <p class="text-pretty">
-    Turn your
-    <span
-      class="text-blue-600 whitespace-nowrap inline-flex items-center gap-1"
-    >
-      <a
-        href="https://shop.pimoroni.com/products/space-unicorns"
-        class="hover:underline"
-      >
-        Pimoroni Pico 2 W Unicorn
-      </a>
-      {% include 'icon/arrow-top-right-on-square.html' %}
-    </span>
-    into a living, breathing digital canvas. Pico Message Board is a web-based
-    bridge that connects your browser directly to your Unicorn LED hardware.
-    Whether you are rocking the compact Stellar, the widescreen Galactic, or the
-    massive Cosmic Unicorn, this platform transforms that grid of LEDs into a
-    personal marquee for art, notifications, and messages. It&apos;s not just a
-    display—it&apos;s a dedicated slice of the internet sitting right on your
-    desk.
-  </p>
-  <p>
-    Forget fumbling with SD cards or constantly reflashing firmware. By
-    leveraging the wireless capabilities of the Raspberry Pi Pico 2 W, your
-    board stays connected to our cloud continuously. Once you pair your device,
-    it listens for real-time updates. You simply visit the web app, select your
-    device, and the changes happen instantly over Wi-Fi. It’s the simplicity of
-    a web page with the tactile satisfaction of glowing hardware.
-  </p>
-  <p>
-    At the heart of the experience is our powerful pixel editor. Design your
-    masterpiece using our browser-based tools—featuring dynamic effects like
-    organic "rain" animations, interactive hover states, and live previews. But
-    the real magic happens when you share. Have a friend with a Galactic
-    Unicorn? You can "beam" a piece of pixel art directly to their device from
-    miles away, lighting up their room with a surprise message or a custom
-    design.
-  </p>
+  <section class="flex flex-col gap-4">
+    <h2 class="text-lg md:text-2xl font-['Press_Start_2P']">
+      Your Hardware, Your Canvas
+    </h2>
+    <div class="flex flex-row-reverse gap-12 items-center">
+      <p>
+        <span class="text-[rgb(255,0,0)]">Pico Message Board</span> is a
+        web-based interface for managing content on your
+        <a
+          class="text-blue-400 hover:text-blue-500 visited:text-violet-400 inline-flex items-center gap-1"
+          href="https://shop.pimoroni.com/products/space-unicorns"
+        >
+          <span>Pimoroni Space Unicorn</span>
+          {% include "icon/arrow-top-right-on-square.html" %}
+        </a>
+        LED hardware. Connect your Stellar, Galactic, or Cosmic Unicorn Board
+        for a convenient interface to create art and messages!
+      </p>
+      <pixel-art
+        class=""
+        src="{{ url_for('static', filename='img/duck.png') }}"
+        rain-colors="255,195,0 | 14,55,24"
+        alt="duck"
+      ></pixel-art>
+    </div>
+  </section>
+
+  <section class="flex flex-col gap-4">
+    <h2 class="text-lg md:text-2xl font-['Press_Start_2P'] text-right">
+      Seamless, Wireless Control
+    </h2>
+    <div class="flex flex-row gap-12 items-center">
+      <p>
+        Forget reflashing firmware every time you want to change a pixel. By
+        leveraging the Wi-Fi capabilities of the Raspberry Pi Pico 2 W, your
+        board stays connected to the cloud in real-time. Once paired, your
+        device
+        <span class="text-[rgb(255,0,0)]"
+          >listens for updates automatically</span
+        >. Simply pick your colors, hit send, and watch the magic happen over
+        the air. It is the ease of a web app met with the tactile glow of
+        hardware.
+      </p>
+      <pixel-animation
+        src="{{ url_for('static', filename='img/wifi.png') }}"
+        frame-width="16"
+        frame-height="16"
+        speed="1000"
+        color-override="0, 255, 0"
+      ></pixel-animation>
+    </div>
+  </section>
+
+  <section class="flex flex-col gap-4">
+    <h2 class="text-lg md:text-2xl font-['Press_Start_2P']">
+      Design, Animate, and Beam
+    </h2>
+    <p>Use a web-based pixel editor to create messages or masterpieces.</p>
+    <div class="my-8">
+      <pixel-animation
+        src="{{ url_for('static', filename='img/star-destroyer.png') }}"
+        frame-width="53"
+        frame-height="11"
+        speed="200"
+      ></pixel-animation>
+    </div>
+    <ul class="flex flex-row gap-4">
+      <li class="flex flex-col gap-2">
+        <p class="font-['Press_Start_2P'] text-sm md:text-lg">Create</p>
+        <p>
+          Use browser-based tools to build custom designs with
+          <span class="text-[rgb(255,0,0)]">live previews</span>.
+        </p>
+      </li>
+      <li class="flex flex-col gap-2">
+        <p class="font-['Press_Start_2P'] text-sm md:text-lg">Animate</p>
+        <p>
+          Create multi-frame
+          <span class="text-[rgb(255,0,0)]">sprite sheets</span> to bring your
+          art to life.
+        </p>
+      </li>
+      <li class="flex flex-col gap-2">
+        <p class="font-['Press_Start_2P'] text-sm md:text-lg">Share</p>
+        <p>
+          The real magic is in the connection. Have a friend with a Galactic
+          Unicorn?
+          <span class="text-[rgb(255,0,0)]">Add them as a friend</span> and beam
+          a piece of art directly to their device from miles away.
+        </p>
+      </li>
+    </ul>
+  </section>
+  <a
+    class="mt-12 font-['Press_Start_2P'] text-sm md:text-lg bg-[rgb(255,0,0)] border-4 border-[rgb(255,0,0)] py-2 px-4 text-black hover:text-white hover:bg-black hover:cursor-pointer"
+    >Get Started</a
+  >
 </div>
-
-<div class="flex flex-row w-full justify-center mt-12">
-  <a class="w-fit bg-[rgb(255,0,0)] p-2" href="/start">Press A to Start</a>
-</div>
-
-{% endblock %} {% block extra_scripts %}
-<script
-  src="{{ url_for('static', filename='js/pixel.js') }}"
-  integrity="sha384-6s/B5SZysp0tpuJuZAOZDqDae2rftePxkPsTNS74XDZpYl/IBJ5wHJwju7nJUSTY"
-  crossorigin="anonymous"
-></script>
-
-<style nonce="{{ nonce }}">
-  .pixel {
-    position: relative;
-    overflow: hidden;
-  }
-
-  /* The Overlay Layer */
-  .pixel::after {
-    content: '';
-    position: absolute;
-    inset: 0;
-    /* This variable is injected by JS */
-    background-color: var(--bg, white);
-    opacity: 0;
-    /* Fades back to transparent over 5 seconds */
-    transition: opacity 5s ease-out;
-    pointer-events: none;
-  }
-
-  /* When this class is added, opacity snaps to visible instantly */
-  .pixel.active-flash::after {
-    opacity: 0.9;
-    transition: opacity 0s;
-  }
-</style>
 {% endblock %}

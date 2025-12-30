@@ -1,1 +1,46 @@
-@import "tailwindcss";
+@import 'tailwindcss';
+
+@layer base {
+  :root {
+    --pixel-size: clamp(8px, 1vw, 15px);
+    --pixel-gap: calc(var(--pixel-size) / 6);
+  }
+
+  pixel-art {
+    display: grid;
+    width: max-content;
+    max-width: 100%;
+    gap: var(--pixel-gap);
+  }
+
+  pixel-art > div {
+    width: var(--pixel-size);
+    height: var(--pixel-size);
+    transition:
+      background-color var(--fade-speed, 8s) ease-out,
+      opacity var(--fade-speed, 8s) ease-out;
+    opacity: var(--base-opacity, 0);
+  }
+
+  pixel-art > div.active-pixel {
+    transition:
+      background-color var(--bloom-speed, 0s) ease-in,
+      opacity var(--bloom-speed, 0s) ease-in !important;
+    background-color: var(--effect-color) !important;
+    opacity: var(--effect-opacity) !important;
+    z-index: 10;
+  }
+
+  pixel-animation {
+    display: grid;
+    width: max-content;
+    max-width: 100%;
+    gap: var(--pixel-gap);
+  }
+
+  pixel-animation > div {
+    width: var(--pixel-size);
+    height: var(--pixel-size);
+    transition: none;
+  }
+}

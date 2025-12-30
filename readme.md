@@ -1,7 +1,14 @@
 # Message Board
 A web app that allows people to send messages to each other's Pimoroni Unicorn boards. Let's say you want to send a message to your friend, you would jump on the web app and either paint the message using colors and pixels, or you would type a message and then optionally decorate.
 
-## Components
+# Components
+## Board Components
+Space Unicorn Variants:
+* Stellar: 16 x 16 pixels
+* Galactic: 53 x 11 pixels
+* Cosmic: 32 x 32 pixels
+
+## Web Components
 ### Tech Stack
 - geldata database
 - flask server
@@ -34,3 +41,19 @@ A web app that allows people to send messages to each other's Pimoroni Unicorn b
 - [ ] Sending messages amongst friends
 - [ ] Python code for receiving and presenting messages on the Unicord board
 - [ ] Flashing from the web app
+
+
+# Landing Page Ideas
+I am building an app where a user can draw on a grid of pixels that represents a Pimoroni Space Unicorn board and send it to an actual board in the real world. The app is called "Pico Message Board" and I am trying to design the landing page and some other features that will persist throughout the user experience.
+
+I want the background layer to be a static (non-scrolling) pixel grid with the rain effect and the hover effect. The content layer will scroll over the top of that.
+
+The background will be full black and then the "pixel off" color will be a slightly lighter black so the entire page looks like a grid but not overbearingly so, with the full black coming through in the gaps between the pixels. I want there to be a rain effect which randomly activates pixels in an irregular pattern. The rain effect should activate about 5% of the total pixel count so that it doesn't get lost in a big canvas. Make the coverage a variable so I can adjust it easily. The rain effect should activate white, primary and secondary colors at random.
+
+There should also be a mouse-hover effect that leaves behind a trail where the mouse has been that fades away. The trail should be RGB red, and start at about 80% opacity.
+
+When the page is shrunk I want to clean up unused pixels to make the page more efficient. The minimum width the page can have is 53 pixels so the background layer needs to scale down so they fit. Any pixel art content generated in the content layer needs to have the same pixel dimensions as the background. Any pixel art in the content layer needs to align with the pixels underneath so they look integrated so scrolling needs to snap. A tearing effect would be cool so that any scrolling of the content layer would leave behind a disappearing trace (like the hover effect) but only from pixel art items.
+
+Text in the content layer needs to have a frosty, transparent background so that any pixels that light up underneath look like they are coming through a diffuser.
+
+I am using TailwindCSS in my project, so use that whenever possible. I am also using Flask templates, so the background logic should be baked into a base template that the content layers extend.
