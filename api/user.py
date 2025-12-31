@@ -1,9 +1,20 @@
 import requests
 from flask import current_app, g, Blueprint, render_template, request
+from flask_login import UserMixin
 
 import api.queries as q
 
 bp = Blueprint("user", __name__, template_folder="templates")
+
+
+class User(UserMixin):
+    """
+    Simple user class for `flask_login`
+    """
+
+    def __init__(self, id, email):
+        self.id = id
+        self.email = email
 
 
 def create_new_user(data):

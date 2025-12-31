@@ -312,6 +312,9 @@
   .gap-4 {
     gap: calc(var(--spacing) * 4);
   }
+  .gap-6 {
+    gap: calc(var(--spacing) * 6);
+  }
   .gap-8 {
     gap: calc(var(--spacing) * 8);
   }
@@ -386,6 +389,12 @@
   }
   .bg-zinc-600 {
     background-color: var(--color-zinc-600);
+  }
+  .fill-blue-400 {
+    fill: var(--color-blue-400);
+  }
+  .fill-current {
+    fill: currentcolor;
   }
   .p-2 {
     padding: calc(var(--spacing) * 2);
@@ -476,6 +485,9 @@
   .text-blue-500 {
     color: var(--color-blue-500);
   }
+  .text-current {
+    color: currentcolor;
+  }
   .text-gray-400 {
     color: var(--color-gray-400);
   }
@@ -505,6 +517,41 @@
     transition-property: color, background-color, border-color, outline-color, text-decoration-color, fill, stroke, --tw-gradient-from, --tw-gradient-via, --tw-gradient-to, opacity, box-shadow, transform, translate, scale, rotate, filter, -webkit-backdrop-filter, backdrop-filter, display, content-visibility, overlay, pointer-events;
     transition-timing-function: var(--tw-ease, var(--default-transition-timing-function));
     transition-duration: var(--tw-duration, var(--default-transition-duration));
+  }
+  .group-visited\:fill-current {
+    &:is(:where(.group):visited *) {
+      fill: currentcolor;
+    }
+  }
+  .group-visited\:fill-violet-400 {
+    &:is(:where(.group):visited *) {
+      fill: var(--color-violet-400);
+    }
+  }
+  .group-visited\:text-violet-400 {
+    &:is(:where(.group):visited *) {
+      color: var(--color-violet-400);
+    }
+  }
+  .visited\:fill-current {
+    &:visited {
+      fill: currentcolor;
+    }
+  }
+  .visited\:fill-violet-400 {
+    &:visited {
+      fill: var(--color-violet-400);
+    }
+  }
+  .visited\:fill-violet-500 {
+    &:visited {
+      fill: var(--color-violet-500);
+    }
+  }
+  .visited\:text-current {
+    &:visited {
+      color: currentcolor;
+    }
   }
   .visited\:text-violet-400 {
     &:visited {
@@ -564,6 +611,20 @@
       }
     }
   }
+  .hover\:border-black {
+    &:hover {
+      @media (hover: hover) {
+        border-color: var(--color-black);
+      }
+    }
+  }
+  .hover\:border-white {
+    &:hover {
+      @media (hover: hover) {
+        border-color: var(--color-white);
+      }
+    }
+  }
   .hover\:bg-black {
     &:hover {
       @media (hover: hover) {
@@ -589,6 +650,13 @@
     &:hover {
       @media (hover: hover) {
         background-color: var(--color-zinc-700);
+      }
+    }
+  }
+  .hover\:fill-blue-500 {
+    &:hover {
+      @media (hover: hover) {
+        fill: var(--color-blue-500);
       }
     }
   }
@@ -625,6 +693,18 @@
       @media (hover: hover) {
         text-decoration-line: underline;
       }
+    }
+  }
+  .md\:size-5 {
+    @media (width >= 48rem) {
+      width: calc(var(--spacing) * 5);
+      height: calc(var(--spacing) * 5);
+    }
+  }
+  .md\:size-6 {
+    @media (width >= 48rem) {
+      width: calc(var(--spacing) * 6);
+      height: calc(var(--spacing) * 6);
     }
   }
   .md\:px-16 {

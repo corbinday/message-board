@@ -10,7 +10,7 @@
   ></pixel-art>
 
   <section class="flex flex-col gap-4">
-    <h2 class="text-lg md:text-2xl font-['Press_Start_2P']">
+    <h2 class="text-lg md:text-xl font-['Press_Start_2P']">
       Your Hardware, Your Canvas
     </h2>
     <div class="flex flex-row-reverse gap-12 items-center">
@@ -18,7 +18,7 @@
         <span class="text-[rgb(255,0,0)]">Pico Message Board</span> is a
         web-based interface for managing content on your
         <a
-          class="text-blue-400 hover:text-blue-500 visited:text-violet-400 inline-flex items-center gap-1"
+          class="text-blue-400 hover:text-blue-500 visited:text-violet-400 inline-flex items-center gap-1 fill-blue-400 hover:fill-blue-500 visited:fill-violet-400 group"
           href="https://shop.pimoroni.com/products/space-unicorns"
         >
           <span>Pimoroni Space Unicorn</span>
@@ -37,20 +37,18 @@
   </section>
 
   <section class="flex flex-col gap-4">
-    <h2 class="text-lg md:text-2xl font-['Press_Start_2P'] text-right">
+    <h2 class="text-lg md:text-xl font-['Press_Start_2P'] text-right">
       Seamless, Wireless Control
     </h2>
     <div class="flex flex-row gap-12 items-center">
       <p>
         Forget reflashing firmware every time you want to change a pixel. By
-        leveraging the Wi-Fi capabilities of the Raspberry Pi Pico 2 W, your
-        board stays connected to the cloud in real-time. Once paired, your
-        device
+        leveraging the Wi-Fi capabilities of the onboard Pico 2 W, your board
         <span class="text-[rgb(255,0,0)]"
           >listens for updates automatically</span
-        >. Simply pick your colors, hit send, and watch the magic happen over
-        the air. It is the ease of a web app met with the tactile glow of
-        hardware.
+        >
+        once paired. Simply pick your colors, hit send, and watch the magic
+        happen over the air.
       </p>
       <pixel-animation
         src="{{ url_for('static', filename='img/wifi.png') }}"
@@ -62,29 +60,24 @@
     </div>
   </section>
 
-  <section class="flex flex-col gap-4">
-    <h2 class="text-lg md:text-2xl font-['Press_Start_2P']">
-      Design, Animate, and Beam
+  <section class="flex flex-col gap-12">
+    <h2 class="font-['Press_Start_2P'] text-lg md:text-xl">
+      Design. Animate. Beam!
     </h2>
-    <p>Use a web-based pixel editor to create messages or masterpieces.</p>
-    <div class="my-8">
-      <pixel-animation
-        src="{{ url_for('static', filename='img/star-destroyer.png') }}"
-        frame-width="53"
-        frame-height="11"
-        speed="200"
-      ></pixel-animation>
-    </div>
-    <ul class="flex flex-row gap-4">
+    <pixel-animation
+      src="{{ url_for('static', filename='img/star-destroyer-2.png') }}"
+      frame-width="53"
+      frame-height="11"
+      speed="200"
+    ></pixel-animation>
+    <ul class="flex flex-row gap-8 mt-12">
       <li class="flex flex-col gap-2">
-        <p class="font-['Press_Start_2P'] text-sm md:text-lg">Create</p>
         <p>
           Use browser-based tools to build custom designs with
           <span class="text-[rgb(255,0,0)]">live previews</span>.
         </p>
       </li>
       <li class="flex flex-col gap-2">
-        <p class="font-['Press_Start_2P'] text-sm md:text-lg">Animate</p>
         <p>
           Create multi-frame
           <span class="text-[rgb(255,0,0)]">sprite sheets</span> to bring your
@@ -92,10 +85,8 @@
         </p>
       </li>
       <li class="flex flex-col gap-2">
-        <p class="font-['Press_Start_2P'] text-sm md:text-lg">Share</p>
         <p>
-          The real magic is in the connection. Have a friend with a Galactic
-          Unicorn?
+          Have a friend with a Galactic Unicorn?
           <span class="text-[rgb(255,0,0)]">Add them as a friend</span> and beam
           a piece of art directly to their device from miles away.
         </p>
@@ -103,7 +94,8 @@
     </ul>
   </section>
   <a
-    class="mt-12 font-['Press_Start_2P'] text-sm md:text-lg bg-[rgb(255,0,0)] border-4 border-[rgb(255,0,0)] py-2 px-4 text-black hover:text-white hover:bg-black hover:cursor-pointer"
+    href="{{ url_for('get_started') }}"
+    class="mt-12 font-['Press_Start_2P'] text-lg md:text-xl bg-[rgb(255,0,0)] border-4 border-[rgb(255,0,0)] py-2 px-4 text-black hover:text-white hover:bg-black hover:border-white hover:cursor-pointer"
     >Get Started</a
   >
 </div>

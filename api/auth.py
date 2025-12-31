@@ -14,6 +14,7 @@ from flask import (
     g,
     render_template,
 )
+from flask_login import login_user
 from urllib.parse import urljoin
 from api.user import create_new_user
 

@@ -66,6 +66,10 @@ def inject_nonce():
 def index():
     return render_template("index.html")
 
+@app.route("/get-started")
+def get_started():
+    pass
+
 
 @app.route("/home")
 def home():
