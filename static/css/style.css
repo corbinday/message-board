@@ -2,7 +2,7 @@
 
 @layer base {
   :root {
-    --pixel-size: clamp(8px, 1vw, 15px);
+    --pixel-size: clamp(5px, 1.1vw, 15px);
     --pixel-gap: calc(var(--pixel-size) / 6);
   }
 

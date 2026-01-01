@@ -1,19 +1,22 @@
 {% extends "layout/lander.html" %} {% block content %}
-<div class="flex flex-col gap-24 items-center">
-  <pixel-art
-    src="{{ url_for('static', filename='img/PMB1.png') }}"
-    color-override="255,0,0"
-    hover-trail
-    digital-rain
-    alt="Pico Message Board"
-    class="mb-12"
-  ></pixel-art>
-
+<pixel-art
+  src="{{ url_for('static', filename='img/PMB1.png') }}"
+  color-override="255,0,0"
+  hover-trail
+  digital-rain
+  alt="Pico Message Board"
+  class="mb-12 md:mb-24 mx-auto"
+></pixel-art>
+<div class="flex flex-col gap-16 md:gap-24 items-center">
   <section class="flex flex-col gap-4">
-    <h2 class="text-lg md:text-xl font-['Press_Start_2P']">
+    <h2
+      class="text-xs text-center md:text-left mb-4 sm:mb-0 sm:text-lg md:text-xl font-['Press_Start_2P'] text-nowrap"
+    >
       Your Hardware, Your Canvas
     </h2>
-    <div class="flex flex-row-reverse gap-12 items-center">
+    <div
+      class="flex flex-col-reverse md:flex-row-reverse gap-8 md:gap-12 items-center"
+    >
       <p>
         <span class="text-[rgb(255,0,0)]">Pico Message Board</span> is a
         web-based interface for managing content on your
@@ -37,10 +40,12 @@
   </section>
 
   <section class="flex flex-col gap-4">
-    <h2 class="text-lg md:text-xl font-['Press_Start_2P'] text-right">
+    <h2
+      class="text-xs text-center text-nowrap md:text-right mb-4 sm:mb-0 sm:text-lg md:text-xl font-['Press_Start_2P']"
+    >
       Seamless, Wireless Control
     </h2>
-    <div class="flex flex-row gap-12 items-center">
+    <div class="flex flex-col-reverse md:flex-row gap-8 md:gap12 items-center">
       <p>
         Forget reflashing firmware every time you want to change a pixel. By
         leveraging the Wi-Fi capabilities of the onboard Pico 2 W, your board
@@ -61,8 +66,10 @@
   </section>
 
   <section class="flex flex-col gap-12">
-    <h2 class="font-['Press_Start_2P'] text-lg md:text-xl">
-      Design. Animate. Beam!
+    <h2
+      class="text-xs text-nowrap text-center md:text-left mb-4 sm:mb-0 sm:text-lg md:text-xl font-['Press_Start_2P'] text-nowrap"
+    >
+      Design, Animate, Beam!
     </h2>
     <pixel-animation
       src="{{ url_for('static', filename='img/star-destroyer-2.png') }}"
@@ -70,7 +77,7 @@
       frame-height="11"
       speed="200"
     ></pixel-animation>
-    <ul class="flex flex-row gap-8 mt-12">
+    <ul class="flex flex-col md:flex-row gap-4 md:gap-8 mt-4 md:mt-12">
       <li class="flex flex-col gap-2">
         <p>
           Use browser-based tools to build custom designs with
@@ -95,7 +102,7 @@
   </section>
   <a
     href="{{ url_for('get_started') }}"
-    class="mt-12 font-['Press_Start_2P'] text-lg md:text-xl bg-[rgb(255,0,0)] border-4 border-[rgb(255,0,0)] py-2 px-4 text-black hover:text-white hover:bg-black hover:border-white hover:cursor-pointer"
+    class="mt-4 md:mt-12 font-['Press_Start_2P'] text-xs sm:text-lg md:text-xl bg-[rgb(255,0,0)] border-4 border-[rgb(255,0,0)] py-2 px-4 text-black hover:text-white hover:bg-black hover:border-white hover:cursor-pointer"
     >Get Started</a
   >
 </div>

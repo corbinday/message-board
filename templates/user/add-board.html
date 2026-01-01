@@ -1,3 +1,32 @@
 {% extends 'layout/primary.html' %} {% block content %}
-<h1 class="font-['Press_Start_2P']">Add Board</h1>
+<h1 class="font-['Press_Start_2P'] mb-12">Add Board</h1>
+<div class="flex flex-col gap-18 w-fit">
+  <div class="flex flex-col sm:flex-row items-center gap-4 sm:gap-12">
+    <pixel-art
+      class=""
+      src="{{ url_for('static', filename='img/stellar.png') }}"
+      hover-trail
+      alt="stellar"
+    ></pixel-art>
+    <label>16 x 16 pixels</label>
+  </div>
+  <div class="flex flex-col md:flex-row items-center gap-4 sm:gap-12">
+    <pixel-art
+      class=""
+      src="{{ url_for('static', filename='img/galactic.png') }}"
+      hover-trail
+      alt="Galactic"
+    ></pixel-art>
+    <label>53 x 11 pixels</label>
+  </div>
+  <div class="flex flex-col sm:flex-row items-center gap-4 sm:gap-12">
+    <pixel-art
+      class=""
+      src="{{ url_for('static', filename='img/cosmic.png') }}"
+      hover-trail
+      alt="Cosmic"
+    ></pixel-art>
+    <label>32 x 32 pixels</label>
+  </div>
+</div>
 {% endblock %}

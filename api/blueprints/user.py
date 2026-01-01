@@ -27,10 +27,14 @@ def check_username():
         )
 
 
-@bp.route("/add-board")
+@bp.route("/add-board", methods=["GET", "POST"])
 def add_board():
-    return render_template("user/add-board.html")
+    if request.method == "GET":
+        return render_template("user/add-board.html")
+    else:
+        pass
 
-@bp.route("/add-board")
+
+@bp.route("/add-friend", methods=["GET", "POST"])
 def add_friend():
     return render_template("user/add-friend.html")
