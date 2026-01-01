@@ -1,0 +1,12 @@
+{% extends 'layout/base.html' %} {% block layout %}
+<div class="h-full flex flex-col items-center my-auto gap-8 font-['Press_Start_2P']">
+  <pixel-animation
+    src="{{ url_for('static', filename='img/bork-2.png') }}"
+    frame-width="53"
+    frame-height="11"
+    speed="1000"
+  ></pixel-animation>
+  <p class="">{{ error_code }}</p>
+  <p>{{ reason }}</p>
+</div>
+{% endblock %}

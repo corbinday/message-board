@@ -113,6 +113,26 @@ def welcome():
     return render_template("user/welcome.html")
 
 
+@app.errorhandler(400)
+def bad_request(e):
+    # 'e' is the error object
+    reason = getattr(e, "description", "Bad request!")
+    return render_template("error.html", error_code=404, reason=reason), 404
+
+
+@app.errorhandler(404)
+def page_not_found(e):
+    # 'e' is the error object
+    return render_template("error.html", error_code=404, reason="Page not found!"), 404
+
+
+@app.errorhandler(500)
+def server_error(e):
+    return render_template(
+        "error.html", error_code=500, reason="Internal server error!"
+    ), 500
+
+
 @app.after_request
 def apply_csp(response):
     csp_policy = (
