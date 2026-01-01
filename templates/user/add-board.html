@@ -1,32 +1,44 @@
 {% extends 'layout/primary.html' %} {% block content %}
 <h1 class="font-['Press_Start_2P'] mb-12">Add Board</h1>
-<div class="flex flex-col gap-18 w-fit">
-  <div class="flex flex-col sm:flex-row items-center gap-4 sm:gap-12">
+<div class="mx-auto md:mx-0 flex flex-col gap-18 w-fit items-center md:items-baseline">
+  <div class="flex flex-col p-2 md:p-4 hover:bg-slate-700 sm:flex-row items-center gap-4 sm:gap-12 ">
     <pixel-art
       class=""
       src="{{ url_for('static', filename='img/stellar.png') }}"
       hover-trail
+      trail-color-override="255, 255, 255"
       alt="stellar"
     ></pixel-art>
-    <label>16 x 16 pixels</label>
+    <div class="flex flex-col gap-2">
+        <label>Stellar</label>
+        <label>16 x 16 pixels</label>
+    </div>
   </div>
-  <div class="flex flex-col md:flex-row items-center gap-4 sm:gap-12">
+  <div class="flex flex-col p-2 md:p-4 hover:bg-slate-700 lg:flex-row items-center gap-4 md:gap-12">
     <pixel-art
       class=""
       src="{{ url_for('static', filename='img/galactic.png') }}"
       hover-trail
+      trail-color-override="255, 255, 255"
       alt="Galactic"
     ></pixel-art>
-    <label>53 x 11 pixels</label>
+    <div class="flex flex-col gap-2">
+        <label>Galactic</label>
+        <label class="text-nowrap">53 x 11 pixels</label>
+    </div>
   </div>
-  <div class="flex flex-col sm:flex-row items-center gap-4 sm:gap-12">
+  <div class="flex flex-col p-2 md:p-4 hover:bg-slate-700 sm:flex-row items-center gap-4 sm:gap-12">
     <pixel-art
       class=""
       src="{{ url_for('static', filename='img/cosmic.png') }}"
       hover-trail
+      trail-color-override="255, 255, 255"
       alt="Cosmic"
     ></pixel-art>
-    <label>32 x 32 pixels</label>
+    <div class="flex flex-col gap-2">
+        <label>Cosmic</label>
+        <label>32 x 32 pixels</label>
+    </div>
   </div>
 </div>
 {% endblock %}
