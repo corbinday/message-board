@@ -14,7 +14,6 @@ from flask import (
     g,
     render_template,
 )
-from flask_login import login_user
 from urllib.parse import urljoin
 from api.user import create_new_user
 
@@ -83,6 +82,8 @@ def login(auth_token, redirect_endpoint="home"):
     redirect_url = url_for(redirect_endpoint)
     response = make_response(redirect(redirect_url))
     response.set_cookie("gel-auth-token", auth_token, **COOKIE_OPTS)
+    response.set_cookie("gel-pkce-verifier", "", expires=0, path="/")
+    response.set_cookie("gel-auth-challenge", "", expires=0, path="/")
     return response
 
 
@@ -93,11 +94,13 @@ def signup():
     redirect_url = urljoin(GEL_AUTH_BASE_URL, "ui/signup")
     redirect_url = f"{redirect_url}?challenge={challenge}"
 
-    # Create response with redirect (301)
-    response = make_response(redirect(redirect_url, code=301))
+    response = make_response(redirect(redirect_url, code=302))
 
     # Set HttpOnly cookie
     response.set_cookie("gel-pkce-verifier", verifier, **COOKIE_OPTS)
+
+    # Set the challenge as a cookie for the gel auth ui on local email flows
+    response.set_cookie("gel-auth-challenge", challenge, **COOKIE_OPTS)
 
     return response
 
@@ -129,11 +132,13 @@ def signin():
     redirect_url = urljoin(GEL_AUTH_BASE_URL, "ui/signin")
     redirect_url = f"{redirect_url}?challenge={challenge}"
 
-    # Create a 301 redirect response
-    response = make_response(redirect(redirect_url, code=301))
+    response = make_response(redirect(redirect_url, code=302))
 
     # Set the PKCE verifier cookie
     response.set_cookie("gel-pkce-verifier", verifier, **COOKIE_OPTS)
+
+    # Set the challenge as a cookie for the gel auth ui on local email flows
+    response.set_cookie("gel-auth-challenge", challenge, **COOKIE_OPTS)
 
     return response
 
@@ -146,4 +151,4 @@ def callback_signin():
     current_app.logger.info(data)
     auth_token = data.get("auth_token")
 
-    return login(auth_token, redirect_endpoint="home")
+    return login(auth_token, redirect_endpoint="app.home")

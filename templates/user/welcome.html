@@ -1,0 +1,31 @@
+{% extends 'layout/primary.html' %} {% block content %}
+<p>Welcome to Pico Message Board!</p>
+<div id="username-container">
+  {% with status='empty', message="Enter a username" %} {% include
+  'user/username-availability.html' %} {% endwith %}
+  <form
+    hx-post="/user/username/new"
+    hx-target="#username-container"
+    hx-swap="outerHTML"
+  >
+    <input
+      id="new-username-input"
+      type="text"
+      name="username"
+      class="bg-white rounded-md px-4 py-2 text-black"
+      hx-get="/user/username/new"
+      hx-trigger="keyup changed delay:500ms"
+      hx-target="#username-prompt"
+      hx-swap="outerHTML"
+    />
+    <button type="submit" class="bg-emerald-600 rounded-md px-4 py-2">
+      Set Username
+    </button>
+  </form>
+</div>
+
+<!-- This is the secondary target, initially empty, where new content will be appended on success. -->
+<div id="appended-content-area">
+  <!-- New dashboard content lands here -->
+</div>
+{% endblock %}

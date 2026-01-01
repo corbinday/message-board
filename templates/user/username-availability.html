@@ -1,0 +1,6 @@
+<p
+  id="username-prompt"
+  class="{% if status == 'empty' %}text-gray-400{% elif status == 'available' %}text-green-700{% elif status == 'error' %}text-red-700{% endif %}"
+>
+  {{message}}
+</p>

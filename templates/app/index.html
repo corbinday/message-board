@@ -1,0 +1,53 @@
+{% extends 'layout/primary.html' %} {% block content %}
+<div class="flex flex-col gap-24">
+  <p class="font-['Press_Start_2P']">Welcome, {{ user.username }}.</p>
+  <section class="flex flex-col gap-4">
+    <h2 class="font-['Press_Start_2P'] text-base md:text-lg">Your Boards</h2>
+    <div class="flex gap-12 items-center">
+      <div class="flex flex-col md:gap-2 md:min-w-96 text-xs md:text-base">
+        <pixel-art
+          class=""
+          src="{{ url_for('static', filename='img/duck.png') }}"
+          rain-colors="255,195,0 | 14,55,24"
+          alt="duck"
+        ></pixel-art>
+        <label><span class="text-slate-400">Board:</span> Cosmic</label>
+        <label><span class="text-slate-400">Name:</span> Sparky Scuttler</label>
+        <label
+          ><span class="text-slate-400">ID:</span>
+          kdfjd099dfjsdfjAkjd900-nmdf</label
+        >
+      </div>
+      <a
+        class="min-w-fit p-4 bg-green-900 border-4 border-green-900 font-['Press_Start_2P'] text-sm md:text-base hover:bg-black"
+        href="{{ url_for('user.add_board')}}"
+        >Add Board</a
+      >
+    </div>
+  </section>
+  <section class="flex flex-col gap-4">
+    <h2 class="font-['Press_Start_2P']">Your Friends</h2>
+    <div class="flex gap-12 items-center">
+      <div class="flex flex-col md:gap-2 md:min-w-96 text-xs md:text-base">
+        <pixel-art
+          class=""
+          src="{{ url_for('static', filename='img/duck.png') }}"
+          rain-colors="255,195,0 | 14,55,24"
+          alt="duck"
+        ></pixel-art>
+        <label><span class="text-slate-400">Username:</span> Brent</label>
+        <label><span class="text-slate-400">Messages:</span> 42</label>
+      </div>
+      <a
+        class="min-w-fit p-4 bg-green-900 border-4 border-green-900 font-['Press_Start_2P'] text-sm md:text-base hover:bg-black"
+        href="{{ url_for('user.add_friend')}}"
+        >Add Friend</a
+      >
+    </div>
+  </section>
+  <section class="flex flex-col gap-4">
+    <h2 class="font-['Press_Start_2P']">Messages</h2>
+    
+  </section>
+</div>
+{% endblock %}

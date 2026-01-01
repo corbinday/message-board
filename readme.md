@@ -31,16 +31,29 @@ Space Unicorn Variants:
 
 ## To Do
 - [x] Auth and user accounts
+- [x] Landing page
+- [x] Hero Logo
+- [x] Mini Logo (PMB)
 - [ ] Onboarding
   - [ ] Create username (single onboarding page that flows downward as you progress)
   - [ ] Example of how the app works
   - [ ] Add board
   - [ ] Add/invite a friend
 - [ ] "Friending"
+  - [ ] Create an Avatar on start (16 x 16)
 - [ ] Build UI for creating messages
 - [ ] Sending messages amongst friends
 - [ ] Python code for receiving and presenting messages on the Unicord board
 - [ ] Flashing from the web app
+
+# Home Features
+* Registered Boards
+* Friends
+* Messages 
+  * Feed Preview
+  * Start with a default hello message for all users
+  * Create message
+* 
 
 
 # Landing Page Ideas

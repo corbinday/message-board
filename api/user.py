@@ -1,10 +1,8 @@
 import requests
-from flask import current_app, g, Blueprint, render_template, request
+from flask import current_app, g
 from flask_login import UserMixin
 
 import api.queries as q
-
-bp = Blueprint("user", __name__, template_folder="templates")
 
 
 class User(UserMixin):
@@ -12,9 +10,8 @@ class User(UserMixin):
     Simple user class for `flask_login`
     """
 
-    def __init__(self, id, email):
-        self.id = id
-        self.email = email
+    def __init__(self, auth_token):
+        self.id = auth_token
 
 
 def create_new_user(data):
@@ -44,26 +41,3 @@ def get_github_emails(access_token: str):
     response = requests.get(url, headers=headers)
     response.raise_for_status()  # raise if bad token or missing scope
     return response.json()
-
-
-@bp.route("/username/new", methods=["GET", "POST"])
-def check_username():
-    username = request.args.get("username").strip()
-    if len(username) < 4:
-        return render_template(
-            "user/username-availability.html",
-            message="Username must be longer than 3 characters",
-            status="error",
-        )
-    elif q.usernameExists(g.client, username=username):
-        return render_template(
-            "user/username-availability.html",
-            message=f"{username} is not available",
-            status="error",
-        )
-    else:
-        return render_template(
-            "user/username-availability.html",
-            message=f"{username} is available!",
-            status="available",
-        )

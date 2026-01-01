@@ -1,5 +1,5 @@
 {% extends "layout/lander.html" %} {% block content %}
-<div class="flex flex-col gap-12 items-center">
+<div class="flex flex-col gap-24 items-center">
   <pixel-art
     src="{{ url_for('static', filename='img/PMB1.png') }}"
     color-override="255,0,0"
@@ -29,7 +29,7 @@
       </p>
       <pixel-art
         class=""
-        src="{{ url_for('static', filename='img/duck.png') }}"
+        src="{{ url_for('static', filename='img/duck-reverse.png') }}"
         rain-colors="255,195,0 | 14,55,24"
         alt="duck"
       ></pixel-art>

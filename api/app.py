@@ -1,15 +1,17 @@
 from datetime import datetime
-from flask import Flask, g, make_response, render_template, request
+from flask import Flask, g, redirect, render_template, url_for, make_response, request
+from flask_login import LoginManager, current_user, logout_user
 from dotenv import load_dotenv
 import gel
-import json
 import logging
 import resend
 import os
 import secrets
-import api.auth as auth
-import api.user as user
-import api.message as message
+import api.blueprints.auth as auth
+import api.blueprints.user as user
+import api.blueprints.message as message
+import api.blueprints.app as app_routes
+from api.user import User
 
 load_dotenv()
 app = Flask(__name__, static_folder="../static", template_folder="../templates")
@@ -18,9 +20,25 @@ app.logger.setLevel(logging.DEBUG)
 resend.api_key = os.getenv("RESEND_API_KEY")
 base_client = gel.create_client()
 
+login_manager = LoginManager(app)
+
+
+@login_manager.request_loader
+def load_user_from_request(req):
+    token = req.cookies.get("gel-auth-token")
+
+    if token:
+        # perform login
+        return User(token)
+
+    # unauthenticated user case
+    return None
+
+
 app.register_blueprint(auth.bp, url_prefix="/auth")
 app.register_blueprint(user.bp, url_prefix="/user")
 app.register_blueprint(message.bp, url_prefix="/message")
+app.register_blueprint(app_routes.bp, url_prefix="/app")
 
 
 @app.before_request
@@ -31,21 +49,17 @@ def generate_nonce():
 @app.before_request
 def initialize_gel_client():
     """
-    Attaches a client to g.client for the duration of the request.
-    If an auth token is present, it configures the client to use it.
+    Attaches a scoped Gel client to g.client.
+    The request_loader has already validated the cookie by this point.
     """
-    # 2. Retrieve the token from the cookie
-    # Make sure this matches the key you used in response.set_cookie()
-    auth_token = request.cookies.get("gel-auth-token")
-
-    if auth_token:
-        # 3. Create a lightweight "view" of the client with the auth global set.
-        # This borrows a connection from base_client and applies the token.
-        g.client = base_client.with_globals({"ext::auth::client_token": auth_token})
+    if current_user.is_authenticated:
+        # current_user.id contains the token (see User class)
+        g.client = base_client.with_globals(
+            {"ext::auth::client_token": current_user.id}
+        )
     else:
-        # 4. Fallback: No auth token found.
-        # This client acts with the default permissions (usually Admin/Superuser).
-        # BE CAREFUL: Queries here might return data you expect to be hidden by Access Policies.
+        # No token? Use the base client.
+        # Ensure your Gel Access Policies handle NULL globals safely!
         g.client = base_client
 
 
@@ -66,32 +80,37 @@ def inject_nonce():
 def index():
     return render_template("index.html")
 
+
 @app.route("/get-started")
 def get_started():
-    pass
+    if current_user.is_authenticated:
+        return redirect(url_for("app.home"))
+
+    # User is anonymous, send them to the sign-in/sign-up choice
+    # You could also redirect straight to /ui/signin if you want to skip a step
+    return redirect(url_for("auth.signin"))
 
 
-@app.route("/home")
-def home():
-    return render_template("home.html")
+@app.route("/logout")
+def logout():
+    # 1. Clear the Flask-Login session context
+    logout_user()
+
+    # 2. Prepare the redirect
+    response = make_response(redirect(url_for("index")))
+
+    # 3. Explicitly clear all auth-related cookies
+    # We set expires to 0 to tell the browser to delete them immediately
+    for cookie in request.cookies:
+        response.set_cookie(cookie, "", expires=0, path="/")
+    response.set_cookie("gel-auth-challenge", "", expires=0, path="/")
+
+    return response
 
 
 @app.route("/welcome")
 def welcome():
     return render_template("user/welcome.html")
-
-
-@app.route("/email-test")
-def email_test():
-    resend.Emails.send(
-        {
-            "from": "corbin@corbinday.com",
-            "to": "flushed-artists.5w@icloud.com",
-            "subject": "Pico Message Board",
-            "html": "<p>Email sent from Pico Message Board!</p>",
-        }
-    )
-    return render_template("email-sent.html")
 
 
 @app.after_request
