@@ -159,3 +159,10 @@ def current_year():
 @app.template_filter("format_date")
 def format_date(value):
     return value.strftime("%B %d, %Y")
+
+@app.template_filter('time_ago')
+def time_ago(value):
+    if not value:
+        return "Never"
+    # Basic logic: format as Jan 1, 2:23 PM
+    return value.strftime('%b %d, %I:%M %p')

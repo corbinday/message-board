@@ -5,6 +5,7 @@ import requests
 import secrets
 from dotenv import load_dotenv
 from flask import (
+    abort,
     Blueprint,
     redirect,
     request,
@@ -15,7 +16,9 @@ from flask import (
     render_template,
 )
 from urllib.parse import urljoin
+from werkzeug.security import generate_password_hash
 from api.user import create_new_user
+import api.queries as q
 
 bp = Blueprint("auth", __name__, template_folder="templates")
 
@@ -152,3 +155,33 @@ def callback_signin():
     auth_token = data.get("auth_token")
 
     return login(auth_token, redirect_endpoint="app.home")
+
+
+@bp.route("/register-board/<board_id>", methods=["POST"])
+def register_board(board_id):
+    # 1. Generate the raw 256-bit key
+    raw_key = secrets.token_urlsafe(32)
+
+    # 2. Salt and Hash it
+    hashed_key = generate_password_hash(raw_key, method="scrypt")
+
+    try:
+        # 3. Update the board in Gel
+        # We use a 'select' inside the update to ensure the global user owns it
+        updated_board = q.updateGlobalUserBoard(
+            g.client, board_id=board_id, secret_key_hash=hashed_key
+        )
+
+        if not updated_board:
+            abort(404, description="Board not found!")
+
+        # 4. Return the one-time view
+        return render_template("user/board/key-details.html", raw_key=raw_key, board_id=board_id)
+
+    except Exception as e:
+        current_app.logger.error(f"Registration Error: {e}")
+        # For HTMX, return a small error fragment instead of a full page
+        return (
+            f'<div class="text-red-500 bg-red-900/20 p-4 rounded">Failed to generate key: {str(e)}</div>',
+            400,
+        )

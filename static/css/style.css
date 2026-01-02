@@ -4,6 +4,35 @@
   :root {
     --pixel-size: clamp(5px, 1.1vw, 15px);
     --pixel-gap: calc(var(--pixel-size) / 6);
+
+    /* OKLCH equivalents for Pure RGB R G B */
+    --pico-green: oklch(86.64% 0.2948 142.5);
+    --pico-red: oklch(62.8% 0.2577 29.23);
+    --pico-blue: oklch(45.2% 0.3132 264.05);
+  }
+
+  .text-pico-red {
+    color: var(--pico-red);
+  }
+  .bg-pico-red {
+    background-color: var(--pico-red);
+  }
+  .border-pico-red {
+    border-color: var(--pico-red);
+  }
+
+  .text-pico-green {
+    color: var(--pico-green);
+  }
+  .bg-pico-green {
+    background-color: var(--pico-green);
+  }
+
+  .text-pico-blue {
+    color: var(--pico-blue);
+  }
+  .bg-pico-blue {
+    background-color: var(--pico-blue);
   }
 
   pixel-art {

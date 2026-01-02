@@ -20,6 +20,24 @@ module default {
         }
     }
 
+    scalar type BoardType extending enum<Stellar, Galactic, Cosmic>;
+
+    type Board {
+        required owner: User;
+        required boardType: BoardType;
+        name: str;
+        secret_key_hash: str;
+        secret_updated_at: datetime {
+            rewrite update using (
+                if exists(.secret_key_hash ?? <optional str>{}) then
+                    datetime_of_statement()
+                else
+                    .secret_updated_at
+            )
+        }
+        last_connected_at: datetime;
+    }
+
     type Message {
         payload: bytes;
         sender: User;
