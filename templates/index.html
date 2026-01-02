@@ -1,6 +1,4 @@
-{% extends "layout/lander.html" %} 
-
-{% block content %}
+{% extends "layout/lander.html" %} {% block content %}
 <pixel-art
   src="{{ url_for('static', filename='img/PMB1.png') }}"
   color-override="255,0,0"
@@ -9,81 +7,23 @@
   alt="Pico Message Board"
   class="mb-12 md:mb-24 mx-auto"
 ></pixel-art>
-
-<section class="w-full max-w-6xl mx-auto mb-24 px-6">
-  <div class="flex flex-col md:flex-row justify-between items-end mb-10 pb-6 border-b border-slate-800 gap-4">
-    <div>
-        <h2 class="font-['Press_Start_2P'] text-lg md:text-xl text-white">Your Hardware</h2>
-        <p class="text-slate-500 text-xs mt-2 font-mono uppercase tracking-widest italic">Connected Devices</p>
-    </div>
-    <a href="{{ url_for('user.register_board') }}" 
-       class="text-[10px] font-bold uppercase tracking-tighter bg-slate-800 hover:bg-slate-700 text-slate-300 px-4 py-2 rounded border border-slate-700 transition">
-       + Add New Board
-    </a>
-  </div>
-
-  <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
-    {% for board in boards %}
-    <a href="{{ url_for('user.board_details', board_id=board.id) }}" 
-       class="group block bg-slate-900/40 border border-slate-800 rounded-xl p-6 hover:border-blue-500/50 hover:bg-slate-900/60 transition-all duration-300 shadow-inner">
-        
-        <div class="flex flex-col sm:flex-row gap-6">
-            <div class="w-full sm:w-32 aspect-square bg-black/40 rounded-lg border border-slate-800 flex items-center justify-center p-4 group-hover:border-blue-900/50 transition-colors">
-                <pixel-art
-                  class="w-full h-auto"
-                  src="{{ url_for('static', filename='img/' ~ board.boardType|lower ~ '.png') }}"
-                  alt="{{ board.boardType }}"
-                ></pixel-art>
-            </div>
-
-            <div class="flex-1 space-y-4">
-                <div>
-                    <h3 class="font-['Press_Start_2P'] text-sm text-white group-hover:text-blue-400 transition-colors">
-                        {{ board.name or 'Unnamed Board' }}
-                    </h3>
-                    <p class="text-[10px] font-mono text-slate-600 mt-1 uppercase">{{ board.id }}</p>
-                </div>
-
-                <div class="grid grid-cols-2 gap-4 pt-4 border-t border-slate-800/50">
-                    <div>
-                        <h4 class="text-slate-500 uppercase text-[9px] font-bold tracking-widest">Type</h4>
-                        <p class="text-xs text-slate-300">{{ board.boardType }}</p>
-                    </div>
-                    <div>
-                        <h4 class="text-slate-500 uppercase text-[9px] font-bold tracking-widest">Status</h4>
-                        <div class="flex items-center gap-1.5">
-                            {% if board.is_active %}
-                                <span class="h-1.5 w-1.5 rounded-full bg-pico-green animate-pulse"></span>
-                                <span class="text-[10px] text-pico-green font-bold uppercase">Online</span>
-                            {% else %}
-                                <span class="h-1.5 w-1.5 rounded-full bg-slate-600"></span>
-                                <span class="text-[10px] text-slate-500 font-bold uppercase">Offline</span>
-                            {% endif %}
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </a>
-    {% else %}
-    <div class="col-span-full py-12 border-2 border-dashed border-slate-800 rounded-xl flex flex-col items-center justify-center text-slate-600">
-        <p class="font-['Press_Start_2P'] text-xs mb-4">No Hardware Found</p>
-        <p class="text-sm italic">Connect your first Pico to get started.</p>
-    </div>
-    {% endfor %}
-  </div>
-</section>
-
-<div class="flex flex-col gap-16 md:gap-24 items-center px-6">
-  <section class="flex flex-col gap-4 max-w-4xl">
-    <h2 class="text-xs text-center md:text-left mb-4 sm:mb-0 sm:text-lg md:text-xl font-['Press_Start_2P'] text-nowrap">
+<div class="flex flex-col gap-16 md:gap-24 items-center">
+  <section class="flex flex-col gap-4">
+    <h2
+      class="text-xs text-center md:text-left mb-4 sm:mb-0 sm:text-lg md:text-xl font-['Press_Start_2P'] text-nowrap"
+    >
       Your Hardware, Your Canvas
     </h2>
-    <div class="flex flex-col-reverse md:flex-row-reverse gap-8 md:gap-12 items-center">
-      <p class="text-slate-400 leading-relaxed">
+    <div
+      class="flex flex-col-reverse md:flex-row-reverse gap-8 md:gap-12 items-center"
+    >
+      <p>
         <span class="text-pico-red">Pico Message Board</span> is a web-based
         interface for managing content on your
-        <a class="text-blue-400 hover:text-blue-500 inline-flex items-center gap-1 group" href="https://shop.pimoroni.com/products/space-unicorns">
+        <a
+          class="text-blue-400 hover:text-blue-500 visited:text-violet-400 inline-flex items-center gap-1 fill-blue-400 hover:fill-blue-500 visited:fill-violet-400 group"
+          href="https://shop.pimoroni.com/products/space-unicorns"
+        >
           <span>Pimoroni Space Unicorn</span>
           {% include "icon/arrow-top-right-on-square.html" %}
         </a>
@@ -91,6 +31,7 @@
         for a convenient interface to create art and messages!
       </p>
       <pixel-art
+        class=""
         src="{{ url_for('static', filename='img/duck-reverse.png') }}"
         rain-colors="255,195,0 | 14,55,24"
         alt="duck"
@@ -98,15 +39,17 @@
     </div>
   </section>
 
-  <section class="flex flex-col gap-4 max-w-4xl">
-    <h2 class="text-xs text-center text-nowrap md:text-right mb-4 sm:mb-0 sm:text-lg md:text-xl font-['Press_Start_2P']">
+  <section class="flex flex-col gap-4">
+    <h2
+      class="text-xs text-center text-nowrap md:text-right mb-4 sm:mb-0 sm:text-lg md:text-xl font-['Press_Start_2P']"
+    >
       Seamless, Wireless Control
     </h2>
-    <div class="flex flex-col-reverse md:flex-row gap-8 md:gap-12 items-center">
-      <p class="text-slate-400 leading-relaxed">
+    <div class="flex flex-col-reverse md:flex-row gap-8 md:gap12 items-center">
+      <p>
         Forget reflashing firmware every time you want to change a pixel. By
         leveraging the Wi-Fi capabilities of the onboard Pico 2 W, your board
-        <span class="text-pico-red font-bold">listens for updates automatically</span>
+        <span class="text-pico-red">listens for updates automatically</span>
         once paired. Simply pick your colors, hit send, and watch the magic
         happen over the air.
       </p>
@@ -120,8 +63,10 @@
     </div>
   </section>
 
-  <section class="flex flex-col gap-12 max-w-5xl w-full">
-    <h2 class="text-xs text-nowrap text-center md:text-left mb-4 sm:mb-0 sm:text-lg md:text-xl font-['Press_Start_2P']">
+  <section class="flex flex-col gap-12">
+    <h2
+      class="text-xs text-nowrap text-center md:text-left mb-4 sm:mb-0 sm:text-lg md:text-xl font-['Press_Start_2P']"
+    >
       Design, Animate, Beam!
     </h2>
     <pixel-animation
@@ -129,23 +74,34 @@
       frame-width="53"
       frame-height="11"
       speed="200"
-      class="mx-auto"
     ></pixel-animation>
-    <ul class="grid grid-cols-1 md:grid-cols-3 gap-8 mt-4 md:mt-12 text-slate-400">
-      <li class="space-y-2">
-        <p>Use browser-based tools to build custom designs with <span class="text-pico-red">live previews</span>.</p>
+    <ul class="flex flex-col md:flex-row gap-4 md:gap-8 mt-4 md:mt-12">
+      <li class="flex flex-col gap-2">
+        <p>
+          Use browser-based tools to build custom designs with
+          <span class="text-pico-red">live previews</span>.
+        </p>
       </li>
-      <li class="space-y-2">
-        <p>Create multi-frame <span class="text-pico-red">sprite sheets</span> to bring your art to life.</p>
+      <li class="flex flex-col gap-2">
+        <p>
+          Create multi-frame
+          <span class="text-pico-red">sprite sheets</span> to bring your art to
+          life.
+        </p>
       </li>
-      <li class="space-y-2">
-        <p>Friend with a Galactic Unicorn? <span class="text-pico-red">Add them</span> and beam art directly from miles away.</p>
+      <li class="flex flex-col gap-2">
+        <p>
+          Have a friend with a Galactic Unicorn?
+          <span class="text-pico-red">Add them as a friend</span> and beam a
+          piece of art directly to their device from miles away.
+        </p>
       </li>
     </ul>
   </section>
-
-  <a href="{{ url_for('get_started') }}"
-    class="mt-4 md:mt-12 font-['Press_Start_2P'] text-xs sm:text-lg md:text-xl bg-pico-red border-4 border-pico-red py-2 px-4 text-black hover:text-white hover:bg-black hover:border-white transition-colors duration-200"
-    >Get Started</a>
+  <a
+    href="{{ url_for('get_started') }}"
+    class="mt-4 md:mt-12 font-['Press_Start_2P'] text-xs sm:text-lg md:text-xl bg-pico-red border-4 border-pico-red py-2 px-4 text-black hover:text-white hover:bg-black hover:border-white hover:cursor-pointer"
+    >Get Started</a
+  >
 </div>
 {% endblock %}
