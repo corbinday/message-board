@@ -1,6 +1,8 @@
 {% extends 'layout/primary.html' %} {% block content %}
-<div class="p-6 max-w-6xl mx-auto space-y-20">
-  <header class="pb-8 border-b border-slate-800">
+<div
+  class="pixel-context p-4 md:p-6 max-w-6xl mx-auto space-y-12 md:space-y-20"
+>
+  <header class="pb-6 md:pb-8 border-b border-slate-800">
     <p class="font-['Press_Start_2P'] text-lg text-white">
       Welcome, <span class="text-pico-green">{{ user.username }}</span>.
     </p>
@@ -11,7 +13,7 @@
 
   <section class="space-y-8">
     <div
-      class="flex justify-between items-end border-l-4 border-pico-blue pl-4"
+      class="flex flex-col sm:flex-row sm:justify-between sm:items-end gap-3 sm:gap-0 border-l-4 border-pico-blue pl-4"
     >
       <div>
         <h2 class="font-['Press_Start_2P'] text-lg text-white">Your Boards</h2>
@@ -23,70 +25,23 @@
       </div>
       <a
         href="{{ url_for('user.add_board') }}"
-        class="font-['Press_Start_2P'] text-[10px] bg-slate-800 border-2 border-slate-700 p-3 text-white hover:bg-pico-green hover:text-black hover:border-pico-green transition-all"
+        class="font-['Press_Start_2P'] text-[10px] bg-slate-800 border-2 border-slate-700 p-3 text-white hover:bg-pico-green hover:text-black hover:border-pico-green transition-all w-fit"
       >
         [+] Add Board
       </a>
     </div>
 
-    <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
-      {% for board in boards %}
-      <a
-        href="{{ url_for('user.board_details', board_id=board.id) }}"
-        class="group bg-slate-900/40 border border-slate-800 rounded-lg p-5 hover:border-pico-blue/50 transition-all shadow-inner flex gap-6"
-      >
-        <div
-          class="w-24 h-24 shrink-0 bg-black/40 border border-slate-700 rounded p-2 flex items-center justify-center"
-        >
-          <pixel-art
-            class="w-full h-full"
-            src="{{ url_for('static', filename='img/' ~ board.boardType|lower ~ '.png') }}"
-            alt="{{ board.boardType }}"
-          ></pixel-art>
-        </div>
-
-        <div class="flex-1 min-w-0">
-          <div class="flex justify-between items-start mb-2">
-            <h3
-              class="font-['Press_Start_2P'] text-[10px] md:text-xs text-white group-hover:text-pico-blue transition-colors truncate"
-            >
-              {{ board.name or 'Unnamed Board' }}
-            </h3>
-            <span
-              class="h-2 w-2 rounded-full {% if board.is_active %}bg-pico-green animate-ping{% else %}bg-slate-700{% endif %}"
-            ></span>
-          </div>
-
-          <div
-            class="grid grid-cols-2 gap-y-3 pt-3 border-t border-slate-800/50"
-          >
-            <div>
-              <p
-                class="text-slate-500 uppercase text-[8px] font-bold tracking-widest"
-              >
-                Type
-              </p>
-              <p class="text-xs text-slate-300">{{ board.boardType }}</p>
-            </div>
-            <div>
-              <p
-                class="text-slate-500 uppercase text-[8px] font-bold tracking-widest"
-              >
-                UUID
-              </p>
-              <p class="text-[9px] font-mono text-slate-500 truncate">
-                {{ board.id }}...
-              </p>
-            </div>
-          </div>
-        </div>
-      </a>
-      {% endfor %}
+    <div class="flex flex-wrap justify-center gap-6 md:gap-8">
+      {% for board in boards %} {% if board.boardType == 'Galactic' %} {%
+      include 'user/board/_board_card_galactic.html' %} {% else %} {% include
+      'user/board/_board_card_square.html' %} {% endif %} {% endfor %}
     </div>
   </section>
 
   <section class="space-y-8">
-    <div class="flex justify-between items-end border-l-4 border-pico-red pl-4">
+    <div
+      class="flex flex-col sm:flex-row sm:justify-between sm:items-end gap-3 sm:gap-0 border-l-4 border-pico-red pl-4"
+    >
       <div>
         <h2 class="font-['Press_Start_2P'] text-lg text-white">Your Friends</h2>
         <p
@@ -97,23 +52,23 @@
       </div>
       <a
         href="{{ url_for('user.add_friend') }}"
-        class="font-['Press_Start_2P'] text-[10px] bg-slate-800 border-2 border-slate-700 p-3 text-white hover:bg-pico-red hover:text-black hover:border-pico-red transition-all"
+        class="font-['Press_Start_2P'] text-[10px] bg-slate-800 border-2 border-slate-700 p-3 text-white hover:bg-pico-red hover:text-black hover:border-pico-red transition-all w-fit"
       >
         [+] Add Friend
       </a>
     </div>
 
-    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-6">
       {% for friend in friends %}
       <div
         class="bg-slate-900/40 border border-slate-800 rounded-lg p-4 flex items-center gap-4"
       >
         <div
-          class="w-12 h-12 rounded bg-slate-800 flex items-center justify-center overflow-hidden border border-slate-700"
+          class="w-10 h-10 md:w-12 md:h-12 rounded-md bg-slate-900 p-3 md:p-4 border border-slate-700 shadow-xl overflow-hidden flex items-center justify-center"
         >
           <pixel-art
             src="{{ url_for('static', filename='img/duck.png') }}"
-            class="w-8 h-8"
+            class="max-w-full h-auto"
           ></pixel-art>
         </div>
         <div>

@@ -1,0 +1,31 @@
+<!-- Stellar/Cosmic: Square layout -->
+<a
+  href="{{ url_for('user.board_details', board_id=board.id) }}"
+  class="my-auto group items-center bg-slate-900/40 border border-slate-800 rounded-lg p-5 hover:border-pico-blue/50 transition-all shadow-inner flex flex-col justify-between w-fit gap-2"
+>
+  <div class="flex justify-between items-start gap-3">
+    <div class="flex flex-col gap-1">
+      <h3
+        class="font-['Press_Start_2P'] text-[10px] md:text-xs text-white group-hover:text-pico-blue transition-colors"
+      >
+        {{ board.name or 'Unnamed Board' }}
+      </h3>
+      <p class="text-[9px] text-slate-400 uppercase tracking-wider">
+        {{ board.boardType }}
+      </p>
+    </div>
+    <span
+      class="h-2 w-2 rounded-full shrink-0 mt-1 {% if board.is_active %}bg-pico-green animate-ping{% else %}bg-slate-700{% endif %}"
+    ></span>
+  </div>
+
+  <div
+    class="pixel-sm w-fit my-auto bg-slate-900 p-2 md:p-3 rounded-md border border-slate-700 shadow-xl overflow-hidden flex items-center justify-center"
+  >
+    <pixel-art
+      class="max-w-full h-auto"
+      src="{{ url_for('static', filename='img/' ~ board.boardType|lower ~ '.png') }}"
+      alt="{{ board.boardType }}"
+    ></pixel-art>
+  </div>
+</a>

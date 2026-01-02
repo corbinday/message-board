@@ -1,107 +1,160 @@
 {% extends "layout/lander.html" %} {% block content %}
-<pixel-art
-  src="{{ url_for('static', filename='img/PMB1.png') }}"
-  color-override="255,0,0"
-  hover-trail
-  digital-rain
-  alt="Pico Message Board"
-  class="mb-12 md:mb-24 mx-auto"
-></pixel-art>
-<div class="flex flex-col gap-16 md:gap-24 items-center">
-  <section class="flex flex-col gap-4">
-    <h2
-      class="text-xs text-center md:text-left mb-4 sm:mb-0 sm:text-lg md:text-xl font-['Press_Start_2P'] text-nowrap"
-    >
-      Your Hardware, Your Canvas
-    </h2>
+
+<!--
+  PAGE-LEVEL PIXEL CONTEXT
+  All pixel-art and pixel-animation elements on this page
+  share ONE snapped pixel size derived from this container.
+-->
+<div class="pixel-context mx-auto max-w-6xl px-4">
+  <!-- HERO PIXEL ART -->
+  <div class="flex justify-center mb-12 md:mb-24">
     <div
-      class="flex flex-col-reverse md:flex-row-reverse gap-8 md:gap-12 items-center"
+      class="bg-slate-900 p-2 md:p-3 rounded-md border border-slate-700 shadow-xl overflow-hidden"
     >
-      <p>
-        <span class="text-pico-red">Pico Message Board</span> is a web-based
-        interface for managing content on your
-        <a
-          class="text-blue-400 hover:text-blue-500 visited:text-violet-400 inline-flex items-center gap-1 fill-blue-400 hover:fill-blue-500 visited:fill-violet-400 group"
-          href="https://shop.pimoroni.com/products/space-unicorns"
-        >
-          <span>Pimoroni Space Unicorn</span>
-          {% include "icon/arrow-top-right-on-square.html" %}
-        </a>
-        LED hardware. Connect your Stellar, Galactic, or Cosmic Unicorn Board
-        for a convenient interface to create art and messages!
-      </p>
       <pixel-art
-        class=""
-        src="{{ url_for('static', filename='img/duck-reverse.png') }}"
-        rain-colors="255,195,0 | 14,55,24"
-        alt="duck"
+        src="{{ url_for('static', filename='img/PMB1.png') }}"
+        color-override="255,0,0"
+        hover-trail
+        digital-rain
+        alt="Pico Message Board"
+        class="max-w-full md:max-w-3xl"
       ></pixel-art>
     </div>
-  </section>
+  </div>
 
-  <section class="flex flex-col gap-4">
-    <h2
-      class="text-xs text-center text-nowrap md:text-right mb-4 sm:mb-0 sm:text-lg md:text-xl font-['Press_Start_2P']"
-    >
-      Seamless, Wireless Control
-    </h2>
-    <div class="flex flex-col-reverse md:flex-row gap-8 md:gap12 items-center">
-      <p>
-        Forget reflashing firmware every time you want to change a pixel. By
-        leveraging the Wi-Fi capabilities of the onboard Pico 2 W, your board
-        <span class="text-pico-red">listens for updates automatically</span>
-        once paired. Simply pick your colors, hit send, and watch the magic
-        happen over the air.
-      </p>
-      <pixel-animation
-        src="{{ url_for('static', filename='img/wifi.png') }}"
-        frame-width="16"
-        frame-height="16"
-        speed="1000"
-        color-override="0, 255, 0"
-      ></pixel-animation>
-    </div>
-  </section>
+  <!-- MAIN CONTENT -->
+  <div class="flex flex-col gap-16 md:gap-24 items-center">
+    <!-- SECTION 1 -->
+    <section class="flex flex-col gap-12 w-full">
+      <h2
+        class="text-xs text-center md:text-left mb-4 sm:mb-0 sm:text-lg md:text-xl font-['Press_Start_2P'] text-nowrap"
+      >
+        Your Hardware, Your Canvas
+      </h2>
 
-  <section class="flex flex-col gap-12">
-    <h2
-      class="text-xs text-nowrap text-center md:text-left mb-4 sm:mb-0 sm:text-lg md:text-xl font-['Press_Start_2P']"
+      <div class="flex flex-col md:flex-row gap-8 md:gap-12 items-start">
+        <!-- Pixel art gets its own visual lane -->
+        <div class="shrink-0 md:min-w-[280px] flex justify-center">
+          <div
+            class="bg-slate-900 p-2 md:p-3 rounded-md border border-slate-700 shadow-xl overflow-hidden"
+          >
+            <pixel-art
+              src="{{ url_for('static', filename='img/duck-reverse.png') }}"
+              rain-colors="255,195,0 | 14,55,24"
+              alt="duck"
+              class="max-w-full h-auto"
+            ></pixel-art>
+          </div>
+        </div>
+
+        <p class="flex-1">
+          <span class="text-pico-red">Pico Message Board</span> is a web-based
+          interface for managing content on your
+          <a
+            class="text-blue-400 hover:text-blue-500 visited:text-violet-400 inline-flex items-center gap-1 fill-blue-400 hover:fill-blue-500 visited:fill-violet-400 group"
+            href="https://shop.pimoroni.com/products/space-unicorns"
+          >
+            <span>Pimoroni Space Unicorn</span>
+            {% include "icon/arrow-top-right-on-square.html" %}
+          </a>
+          LED hardware. Connect your Stellar, Galactic, or Cosmic Unicorn Board
+          for a convenient interface to create art and messages!
+        </p>
+      </div>
+    </section>
+
+    <!-- SECTION 2 -->
+    <section class="flex flex-col gap-12 w-full">
+      <h2
+        class="text-xs text-center md:text-right mb-4 sm:mb-0 sm:text-base md:text-lg font-['Press_Start_2P'] text-nowrap"
+      >
+        Seamless, Wireless Control
+      </h2>
+
+      <div
+        class="flex flex-col-reverse md:flex-row gap-8 md:gap-12 items-start md:justify-end"
+      >
+        <p class="flex-1">
+          Forget reflashing firmware every time you want to change a pixel. By
+          leveraging the Wi-Fi capabilities of the onboard Pico 2 W, your board
+          <span class="text-pico-red">listens for updates automatically</span>
+          once paired. Simply pick your colors, hit send, and watch the magic
+          happen over the air.
+        </p>
+
+        <!-- Animation breathing room -->
+        <div class="flex justify-center md:justify-start min-h-[140px]">
+          <div
+            class="bg-slate-900 p-2 md:p-3 rounded-md border border-slate-700 shadow-xl overflow-hidden"
+          >
+            <pixel-animation
+              src="{{ url_for('static', filename='img/wifi.png') }}"
+              frame-width="16"
+              frame-height="16"
+              speed="1000"
+              color-override="0,255,0"
+              class="max-w-full h-auto"
+            ></pixel-animation>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- SECTION 3 -->
+    <section class="flex flex-col gap-12 w-full">
+      <h2
+        class="text-xs text-center md:text-left mb-4 sm:mb-0 sm:text-lg md:text-xl font-['Press_Start_2P'] text-nowrap"
+      >
+        Design, Animate, Beam!
+      </h2>
+
+      <!-- Centered wide animation -->
+      <div class="flex justify-center min-h-[160px]">
+        <div
+          class="bg-slate-900 p-2 md:p-3 rounded-md border border-slate-700 shadow-xl overflow-hidden"
+        >
+          <pixel-animation
+            src="{{ url_for('static', filename='img/star-destroyer-2.png') }}"
+            frame-width="53"
+            frame-height="11"
+            speed="200"
+            class="max-w-full h-auto"
+          ></pixel-animation>
+        </div>
+      </div>
+
+      <ul class="flex flex-col md:flex-row gap-4 md:gap-8 mt-4 md:mt-12">
+        <li class="flex flex-col gap-2 md:max-w-xs">
+          <p>
+            Use browser-based tools to build custom designs with
+            <span class="text-pico-red">live previews</span>.
+          </p>
+        </li>
+        <li class="flex flex-col gap-2 md:max-w-xs">
+          <p>
+            Create multi-frame
+            <span class="text-pico-red">sprite sheets</span> to bring your art
+            to life.
+          </p>
+        </li>
+        <li class="flex flex-col gap-2 md:max-w-xs">
+          <p>
+            Have a friend with a Galactic Unicorn?
+            <span class="text-pico-red">Add them as a friend</span> and beam a
+            piece of art directly to their device from miles away.
+          </p>
+        </li>
+      </ul>
+    </section>
+
+    <!-- CTA -->
+    <a
+      href="{{ url_for('get_started') }}"
+      class="mt-4 md:mt-12 font-['Press_Start_2P'] text-xs sm:text-lg md:text-xl bg-pico-red border-4 border-pico-red py-2 px-4 text-black hover:text-white hover:bg-black hover:border-white hover:cursor-pointer"
     >
-      Design, Animate, Beam!
-    </h2>
-    <pixel-animation
-      src="{{ url_for('static', filename='img/star-destroyer-2.png') }}"
-      frame-width="53"
-      frame-height="11"
-      speed="200"
-    ></pixel-animation>
-    <ul class="flex flex-col md:flex-row gap-4 md:gap-8 mt-4 md:mt-12">
-      <li class="flex flex-col gap-2">
-        <p>
-          Use browser-based tools to build custom designs with
-          <span class="text-pico-red">live previews</span>.
-        </p>
-      </li>
-      <li class="flex flex-col gap-2">
-        <p>
-          Create multi-frame
-          <span class="text-pico-red">sprite sheets</span> to bring your art to
-          life.
-        </p>
-      </li>
-      <li class="flex flex-col gap-2">
-        <p>
-          Have a friend with a Galactic Unicorn?
-          <span class="text-pico-red">Add them as a friend</span> and beam a
-          piece of art directly to their device from miles away.
-        </p>
-      </li>
-    </ul>
-  </section>
-  <a
-    href="{{ url_for('get_started') }}"
-    class="mt-4 md:mt-12 font-['Press_Start_2P'] text-xs sm:text-lg md:text-xl bg-pico-red border-4 border-pico-red py-2 px-4 text-black hover:text-white hover:bg-black hover:border-white hover:cursor-pointer"
-    >Get Started</a
-  >
+      Get Started
+    </a>
+  </div>
 </div>
+
 {% endblock %}

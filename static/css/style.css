@@ -1,39 +1,48 @@
 @import 'tailwindcss';
 
+@theme {
+  --color-pico-red: oklch(62.8% 0.2577 29.23);
+  --color-pico-green: oklch(86.64% 0.2948 142.5);
+  --color-pico-blue: oklch(45.2% 0.3132 264.05);
+}
+
 @layer base {
+  /* -------------------------------------------------
+   * GLOBAL DEFAULTS (SAFE FALLBACK)
+   * ------------------------------------------------- */
+
   :root {
-    --pixel-size: clamp(5px, 1.1vw, 15px);
+    --pixel-size: 10px;
     --pixel-gap: calc(var(--pixel-size) / 6);
 
-    /* OKLCH equivalents for Pure RGB R G B */
     --pico-green: oklch(86.64% 0.2948 142.5);
     --pico-red: oklch(62.8% 0.2577 29.23);
     --pico-blue: oklch(45.2% 0.3132 264.05);
   }
 
-  .text-pico-red {
-    color: var(--pico-red);
-  }
-  .bg-pico-red {
-    background-color: var(--pico-red);
-  }
-  .border-pico-red {
-    border-color: var(--pico-red);
+  /* -------------------------------------------------
+   * PIXEL CONTEXTS (THE IMPORTANT PART)
+   * ------------------------------------------------- */
+
+  .pixel-context {
+    container-type: inline-size;
+    --pixel-size: clamp(6px, 1.2cqw, 14px);
   }
 
-  .text-pico-green {
-    color: var(--pico-green);
+  /* Preset scales */
+  .pixel-sm {
+    --pixel-size: 6px;
   }
-  .bg-pico-green {
-    background-color: var(--pico-green);
+  .pixel-md {
+    --pixel-size: 10px;
+  }
+  .pixel-lg {
+    --pixel-size: 14px;
   }
 
-  .text-pico-blue {
-    color: var(--pico-blue);
-  }
-  .bg-pico-blue {
-    background-color: var(--pico-blue);
-  }
+  /* -------------------------------------------------
+   * PIXEL ART BASE
+   * ------------------------------------------------- */
 
   pixel-art {
     display: grid;
@@ -45,31 +54,33 @@
   pixel-art > div {
     width: var(--pixel-size);
     height: var(--pixel-size);
+    opacity: var(--base-opacity, 0);
     transition:
       background-color var(--fade-speed, 8s) ease-out,
       opacity var(--fade-speed, 8s) ease-out;
-    opacity: var(--base-opacity, 0);
   }
 
   pixel-art > div.active-pixel {
-    transition:
-      background-color var(--bloom-speed, 0s) ease-in,
-      opacity var(--bloom-speed, 0s) ease-in !important;
     background-color: var(--effect-color) !important;
     opacity: var(--effect-opacity) !important;
     z-index: 10;
+    transition:
+      background-color var(--bloom-speed, 0s) ease-in,
+      opacity var(--bloom-speed, 0s) ease-in !important;
   }
+
+  /* -------------------------------------------------
+   * OPTIONAL: pixel-animation reuse
+   * ------------------------------------------------- */
 
   pixel-animation {
     display: grid;
     width: max-content;
-    max-width: 100%;
     gap: var(--pixel-gap);
   }
 
   pixel-animation > div {
     width: var(--pixel-size);
     height: var(--pixel-size);
-    transition: none;
   }
 }

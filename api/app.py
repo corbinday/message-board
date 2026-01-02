@@ -1,5 +1,14 @@
 from datetime import datetime
-from flask import Flask, g, redirect, render_template, url_for, make_response, request
+from flask import (
+    Flask,
+    g,
+    redirect,
+    render_template,
+    url_for,
+    make_response,
+    request,
+    send_from_directory,
+)
 from flask_login import LoginManager, current_user, logout_user
 from dotenv import load_dotenv
 import gel
@@ -74,6 +83,15 @@ def inject_nonce():
     if "nonce" not in g:
         g.nonce = generate_nonce()
     return {"nonce": g.nonce}
+
+
+@app.route("/favicon.ico")
+def favicon():
+    return send_from_directory(
+        os.path.join(app.static_folder, "favicon"),
+        "favicon.ico",
+        mimetype="image/vnd.microsoft.icon",
+    )
 
 
 @app.route("/")
@@ -160,9 +178,10 @@ def current_year():
 def format_date(value):
     return value.strftime("%B %d, %Y")
 
-@app.template_filter('time_ago')
+
+@app.template_filter("time_ago")
 def time_ago(value):
     if not value:
         return "Never"
     # Basic logic: format as Jan 1, 2:23 PM
-    return value.strftime('%b %d, %I:%M %p')
+    return value.strftime("%b %d, %I:%M %p")

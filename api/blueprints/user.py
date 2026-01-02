@@ -141,3 +141,19 @@ def name_partial(board_id):
 @bp.route("/add-friend", methods=["GET", "POST"])
 def add_friend():
     return render_template("user/add-friend.html")
+
+
+@bp.route("/board/<board_id>", methods=["DELETE"])
+def delete_board(board_id):
+    # Verify board exists and belongs to user
+    board = q.selectGlobalUserBoard(g.client, board_id=board_id)
+    if not board:
+        abort(404, description="Board does not exist!")
+
+    # Delete the board
+    q.deleteGlobalUserBoard(g.client, board_id=board_id)
+
+    # Redirect to home page
+    response = make_response("", 204)
+    response.headers["HX-Location"] = url_for("app.home")
+    return response
