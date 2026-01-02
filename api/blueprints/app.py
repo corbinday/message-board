@@ -16,5 +16,6 @@ def require_login():
 @bp.route("/")
 def home():
     user = q.selectGlobalUser(g.client)
-    current_app.logger.info(f"USERNAME: {user.username}")
-    return render_template("app/index.html", user=user)
+    boards = q.selectManyGlobalUserBoards(g.client)
+    friends = list()
+    return render_template("app/index.html", user=user, boards=boards, friends=friends)

@@ -1,0 +1,34 @@
+<form
+  hx-patch="{{ url_for('user.update_board_name', board_id=board.id) }}"
+  hx-target="#board-name-container"
+  hx-swap="outerHTML"
+  class="flex items-center gap-4 mb-6"
+  id="board-name-container"
+>
+  <input
+    type="text"
+    name="board_name"
+    value="{{ board.name or '' }}"
+    placeholder="Board Name"
+    autofocus
+    onfocus="this.select()"
+    class="bg-slate-800 border-2 border-blue-600 rounded px-3 py-2 text-white font-['Press_Start_2P'] text-xl focus:outline-none w-full max-w-lg"
+  />
+
+  <div class="flex gap-4">
+    <button
+      type="submit"
+      class="text-pico-green font-bold text-xs uppercase tracking-widest hover:scale-105 transition-transform"
+    >
+      Save
+    </button>
+    <button
+      hx-get="{{ url_for('user.name_partial', board_id=board.id) }}"
+      hx-target="#board-name-container"
+      hx-swap="outerHTML"
+      class="text-slate-500 font-bold text-xs uppercase tracking-widest hover:text-white"
+    >
+      Cancel
+    </button>
+  </div>
+</form>

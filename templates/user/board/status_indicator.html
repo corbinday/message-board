@@ -1,0 +1,34 @@
+<div
+  id="status-container"
+  hx-get="{{ url_for('user.board_status', board_id=board.id) }}"
+  hx-trigger="every 60s"
+  hx-swap="outerHTML"
+>
+  <h3
+    class="text-slate-500 uppercase text-[10px] font-bold tracking-widest mb-1"
+  >
+    Live Status
+  </h3>
+  <div class="flex items-center gap-2">
+    {% if is_active %}
+    <span class="relative flex h-2 w-2">
+      <span
+        class="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75"
+      ></span>
+      <span
+        class="relative inline-flex rounded-full h-2 w-2 bg-green-500"
+      ></span>
+    </span>
+    <p class="text-sm text-green-400 font-medium">Online</p>
+    {% elif board.last_connected_at %}
+    <span class="h-2 w-2 rounded-full bg-yellow-500"></span>
+    <p class="text-sm text-yellow-500 font-medium">Inactive</p>
+    {% else %}
+    <span class="h-2 w-2 rounded-full bg-slate-600"></span>
+    <p class="text-sm text-slate-500 font-medium">Never Seen</p>
+    {% endif %}
+  </div>
+  <p class="text-[10px] text-slate-600 mt-1">
+    Last check-in: {{ board.last_connected_at|time_ago }}
+  </p>
+</div>

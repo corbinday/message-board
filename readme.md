@@ -37,13 +37,13 @@ Space Unicorn Variants:
 - [ ] Onboarding
   - [ ] Create username (single onboarding page that flows downward as you progress)
   - [ ] Example of how the app works
-  - [ ] Add board
+  - [x] Add board
   - [ ] Add/invite a friend
 - [ ] "Friending"
   - [ ] Create an Avatar on start (16 x 16)
 - [ ] Build UI for creating messages
 - [ ] Sending messages amongst friends
-- [ ] Python code for receiving and presenting messages on the Unicord board
+- [ ] Python code for receiving and presenting messages on the Unicor board
 - [ ] Flashing from the web app
 
 # Home Features

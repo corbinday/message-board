@@ -1,0 +1,17 @@
+<div id="board-name-container" class="flex items-baseline gap-4">
+  <h1
+    class="text-2xl md:text-3xl font-['Press_Start_2P'] uppercase text-white wrap-break-words"
+  >
+    {{ board.name or 'Unnamed Board' }}
+  </h1>
+
+  <button
+    hx-get="{{ url_for('user.update_board_name', board_id=board.id) }}"
+    hx-target="#board-name-container"
+    hx-swap="outerHTML"
+    class="shrink-0 p-2 text-slate-500 hover:text-pico-green active:text-pico-green transition-colors"
+    title="Edit Name"
+  >
+    {% include 'icon/pencil.html' %}
+  </button>
+</div>

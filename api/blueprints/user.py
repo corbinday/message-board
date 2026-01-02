@@ -117,6 +117,27 @@ def board_status(board_id):
     )
 
 
+@bp.route("/board/<board_id>/update-name", methods=["GET", "PATCH"])
+def update_board_name(board_id):
+    if request.method == "PATCH":
+        new_name = request.form.get("board_name")
+        # Update DB
+        board = q.updateGlobalUserBoard(g.client, board_id=board_id, name=new_name)
+        # Re-render the read-only partial
+        return render_template("user/board/_name_display.html", board=board)
+
+    # GET: Show the edit form
+    board = q.selectGlobalUserBoard(g.client, board_id=board_id)
+    return render_template("user/board/edit_name.html", board=board)
+
+
+@bp.route("/board/<board_id>/name-partial")
+def name_partial(board_id):
+    # Helper for the 'Cancel' button to revert the UI
+    board = q.selectGlobalUserBoard(g.client, board_id=board_id)
+    return render_template("user/board/_name_display.html", board=board)
+
+
 @bp.route("/add-friend", methods=["GET", "POST"])
 def add_friend():
     return render_template("user/add-friend.html")

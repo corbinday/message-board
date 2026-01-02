@@ -5,6 +5,7 @@
 #     'queries/selectGlobalIdentity.edgeql'
 #     'queries/selectGlobalUser.edgeql'
 #     'queries/selectGlobalUserBoard.edgeql'
+#     'queries/selectManyGlobalUserBoards.edgeql'
 #     'queries/updateGlobalUserBoard.edgeql'
 #     'queries/usernameExists.edgeql'
 # WITH:
@@ -191,6 +192,19 @@ def selectGlobalUserBoard(
         );\
         """,
         board_id=board_id,
+    )
+
+
+def selectManyGlobalUserBoards(
+    executor: gel.Executor,
+) -> list[selectGlobalUserBoardResult]:
+    return executor.query(
+        """\
+        select Board {*}
+        filter assert_single(
+            .owner.identity = global ext::auth::ClientTokenIdentity
+        );\
+        """,
     )
 
 
