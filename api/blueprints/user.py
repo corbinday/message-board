@@ -3,6 +3,7 @@ from flask import (
     Blueprint,
     Response,
     render_template,
+    render_template_string,
     request,
     abort,
     make_response,
@@ -157,10 +158,20 @@ def add_friend():
 def search_users():
     username = request.form.get("username", "").strip()
     if username == "":
-        return jsonify([])
+        return render_template_string("""
+        <p class="text-slate-500 text-xs text-center py-8">
+        Start typing to search for users...
+      </p>
+        """)
     current_app.logger.info(f"Searching for users with query: {username}")
 
     users = q.searchUserByUsername(g.client, username=username)
+    if len(users) == 0:
+        return render_template_string("""
+        <p class="text-slate-500 text-xs text-center py-8">
+        No users found.
+      </p>
+        """)
     return render_template("user/friend/search-results.html", users=users)
 
 
@@ -207,7 +218,7 @@ def accept_friend_request(request_id):
 def reject_friend_request(request_id):
     try:
         q.rejectFriendRequest(g.client, request_id=request_id)
-        return jsonify({"success": True})
+        return "", 200
     except Exception as e:
         current_app.logger.error(f"Error rejecting friend request: {e}")
         return jsonify({"error": str(e)}), 400
@@ -217,7 +228,7 @@ def reject_friend_request(request_id):
 def delete_friend_request(request_id):
     try:
         q.deleteFriendRequest(g.client, request_id=request_id)
-        return jsonify({"success": True})
+        return "", 200
     except Exception as e:
         current_app.logger.error(f"Error deleting friend request: {e}")
         return jsonify({"error": str(e)}), 400

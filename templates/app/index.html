@@ -35,63 +35,6 @@
     </div>
   </section>
 
-  <!-- Friend Requests Section -->
-  {% if friend_requests %}
-  <section class="space-y-8">
-    <div class="border-l-4 border-pico-green pl-4">
-      <h2 class="font-['Press_Start_2P'] text-lg text-white">Friend Requests</h2>
-      <p
-        class="text-slate-500 text-[10px] uppercase tracking-tighter mt-1 font-bold"
-      >
-        Pending invitations
-      </p>
-    </div>
-
-    <div class="space-y-3">
-      {% for request in friend_requests %}
-      <div
-        class="bg-slate-900/40 border border-slate-800 rounded-lg p-4 flex items-center justify-between"
-      >
-        <div class="flex items-center gap-4">
-          <div
-            class="w-10 h-10 rounded-md bg-slate-900 p-2 border border-slate-700 shadow-xl overflow-hidden flex items-center justify-center pixel-sm"
-          >
-            <pixel-art
-              src="{{ url_for('user.serve_avatar', user_id=request.sender.id) }}"
-              class="max-w-full h-auto"
-            ></pixel-art>
-          </div>
-          <div>
-            <p class="font-['Press_Start_2P'] text-[10px] text-white">
-              {{ request.sender.username }}
-            </p>
-            <p class="text-[9px] text-slate-500 mt-1">
-              Sent {{ request.created_at.strftime('%Y-%m-%d') }}
-            </p>
-          </div>
-        </div>
-        <div class="flex gap-2">
-          <button
-            hx-post="{{ url_for('user.accept_friend_request', request_id=request.id) }}"
-            class="font-['Press_Start_2P'] text-[8px] bg-pico-green border border-pico-green px-3 py-2 text-black hover:bg-pico-green/80 transition-all"
-          >
-            Accept
-          </button>
-          <button
-            hx-post="{{ url_for('user.reject_friend_request', request_id=request.id) }}"
-            hx-target="closest div"
-            hx-swap="outerHTML"
-            class="font-['Press_Start_2P'] text-[8px] bg-slate-800 border border-slate-700 px-3 py-2 text-white hover:bg-slate-700 transition-all"
-          >
-            Reject
-          </button>
-        </div>
-      </div>
-      {% endfor %}
-    </div>
-  </section>
-  {% endif %}
-
   <section class="space-y-8">
     <div
       class="flex flex-col sm:flex-row sm:justify-between sm:items-end gap-3 sm:gap-0 border-l-4 border-pico-red pl-4"
@@ -113,8 +56,7 @@
     </div>
 
     <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-6">
-      {% for friend_rel in friends %}
-      {% set friend = friend_rel.friend %}
+      {% for friend_rel in friends %} {% set friend = friend_rel.friend %}
       <div
         class="bg-slate-900/40 border border-slate-800 rounded-lg p-4 flex items-center justify-between"
       >
@@ -145,14 +87,77 @@
           ×
         </button>
       </div>
-      {% endfor %}
-      {% if not friends %}
+      {% endfor %} {% if not friends %}
       <p class="text-slate-500 text-xs col-span-full text-center py-8">
-        No friends yet. <a href="{{ url_for('user.add_friend') }}" class="text-pico-red hover:underline">Add some friends</a>!
+        No friends yet.
+        <a
+          href="{{ url_for('user.add_friend') }}"
+          class="text-pico-red hover:underline"
+          >Add some friends</a
+        >!
       </p>
       {% endif %}
     </div>
   </section>
+
+  <!-- Friend Requests Section -->
+  {% if friend_requests %}
+  <section class="space-y-8">
+    <div class="border-l-4 border-pico-green pl-4">
+      <h2 class="font-['Press_Start_2P'] text-lg text-white">
+        Friend Requests
+      </h2>
+      <p
+        class="text-slate-500 text-[10px] uppercase tracking-tighter mt-1 font-bold"
+      >
+        Pending invitations
+      </p>
+    </div>
+
+    <div class="space-y-3">
+      {% for request in friend_requests %}
+      <div
+        class="friend-request-card bg-slate-900/40 border border-slate-800 rounded-lg p-4 flex items-center justify-between"
+      >
+        <div class="flex items-center gap-4">
+          <div
+            class="w-10 h-10 rounded-md bg-slate-900 p-2 border border-slate-700 shadow-xl overflow-hidden flex items-center justify-center pixel-sm"
+          >
+            <pixel-art
+              src="{{ url_for('user.serve_avatar', user_id=request.sender.id) }}"
+              class="max-w-full h-auto"
+            ></pixel-art>
+          </div>
+          <div>
+            <p class="font-['Press_Start_2P'] text-[10px] text-white">
+              {{ request.sender.username }}
+            </p>
+            <p class="text-[9px] text-slate-500 mt-1">
+              Sent {{ request.created_at.strftime('%Y-%m-%d') }}
+            </p>
+          </div>
+        </div>
+        <div class="flex gap-2">
+          <button
+            hx-post="{{ url_for('user.accept_friend_request', request_id=request.id) }}"
+            class="font-['Press_Start_2P'] text-[8px] bg-pico-green border border-pico-green px-3 py-2 text-black hover:bg-pico-green/80 transition-all"
+          >
+            Accept
+          </button>
+          <button
+            hx-post="{{ url_for('user.reject_friend_request', request_id=request.id) }}"
+            hx-target="closest .friend-request-card"
+            hx-swap="delete"
+            class="font-['Press_Start_2P'] text-[8px] bg-slate-800 border border-slate-700 px-3 py-2 text-white hover:bg-slate-700 transition-all"
+          >
+            Reject
+          </button>
+        </div>
+      </div>
+      {% endfor %}
+    </div>
+  </section>
+  {% endif %}
 
   <section class="space-y-8">
     <div class="border-l-4 border-slate-600 pl-4">
