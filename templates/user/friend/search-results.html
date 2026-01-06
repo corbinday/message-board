@@ -1,0 +1,19 @@
+{% for user in users %}
+<div
+  class="bg-slate-900/40 border border-slate-800 rounded-lg p-4 flex items-center justify-between"
+>
+  <p>{{ user.username }}</p>
+
+  <div id="request-status-{{ user.id }}">
+    <button
+      class="font-['Press_Start_2P'] text-[8px] bg-pico-green border border-pico-green px-3 py-2 text-black hover:bg-pico-green/80 transition-all"
+      hx-post="{{ url_for('user.send_friend_request') }}"
+      hx-vals='{"recipient_id": "{{ user.id }}"}'
+      hx-target="#request-status-{{ user.id }}"
+      hx-swap="innerHTML"
+    >
+      Add Friend
+    </button>
+  </div>
+</div>
+{% endfor %}

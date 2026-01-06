@@ -4,15 +4,26 @@
 
 class PixelGridBase extends HTMLElement {
   resolveAndSnapPixelSize() {
-    const computed = getComputedStyle(this);
+    // Find parent container with pixel-context to read the CSS variable
+    const container = this.closest('.pixel-context') || this.parentElement;
+    const computed = getComputedStyle(container || this);
+
     let raw = parseFloat(computed.getPropertyValue('--pixel-size'));
 
+    // Fallback: check element's own computed style (for direct inheritance)
+    if (!Number.isFinite(raw) || raw <= 0) {
+      const selfComputed = getComputedStyle(this);
+      raw = parseFloat(selfComputed.getPropertyValue('--pixel-size'));
+    }
+
+    // Final fallback to default
     if (!Number.isFinite(raw) || raw <= 0) {
       raw = 10;
     }
 
     const snapped = Math.max(1, Math.round(raw));
 
+    // Set the snapped value on the element for gap calculation
     this.style.setProperty('--pixel-size', `${snapped}px`);
     this.style.setProperty(
       '--pixel-gap',
@@ -20,6 +31,25 @@ class PixelGridBase extends HTMLElement {
     );
 
     return snapped;
+  }
+
+  setupResizeObserver() {
+    // Watch for container size changes to re-calculate pixel size
+    const container = this.closest('.pixel-context') || this.parentElement;
+    if (!container) return;
+
+    // Use ResizeObserver to watch for size changes
+    this._resizeObserver = new ResizeObserver(() => {
+      // Debounce to avoid excessive recalculations
+      if (this._resizeTimeout) {
+        clearTimeout(this._resizeTimeout);
+      }
+      this._resizeTimeout = setTimeout(() => {
+        this.resolveAndSnapPixelSize();
+      }, 50);
+    });
+
+    this._resizeObserver.observe(container);
   }
 
   markRendered() {
@@ -32,6 +62,12 @@ class PixelGridBase extends HTMLElement {
 
   disconnectedCallback() {
     if (this._cleanup) this._cleanup();
+    if (this._resizeObserver) {
+      this._resizeObserver.disconnect();
+    }
+    if (this._resizeTimeout) {
+      clearTimeout(this._resizeTimeout);
+    }
   }
 }
 
@@ -44,6 +80,7 @@ class PixelAnimation extends PixelGridBase {
     if (this.isRendered()) return;
 
     this.resolveAndSnapPixelSize();
+    this.setupResizeObserver();
 
     const src = this.getAttribute('src');
     const override = this.getAttribute('color-override');
@@ -99,6 +136,7 @@ class PixelAnimation extends PixelGridBase {
       if (!running) return;
 
       const data = framesData[currentFrame];
+      const hasNoBlankPixels = this.hasAttribute('no-blank-pixels');
 
       for (let i = 0; i < this.pixelDivs.length; i++) {
         const idx = i * 4;
@@ -114,7 +152,16 @@ class PixelAnimation extends PixelGridBase {
             : `rgb(${r},${g},${b})`;
           div.style.opacity = '1';
         } else {
-          div.style.opacity = '0';
+          // For animations, transparent pixels show blank color by default
+          // unless no-blank-pixels attribute is present
+          if (hasNoBlankPixels) {
+            div.style.backgroundColor = 'transparent';
+            div.style.opacity = '0';
+          } else {
+            // Remove inline style to let CSS default (blank-pixel-color) show through
+            div.style.backgroundColor = '';
+            div.style.opacity = '1';
+          }
         }
       }
 
@@ -154,6 +201,7 @@ class PixelArt extends PixelGridBase {
     if (this.isRendered()) return;
 
     this.resolveAndSnapPixelSize();
+    this.setupResizeObserver();
 
     const src = this.getAttribute('src');
     const override = this.getAttribute('color-override');
@@ -203,7 +251,7 @@ class PixelArt extends PixelGridBase {
           : `rgb(${r},${g},${b})`;
         div.style.setProperty('--base-opacity', '1');
       } else {
-        div.style.setProperty('--base-opacity', '0');
+        div.style.setProperty('--base-opacity', '1');
         this.emptyPixels.push(div);
       }
 

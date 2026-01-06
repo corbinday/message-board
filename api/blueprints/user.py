@@ -8,9 +8,13 @@ from flask import (
     make_response,
     url_for,
     current_app,
+    jsonify,
 )
 import api.queries as q
 from datetime import datetime, timedelta, timezone
+import base64
+import struct
+from api.utils.avatar import generate_default_avatar
 
 bp = Blueprint("user", __name__, template_folder="templates")
 
@@ -138,9 +142,190 @@ def name_partial(board_id):
     return render_template("user/board/_name_display.html", board=board)
 
 
-@bp.route("/add-friend", methods=["GET", "POST"])
+@bp.route("/add-friend", methods=["GET"])
 def add_friend():
-    return render_template("user/add-friend.html")
+    # Get pending sent requests
+    sent_requests = (
+        q.selectFriendRequestsSent(g.client)
+        if hasattr(q, "selectFriendRequestsSent")
+        else []
+    )
+    return render_template("user/friend/add.html", sent_requests=sent_requests)
+
+
+@bp.route("/search", methods=["POST"])
+def search_users():
+    username = request.form.get("username", "").strip()
+    if username == "":
+        return jsonify([])
+    current_app.logger.info(f"Searching for users with query: {username}")
+
+    users = q.searchUserByUsername(g.client, username=username)
+    return render_template("user/friend/search-results.html", users=users)
+
+
+@bp.route("/friend-request/send", methods=["POST"])
+def send_friend_request():
+    # 1. Get the ID from request.form (matching hx-vals)
+    recipient_id = request.form.get("recipient_id")
+
+    if not recipient_id:
+        return '<span class="text-red-500">Missing ID</span>', 400
+
+    try:
+        # 2. Logic Check
+        friends = q.selectFriends(g.client)
+        if any(str(f.friend.id) == recipient_id for f in friends):
+            # Return HTML instead of JSON
+            return '<span class="text-yellow-500 text-[8px]">Already Friends</span>'
+
+        # 3. Action
+        q.insertFriendRequest(g.client, recipient_id=recipient_id)
+
+        # 4. Success UI
+        return '<span class="text-pico-green text-[8px]">Request Sent!</span>'
+
+    except Exception as e:
+        current_app.logger.error(f"Error sending friend request: {e}")
+        # Return the error message as a string for HTMX to swap into the UI
+        return f'<span class="text-red-500 text-[8px]">Error: {str(e)}</span>', 400
+
+
+@bp.route("/friend-request/<request_id>/accept", methods=["POST"])
+def accept_friend_request(request_id):
+    try:
+        q.acceptFriendRequest(g.client, request_id=request_id)
+        response = make_response("", 204)
+        response.headers["HX-Location"] = url_for("app.home")
+        return response
+    except Exception as e:
+        current_app.logger.error(f"Error accepting friend request: {e}")
+        abort(400, description=str(e))
+
+
+@bp.route("/friend-request/<request_id>/reject", methods=["POST"])
+def reject_friend_request(request_id):
+    try:
+        q.rejectFriendRequest(g.client, request_id=request_id)
+        return jsonify({"success": True})
+    except Exception as e:
+        current_app.logger.error(f"Error rejecting friend request: {e}")
+        return jsonify({"error": str(e)}), 400
+
+
+@bp.route("/friend-request/<request_id>", methods=["DELETE"])
+def delete_friend_request(request_id):
+    try:
+        q.deleteFriendRequest(g.client, request_id=request_id)
+        return jsonify({"success": True})
+    except Exception as e:
+        current_app.logger.error(f"Error deleting friend request: {e}")
+        return jsonify({"error": str(e)}), 400
+
+
+@bp.route("/friend/<friend_id>", methods=["DELETE"])
+def delete_friend(friend_id):
+    try:
+        q.deleteFriend(g.client, friend_id=friend_id)
+        response = make_response("", 204)
+        response.headers["HX-Location"] = url_for("app.home")
+        return response
+    except Exception as e:
+        current_app.logger.error(f"Error deleting friend: {e}")
+        return jsonify({"error": str(e)}), 400
+
+
+@bp.route("/avatar", methods=["GET", "POST"])
+def avatar():
+    if request.method == "GET":
+        # Get current user's avatar if exists
+        current_user = q.selectGlobalUser(g.client)
+        has_avatar = current_user.avatar is not None if current_user else False
+        return render_template(
+            "user/avatar.html", has_avatar=has_avatar, user=current_user
+        )
+
+    # POST: Save avatar
+    mode = request.form.get("mode")  # "paint" or "upload"
+
+    try:
+        if mode == "paint":
+            # Paint mode: receive base64 PNG data (from canvas.toDataURL)
+            base64_string = request.form.get("pixel_data")
+            if not base64_string:
+                return jsonify({"error": "No pixel data received"}), 400
+
+            # Remove data URL prefix if present (data:image/png;base64,...)
+            if base64_string.startswith("data:image"):
+                base64_string = base64_string.split(",", 1)[1]
+
+            # Decode base64 to PNG bytes
+            png_data = base64.b64decode(base64_string)
+
+            # Validate PNG dimensions by reading IHDR chunk
+            if not png_data.startswith(b"\x89PNG\r\n\x1a\n"):
+                return jsonify({"error": "Invalid PNG format"}), 400
+
+            # Read width and height from IHDR (bytes 16-23)
+            width, height = struct.unpack(">II", png_data[16:24])
+            if width != 32 or height != 32:
+                return jsonify({"error": "Image must be exactly 32x32 pixels"}), 400
+
+        elif mode == "upload":
+            # Upload mode: receive PNG file
+            if "avatar_file" not in request.files:
+                return jsonify({"error": "No file uploaded"}), 400
+
+            file = request.files["avatar_file"]
+            if file.filename == "":
+                return jsonify({"error": "No file selected"}), 400
+
+            # Read PNG data
+            png_data = file.read()
+
+            # Validate PNG format
+            if not png_data.startswith(b"\x89PNG\r\n\x1a\n"):
+                return jsonify({"error": "Invalid PNG format"}), 400
+
+            # Read width and height from IHDR (bytes 16-23)
+            width, height = struct.unpack(">II", png_data[16:24])
+            if width != 32 or height != 32:
+                return jsonify({"error": "Image must be exactly 32x32 pixels"}), 400
+        else:
+            return jsonify({"error": "Invalid mode"}), 400
+
+        # Save to database
+        q.updateGlobalUser(g.client, avatar=png_data)
+
+        response = make_response("", 204)
+        response.headers["HX-Location"] = url_for("user.avatar")
+        return response
+
+    except Exception as e:
+        current_app.logger.error(f"Error saving avatar: {e}")
+        return jsonify({"error": str(e)}), 500
+
+
+@bp.route("/avatar/paint", methods=["GET"])
+def avatar_paint():
+    return render_template(
+        "paint/canvas.html", BOARD_WIDTH=32, BOARD_HEIGHT=32, avatar_mode=True
+    )
+
+
+@bp.route("/avatar/<user_id>")
+def serve_avatar(user_id):
+    avatar_data = q.selectUserAvatar(g.client, user_id=user_id)
+
+    if avatar_data is None:
+        # Return default avatar
+        avatar_data = generate_default_avatar()
+
+    return Response(
+        avatar_data,
+        mimetype="image/png",
+        headers={"Cache-Control": "public, max-age=3600"},
+    )
 
 
 @bp.route("/board/<board_id>", methods=["DELETE"])

@@ -1,0 +1,81 @@
+{% extends 'layout/primary.html' %} {% block content %}
+<div class="pixel-context p-4 md:p-6 max-w-4xl mx-auto space-y-8">
+  <header class="pb-6 border-b border-slate-800">
+    <h1 class="font-['Press_Start_2P'] text-lg text-white">Add Friend</h1>
+    <p class="text-slate-500 text-xs mt-2">Search for users by username</p>
+  </header>
+
+  <!-- Search Form -->
+  <section class="space-y-4">
+    <form
+      hx-post="{{ url_for('user.search_users') }}"
+      hx-target="#search-results"
+      hx-trigger="input delay:300ms"
+      class="space-y-4"
+    >
+      <input
+        type="text"
+        name="username"
+        placeholder="Search username..."
+        class="w-full bg-slate-900 border border-slate-700 rounded-lg px-4 py-3 text-white placeholder-slate-500 focus:outline-none focus:border-pico-blue"
+        autocomplete="off"
+      />
+    </form>
+
+    <!-- Search Results -->
+    <div id="search-results" class="space-y-2">
+      <p class="text-slate-500 text-xs text-center py-8">
+        Start typing to search for users...
+      </p>
+    </div>
+  </section>
+
+  <!-- Pending Sent Requests -->
+  {% if sent_requests %}
+  <section class="space-y-4 pt-8 border-t border-slate-800">
+    <h2 class="font-['Press_Start_2P'] text-sm text-white">Pending Requests</h2>
+    <div class="space-y-2">
+      {% for request in sent_requests %}
+      <div
+        class="bg-slate-900/40 border border-slate-800 rounded-lg p-4 flex items-center justify-between"
+      >
+        <div class="flex items-center gap-4">
+          <div
+            class="w-10 h-10 rounded-md bg-slate-900 p-2 border border-slate-700 shadow-xl overflow-hidden flex items-center justify-center pixel-sm"
+          >
+            {% if request.recipient.avatar %}
+            <pixel-art
+              src="{{ url_for('user.serve_avatar', user_id=request.recipient.id) }}"
+              class="max-w-full h-auto"
+            ></pixel-art>
+            {% else %}
+            <pixel-art
+              src="{{ url_for('user.serve_avatar', user_id=request.recipient.id) }}"
+              class="max-w-full h-auto"
+            ></pixel-art>
+            {% endif %}
+          </div>
+          <div>
+            <p class="font-['Press_Start_2P'] text-[10px] text-white">
+              {{ request.recipient.username }}
+            </p>
+            <p class="text-[9px] text-slate-500 mt-1">
+              Sent {{ request.created_at.strftime('%Y-%m-%d') }}
+            </p>
+          </div>
+        </div>
+        <button
+          hx-delete="{{ url_for('user.delete_friend_request', request_id=request.id) }}"
+          hx-target="closest div"
+          hx-swap="outerHTML"
+          class="font-['Press_Start_2P'] text-[8px] bg-slate-800 border border-slate-700 px-3 py-2 text-white hover:bg-slate-700 transition-all"
+        >
+          Cancel
+        </button>
+      </div>
+      {% endfor %}
+    </div>
+  </section>
+  {% endif %}
+</div>
+{% endblock %}

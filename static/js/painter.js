@@ -156,7 +156,36 @@ function setupEventListeners() {
         'HTMX Config Request Fired! Injecting data directly into payload...'
       );
 
-      const base64Data = generateRawPixelData();
+      // Check if this is avatar mode (has mode=paint hidden input)
+      const modeInput = form.querySelector('input[name="mode"]');
+      const isAvatarMode = modeInput && modeInput.value === 'paint';
+
+      let base64Data;
+      if (isAvatarMode) {
+        // For avatar mode, export canvas as PNG
+        const canvas = document.createElement('canvas');
+        canvas.width = CONFIG.GRID_SIZE_X;
+        canvas.height = CONFIG.GRID_SIZE_Y;
+        const ctx = canvas.getContext('2d');
+        const pixels = gridElement.children;
+        
+        // Draw pixels to canvas
+        const pixelSize = canvas.width / CONFIG.GRID_SIZE_X;
+        for (let i = 0; i < pixels.length; i++) {
+          const pixel = pixels[i];
+          const x = (i % CONFIG.GRID_SIZE_X) * pixelSize;
+          const y = Math.floor(i / CONFIG.GRID_SIZE_X) * pixelSize;
+          const color = pixel.style.backgroundColor || window.getComputedStyle(pixel).backgroundColor;
+          ctx.fillStyle = color || 'rgb(0, 0, 0)';
+          ctx.fillRect(x, y, pixelSize, pixelSize);
+        }
+        
+        // Export as PNG base64
+        base64Data = canvas.toDataURL('image/png').split(',')[1];
+      } else {
+        // For message mode, use RGB data
+        base64Data = generateRawPixelData();
+      }
 
       // CRITICAL FIX: Inject the data directly into the HTMX request parameters.
       // This is far more reliable than setting the hidden input's value just before submission.

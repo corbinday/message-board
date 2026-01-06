@@ -14,6 +14,7 @@
   :root {
     --pixel-size: 10px;
     --pixel-gap: calc(var(--pixel-size) / 6);
+    --blank-pixel-color: oklch(15% 0 0);
 
     --pico-green: oklch(86.64% 0.2948 142.5);
     --pico-red: oklch(62.8% 0.2577 29.23);
@@ -26,18 +27,36 @@
 
   .pixel-context {
     container-type: inline-size;
-    --pixel-size: clamp(6px, 1.2cqw, 14px);
   }
 
-  /* Preset scales */
+  /* Clearfix utility for floated pixel elements on small/md screens */
+  .clear-floats::after {
+    content: '';
+    display: table;
+    clear: both;
+  }
+
+  /* Preset scales - can be used with Tailwind responsive prefixes */
+  .pixel-xs {
+    --pixel-size: 5px;
+  }
   .pixel-sm {
-    --pixel-size: 6px;
+    --pixel-size: 8px;
   }
   .pixel-md {
-    --pixel-size: 10px;
+    --pixel-size: 9px;
   }
   .pixel-lg {
-    --pixel-size: 14px;
+    --pixel-size: 12px;
+  }
+  .pixel-xl {
+    --pixel-size: 15px;
+  }
+  .pixel-2xl {
+    --pixel-size: 18px;
+  }
+  .pixel-3xl {
+    --pixel-size: 21px;
   }
 
   /* -------------------------------------------------
@@ -55,9 +74,14 @@
     width: var(--pixel-size);
     height: var(--pixel-size);
     opacity: var(--base-opacity, 0);
+    background-color: var(--blank-pixel-color, oklch(15% 0 0));
     transition:
       background-color var(--fade-speed, 8s) ease-out,
       opacity var(--fade-speed, 8s) ease-out;
+  }
+
+  pixel-art[no-blank-pixels] > div {
+    background-color: transparent;
   }
 
   pixel-art > div.active-pixel {
@@ -70,7 +94,7 @@
   }
 
   /* -------------------------------------------------
-   * OPTIONAL: pixel-animation reuse
+   * PIXEL ANIMATION BASE
    * ------------------------------------------------- */
 
   pixel-animation {
@@ -82,5 +106,117 @@
   pixel-animation > div {
     width: var(--pixel-size);
     height: var(--pixel-size);
+    background-color: var(--blank-pixel-color, oklch(15% 0 0));
+  }
+
+  pixel-animation[no-blank-pixels] > div {
+    background-color: transparent;
+  }
+}
+
+/* Responsive pixel size utilities using Tailwind's responsive system */
+@layer utilities {
+  /* Larger phones (400px+) - iPhone XR, 14 Pro Max, etc. */
+  @media (min-width: 376px) {
+    .min-\[400px\]\:pixel-sm {
+      --pixel-size: 6px;
+    }
+  }
+
+  /* Small screens (sm: 640px+) */
+  @media (min-width: 640px) {
+    .sm\:pixel-xs {
+      --pixel-size: 4px;
+    }
+    .sm\:pixel-sm {
+      --pixel-size: 8px;
+    }
+    .sm\:pixel-md {
+      --pixel-size: 9px;
+    }
+    .sm\:pixel-lg {
+      --pixel-size: 12px;
+    }
+    .sm\:pixel-xl {
+      --pixel-size: 15px;
+    }
+    .sm\:pixel-2xl {
+      --pixel-size: 18px;
+    }
+  }
+
+  /* Medium screens (md: 768px+) */
+  @media (min-width: 768px) {
+    .md\:pixel-xs {
+      --pixel-size: 4px;
+    }
+    .md\:pixel-sm {
+      --pixel-size: 8px;
+    }
+    .md\:pixel-md {
+      --pixel-size: 9px;
+    }
+    .md\:pixel-lg {
+      --pixel-size: 11px;
+    }
+    .md\:pixel-xl {
+      --pixel-size: 15px;
+    }
+    .md\:pixel-2xl {
+      --pixel-size: 18px;
+    }
+    .md\:pixel-3xl {
+      --pixel-size: 21px;
+    }
+  }
+
+  /* Large screens (lg: 1024px+) */
+  @media (min-width: 1024px) {
+    .lg\:pixel-xs {
+      --pixel-size: 4px;
+    }
+    .lg\:pixel-sm {
+      --pixel-size: 8px;
+    }
+    .lg\:pixel-md {
+      --pixel-size: 9px;
+    }
+    .lg\:pixel-lg {
+      --pixel-size: 12px;
+    }
+    .lg\:pixel-xl {
+      --pixel-size: 15px;
+    }
+    .lg\:pixel-2xl {
+      --pixel-size: 18px;
+    }
+    .lg\:pixel-3xl {
+      --pixel-size: 21px;
+    }
+  }
+
+  /* Extra large screens (xl: 1280px+) */
+  @media (min-width: 1280px) {
+    .xl\:pixel-xs {
+      --pixel-size: 4px;
+    }
+    .xl\:pixel-sm {
+      --pixel-size: 8px;
+    }
+    .xl\:pixel-md {
+      --pixel-size: 9px;
+    }
+    .xl\:pixel-lg {
+      --pixel-size: 12px;
+    }
+    .xl\:pixel-xl {
+      --pixel-size: 15px;
+    }
+    .xl\:pixel-2xl {
+      --pixel-size: 18px;
+    }
+    .xl\:pixel-3xl {
+      --pixel-size: 21px;
+    }
   }
 }

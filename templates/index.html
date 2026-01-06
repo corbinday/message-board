@@ -5,38 +5,40 @@
   All pixel-art and pixel-animation elements on this page
   share ONE snapped pixel size derived from this container.
 -->
-<div class="pixel-context mx-auto max-w-6xl px-4">
+<div
+  class="pixel-context pixel-xs min-[400px]:pixel-sm sm:pixel-md md:pixel-lg mx-auto px-0 sm:px-4"
+>
   <!-- HERO PIXEL ART -->
   <div class="flex justify-center mb-12 md:mb-24">
-    <div
-      class="bg-slate-900 p-2 md:p-3 rounded-md border border-slate-700 shadow-xl overflow-hidden"
-    >
+    <div class="">
       <pixel-art
         src="{{ url_for('static', filename='img/PMB1.png') }}"
         color-override="255,0,0"
         hover-trail
         digital-rain
+        no-blank-pixels
         alt="Pico Message Board"
-        class="max-w-full md:max-w-3xl"
       ></pixel-art>
     </div>
   </div>
 
   <!-- MAIN CONTENT -->
-  <div class="flex flex-col gap-16 md:gap-24 items-center">
+  <div class="flex flex-col gap-12 md:gap-16 items-center">
     <!-- SECTION 1 -->
-    <section class="flex flex-col gap-12 w-full">
+    <section class="flex flex-col gap-8 md:gap-10 lg:gap-12 w-full">
       <h2
-        class="text-xs text-center md:text-left mb-4 sm:mb-0 sm:text-lg md:text-xl font-['Press_Start_2P'] text-nowrap"
+        class="text-xs sm:text-base md:text-lg lg:text-xl font-['Press_Start_2P'] text-nowrap mb-2 sm:mb-3 md:mb-4"
       >
         Your Hardware, Your Canvas
       </h2>
 
-      <div class="flex flex-col md:flex-row gap-8 md:gap-12 items-start">
-        <!-- Pixel art gets its own visual lane -->
-        <div class="shrink-0 md:min-w-[280px] flex justify-center">
+      <div class="clear-floats lg:flex lg:flex-row lg:gap-12 lg:items-start">
+        <!-- Pixel art - floats on small/md, flex on lg+ -->
+        <div
+          class="float-left mr-4 mb-4 md:mr-6 md:mb-6 lg:float-none lg:mr-0 lg:mb-0 lg:shrink-0 lg:min-w-[280px] lg:flex lg:justify-center"
+        >
           <div
-            class="bg-slate-900 p-2 md:p-3 rounded-md border border-slate-700 shadow-xl overflow-hidden"
+            class="bg-slate-900 p-2 rounded-md border border-slate-700 shadow-xl overflow-hidden"
           >
             <pixel-art
               src="{{ url_for('static', filename='img/duck-reverse.png') }}"
@@ -47,15 +49,17 @@
           </div>
         </div>
 
-        <p class="flex-1">
+        <p class="lg:flex-1 wrap-anywhere">
           <span class="text-pico-red">Pico Message Board</span> is a web-based
           interface for managing content on your
           <a
-            class="text-blue-400 hover:text-blue-500 visited:text-violet-400 inline-flex items-center gap-1 fill-blue-400 hover:fill-blue-500 visited:fill-violet-400 group"
+            class="inline text-blue-400 hover:text-blue-500 visited:text-violet-400 fill-blue-400 hover:fill-blue-500 visited:fill-violet-400 group align-middle wrap-anywhere"
             href="https://shop.pimoroni.com/products/space-unicorns"
           >
-            <span>Pimoroni Space Unicorn</span>
-            {% include "icon/arrow-top-right-on-square.html" %}
+            Pimoroni Space
+            <span class="inline-flex items-center gap-1 align-middle"
+              >Unicorn{% include "icon/arrow-top-right-on-square.html" %}</span
+            >
           </a>
           LED hardware. Connect your Stellar, Galactic, or Cosmic Unicorn Board
           for a convenient interface to create art and messages!
@@ -64,28 +68,22 @@
     </section>
 
     <!-- SECTION 2 -->
-    <section class="flex flex-col gap-12 w-full">
+    <section class="flex flex-col gap-8 md:gap-10 lg:gap-12 w-full">
       <h2
-        class="text-xs text-center md:text-right mb-4 sm:mb-0 sm:text-base md:text-lg font-['Press_Start_2P'] text-nowrap"
+        class="text-xs sm:text-base md:text-lg lg:text-xl font-['Press_Start_2P'] text-nowrap mb-2 sm:mb-3 md:mb-4 lg:text-right"
       >
         Seamless, Wireless Control
       </h2>
 
       <div
-        class="flex flex-col-reverse md:flex-row gap-8 md:gap-12 items-start md:justify-end"
+        class="clear-floats lg:flex lg:flex-row lg:gap-12 lg:items-start lg:justify-end"
       >
-        <p class="flex-1">
-          Forget reflashing firmware every time you want to change a pixel. By
-          leveraging the Wi-Fi capabilities of the onboard Pico 2 W, your board
-          <span class="text-pico-red">listens for updates automatically</span>
-          once paired. Simply pick your colors, hit send, and watch the magic
-          happen over the air.
-        </p>
-
-        <!-- Animation breathing room -->
-        <div class="flex justify-center md:justify-start min-h-[140px]">
+        <!-- Animation - floats on small/md, flex on lg+ -->
+        <div
+          class="float-right ml-4 mb-4 md:ml-6 md:mb-6 lg:float-none lg:ml-0 lg:mb-0 lg:order-2 lg:shrink-0 lg:flex lg:justify-start lg:h-fit"
+        >
           <div
-            class="bg-slate-900 p-2 md:p-3 rounded-md border border-slate-700 shadow-xl overflow-hidden"
+            class="bg-slate-900 p-2 rounded-md border border-slate-700 shadow-xl overflow-hidden"
           >
             <pixel-animation
               src="{{ url_for('static', filename='img/wifi.png') }}"
@@ -97,21 +95,29 @@
             ></pixel-animation>
           </div>
         </div>
+
+        <p class="lg:flex-1 lg:text-right lg:order-1 wrap-anywhere">
+          Forget reflashing firmware every time you want to change a pixel. By
+          leveraging the Wi-Fi capabilities of the onboard Pico 2 W, your board
+          <span class="text-pico-red">listens for updates automatically</span>
+          once paired. Simply pick your colors, hit send, and watch the magic
+          happen over the air.
+        </p>
       </div>
     </section>
 
     <!-- SECTION 3 -->
-    <section class="flex flex-col gap-12 w-full">
+    <section class="flex flex-col gap-8 md:gap-10 lg:gap-12 w-full">
       <h2
-        class="text-xs text-center md:text-left mb-4 sm:mb-0 sm:text-lg md:text-xl font-['Press_Start_2P'] text-nowrap"
+        class="text-xs sm:text-base md:text-lg lg:text-xl font-['Press_Start_2P'] text-nowrap mb-2 sm:mb-3 md:mb-4"
       >
         Design, Animate, Beam!
       </h2>
 
       <!-- Centered wide animation -->
-      <div class="flex justify-center min-h-[160px]">
+      <div class="flex justify-center h-fit">
         <div
-          class="bg-slate-900 p-2 md:p-3 rounded-md border border-slate-700 shadow-xl overflow-hidden"
+          class="bg-slate-900 p-2 rounded-md border border-slate-700 shadow-xl"
         >
           <pixel-animation
             src="{{ url_for('static', filename='img/star-destroyer-2.png') }}"
@@ -125,23 +131,38 @@
 
       <ul class="flex flex-col md:flex-row gap-4 md:gap-8 mt-4 md:mt-12">
         <li class="flex flex-col gap-2 md:max-w-xs">
-          <p>
-            Use browser-based tools to build custom designs with
-            <span class="text-pico-red">live previews</span>.
+          <p class="flex items-start gap-2">
+            <span class="font-['Press_Start_2P'] text-pico-red md:hidden"
+              >*</span
+            >
+            <span>
+              Use browser-based tools to build custom designs with
+              <span class="text-pico-red">live previews</span>.
+            </span>
           </p>
         </li>
         <li class="flex flex-col gap-2 md:max-w-xs">
-          <p>
-            Create multi-frame
-            <span class="text-pico-red">sprite sheets</span> to bring your art
-            to life.
+          <p class="flex items-start gap-2">
+            <span class="font-['Press_Start_2P'] text-pico-red md:hidden"
+              >*</span
+            >
+            <span>
+              Create multi-frame
+              <span class="text-pico-red">sprite sheets</span> to bring your art
+              to life.
+            </span>
           </p>
         </li>
         <li class="flex flex-col gap-2 md:max-w-xs">
-          <p>
-            Have a friend with a Galactic Unicorn?
-            <span class="text-pico-red">Add them as a friend</span> and beam a
-            piece of art directly to their device from miles away.
+          <p class="flex items-start gap-2">
+            <span class="font-['Press_Start_2P'] text-pico-red md:hidden"
+              >*</span
+            >
+            <span>
+              Have a friend with a Galactic Unicorn?
+              <span class="text-pico-red">Add them as a friend</span> and beam a
+              piece of art directly to their device from miles away.
+            </span>
           </p>
         </li>
       </ul>

@@ -17,5 +17,6 @@ def require_login():
 def home():
     user = q.selectGlobalUser(g.client)
     boards = q.selectManyGlobalUserBoards(g.client)
-    friends = list()
-    return render_template("app/index.html", user=user, boards=boards, friends=friends)
+    friends = q.selectFriends(g.client) if hasattr(q, 'selectFriends') else []
+    friend_requests = q.selectFriendRequests(g.client) if hasattr(q, 'selectFriendRequests') else []
+    return render_template("app/index.html", user=user, boards=boards, friends=friends, friend_requests=friend_requests)
