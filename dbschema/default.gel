@@ -1,5 +1,7 @@
 module default {
 
+    scalar type BoardType extending enum<Stellar, Galactic, Cosmic>;
+
     global current_user := (
         assert_single((
             select User
@@ -17,10 +19,34 @@ module default {
         username: str {
             constraint exclusive;
         }
-        avatar: bytes;
+        avatar: Avatar;
     }
 
-    scalar type BoardType extending enum<Stellar, Galactic, Cosmic>;
+    abstract type PixelGraphic {
+        required binary: bytes;
+        required size: BoardType;
+        required creator: User;
+        
+        required created_at: datetime { default := datetime_of_statement() };
+        required updated_at: datetime { default := datetime_of_statement() };
+    }
+
+    type StaticImage extending PixelGraphic {}
+
+    type Avatar extending StaticImage {
+        constraint expression on (.size = BoardType.Stellar) {
+            errmessage := "Avatars must use the Stellar (16x16) board type";
+        }
+    }
+
+    type PixelAnimation extending PixelGraphic {
+        required frames: int16;
+        required frame_delay_ms: int16 {
+            default := 100;
+            constraint min_value(10);
+            constraint max_value(2000);
+        }
+    }
 
     type Board {
         required owner: User;
@@ -39,12 +65,12 @@ module default {
     }
 
     type Message {
-        payload: bytes;
-        sender: User;
+        required graphic: PixelGraphic;
+        required sender: User;
         recipient: User;
-        required created_at: datetime {
-            rewrite insert using (datetime_of_statement());
-        }
+        
+        is_read: bool { default := false };
+        sent_at: datetime { default := datetime_of_statement() };
     }
 
     type FriendRequest {
