@@ -176,7 +176,7 @@ def register_board(board_id):
             abort(404, description="Board not found!")
 
         # 4. Return the one-time view
-        return render_template("user/board/key-details.html", raw_key=raw_key, board_id=board_id)
+        return render_template("app/board/key-details.html", raw_key=raw_key, board_id=board_id)
 
     except Exception as e:
         current_app.logger.error(f"Registration Error: {e}")

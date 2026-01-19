@@ -112,6 +112,39 @@
   pixel-animation[no-blank-pixels] > div {
     background-color: transparent;
   }
+
+  /* -------------------------------------------------
+   * PIXEL EDITOR BASE
+   * ------------------------------------------------- */
+
+  pixel-editor {
+    display: grid;
+    width: max-content;
+    max-width: 100%;
+    gap: var(--pixel-gap);
+    background-color: var(--blank-pixel-color, oklch(15% 0 0));
+    padding: calc(var(--pixel-gap) / 2);
+  }
+
+  pixel-editor > div {
+    width: var(--pixel-size);
+    height: var(--pixel-size);
+    background-color: transparent;
+    cursor: crosshair;
+    transition: background-color 0.05s ease;
+    border: 1px solid transparent;
+    /* Subtle border to show gridlines */
+    box-shadow: inset 0 0 0 0.5px rgba(255, 255, 255, 0.15);
+  }
+
+  pixel-editor > div:hover {
+    border-color: white;
+    box-shadow:
+      inset 0 0 0 0.5px rgba(255, 255, 255, 0.15),
+      0 0 0 1px white;
+    z-index: 10;
+    position: relative;
+  }
 }
 
 /* Responsive pixel size utilities using Tailwind's responsive system */

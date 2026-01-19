@@ -1,0 +1,77 @@
+{% extends 'layout/primary.html' %} {% block content %}
+<div class="pixel-context p-4 md:p-6 max-w-4xl mx-auto space-y-8">
+  <header class="pb-6 border-b border-slate-800">
+    <h1 class="font-['Press_Start_2P'] text-lg text-white">Your Avatar</h1>
+    <p class="text-slate-500 text-xs mt-2">Create or update your 32x32 pixel avatar</p>
+  </header>
+
+  <!-- Current Avatar Preview -->
+  {% if has_avatar %}
+  <section class="space-y-4">
+    <h2 class="font-['Press_Start_2P'] text-sm text-white">Current Avatar</h2>
+    <div
+      class="w-32 h-32 mx-auto rounded-md bg-slate-900 p-4 border border-slate-700 shadow-xl overflow-hidden flex items-center justify-center pixel-sm"
+    >
+      <pixel-art
+        src="{{ url_for('user.serve_avatar', user_id=user.id) }}"
+        class="max-w-full h-auto"
+      ></pixel-art>
+    </div>
+  </section>
+  {% endif %}
+
+  <!-- Creation Options -->
+  <section class="space-y-6">
+    <h2 class="font-['Press_Start_2P'] text-sm text-white">Create New Avatar</h2>
+
+    <!-- Paint Mode -->
+    <div class="bg-slate-900/40 border border-slate-800 rounded-lg p-6 space-y-4">
+      <div>
+        <h3 class="font-['Press_Start_2P'] text-xs text-white mb-2">Paint Mode</h3>
+        <p class="text-slate-500 text-xs">
+          Use the paint tool to create your avatar pixel by pixel.
+        </p>
+      </div>
+      <a
+        href="{{ url_for('user.avatar_paint') }}"
+        class="inline-block font-['Press_Start_2P'] text-[10px] bg-pico-blue border border-pico-blue px-4 py-2 text-black hover:bg-pico-blue/80 transition-all"
+      >
+        Open Paint Tool
+      </a>
+    </div>
+
+    <!-- Upload Mode -->
+    <div class="bg-slate-900/40 border border-slate-800 rounded-lg p-6 space-y-4">
+      <div>
+        <h3 class="font-['Press_Start_2P'] text-xs text-white mb-2">Upload Mode</h3>
+        <p class="text-slate-500 text-xs">
+          Upload a 32x32 PNG image. The image will be validated and converted if needed.
+        </p>
+      </div>
+      <form
+        hx-post="{{ url_for('user.avatar') }}"
+        hx-encoding="multipart/form-data"
+        hx-target="body"
+        class="space-y-4"
+      >
+        <input type="hidden" name="mode" value="upload" />
+        <input
+          type="file"
+          name="avatar_file"
+          accept="image/png"
+          required
+          class="block w-full text-sm text-slate-400 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-['Press_Start_2P'] file:bg-slate-800 file:text-white hover:file:bg-slate-700"
+        />
+        <button
+          type="submit"
+          class="font-['Press_Start_2P'] text-[10px] bg-pico-green border border-pico-green px-4 py-2 text-black hover:bg-pico-green/80 transition-all"
+        >
+          Upload Avatar
+        </button>
+      </form>
+    </div>
+  </section>
+</div>
+{% endblock %}
+
+

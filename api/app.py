@@ -126,11 +126,6 @@ def logout():
     return response
 
 
-@app.route("/welcome")
-def welcome():
-    return render_template("user/welcome.html")
-
-
 @app.errorhandler(400)
 def bad_request(e):
     # 'e' is the error object

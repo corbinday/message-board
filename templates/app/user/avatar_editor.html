@@ -1,0 +1,182 @@
+<div class="flex flex-col gap-4 w-full">
+  <div class="flex gap-4 items-center justify-center flex-wrap">
+    <label class="font-['Press_Start_2P'] text-[10px] text-white">Color:</label>
+    <input 
+      type="color" 
+      data-editor-control="color-picker"
+      value="#FF0000"
+      class="w-12 h-12 rounded border-2 border-slate-700 cursor-pointer"
+    >
+    
+    <!-- Recent colors -->
+    <div data-editor-section="recent-colors" class="flex gap-2">
+      <!-- Populated by JS -->
+    </div>
+    
+    <button
+      type="button"
+      data-editor-action="set-tool"
+      data-tool="pen"
+      class="font-['Press_Start_2P'] text-[8px] bg-pico-green border-2 border-pico-green px-3 py-2 text-black hover:bg-pico-green/80 transition-all"
+    >
+      Pen
+    </button>
+    <button
+      type="button"
+      data-editor-action="set-tool"
+      data-tool="eraser"
+      class="font-['Press_Start_2P'] text-[8px] bg-slate-800 border-2 border-slate-700 px-3 py-2 text-white hover:bg-slate-700 transition-all"
+    >
+      Eraser
+    </button>
+    <button
+      type="button"
+      data-editor-action="set-tool"
+      data-tool="eyedropper"
+      class="font-['Press_Start_2P'] text-[8px] bg-slate-800 border-2 border-slate-700 px-3 py-2 text-white hover:bg-slate-700 transition-all"
+    >
+      Eye Dropper
+    </button>
+    <label class="font-['Press_Start_2P'] text-[10px] text-white">
+      <input 
+        type="file" 
+        accept="image/png" 
+        data-editor-action="load-file"
+        class="hidden"
+      >
+      <span class="bg-slate-800 border-2 border-slate-700 px-3 py-2 text-white hover:bg-slate-700 transition-all cursor-pointer inline-block">
+        Load PNG
+      </span>
+    </label>
+  </div>
+
+  <div class="flex justify-center w-full">
+    <pixel-editor 
+      width="16" 
+      height="16"
+      {% if initial_avatar and user %}initial-src="{{ url_for('user.serve_avatar', user_id=user.id) }}"{% endif %}
+      class="border-2 border-slate-700 shadow-xl"
+      id="pixel-editor-instance"
+    ></pixel-editor>
+  </div>
+
+  <form 
+    id="editor-form" 
+    hx-post="{{ url_for('user.save_avatar') }}" 
+    hx-trigger="submit"
+    hx-on::after-request="if(event.detail.successful) { alert('Avatar saved successfully!'); window.location.href = '{{ url_for('user.account_settings') }}'; }"
+    class="flex justify-center"
+  >
+    <input type="hidden" name="pixel_data" id="hidden-pixel-data" />
+    <button 
+      type="button" 
+      data-editor-action="save"
+      class="font-['Press_Start_2P'] text-[10px] bg-pico-green border-2 border-pico-green px-4 py-3 text-black hover:bg-pico-green/80 hover:border-pico-green/80 transition-all mt-4 opacity-50 cursor-not-allowed"
+      disabled
+    >
+      Save Avatar
+    </button>
+  </form>
+</div>
+
+<script nonce="{{ nonce }}">
+  // HTMX Guard Pattern & Editor Integration for Avatar
+  document.addEventListener('DOMContentLoaded', function () {
+    const editorContainer = document.getElementById('editor-container') || document.body;
+
+    // ============================================================
+    // HTMX REQUEST INJECTION: Auto-populate form with editor data
+    // ============================================================
+    document.body.addEventListener('htmx:configRequest', async function(evt) {
+      const form = evt.detail.elt.closest('form');
+      if (!form || form.id !== 'editor-form') return;
+
+      const editor = document.querySelector('pixel-editor');
+      if (!editor) return;
+
+      // Validate content before save
+      if (!editor.hasContent()) {
+        evt.preventDefault();
+        alert('Cannot save empty avatar');
+        return;
+      }
+
+      // Get serialized data from editor
+      try {
+        const blob = await editor.getSerializedData();
+        
+        // Convert to Base64 for hidden input
+        const reader = new FileReader();
+        reader.readAsDataURL(blob);
+        reader.onloadend = function() {
+          const base64 = reader.result.split(',')[1];
+          const hiddenInput = form.querySelector('[name="pixel_data"]');
+          if (hiddenInput) {
+            hiddenInput.value = base64;
+          }
+        };
+      } catch (err) {
+        console.error('Failed to serialize editor data:', err);
+        evt.preventDefault();
+        alert('Error preparing avatar for save');
+      }
+    });
+
+    // ============================================================
+    // BUTTON STATE SYNC: Update save button based on content
+    // ============================================================
+    editorContainer.addEventListener('editor-changed', function(e) {
+      const hasContent = e.detail.hasContent;
+      const saveButtons = document.querySelectorAll('[data-editor-action="save"]');
+      
+      saveButtons.forEach(btn => {
+        if (hasContent) {
+          btn.disabled = false;
+          btn.classList.remove('opacity-50', 'cursor-not-allowed');
+        } else {
+          btn.disabled = true;
+          btn.classList.add('opacity-50', 'cursor-not-allowed');
+        }
+      });
+    });
+
+    // ============================================================
+    // SAVE TRIGGER: Button click triggers HTMX form submission
+    // ============================================================
+    document.addEventListener('click', async function(e) {
+      const saveBtn = e.target.closest('[data-editor-action="save"]');
+      if (!saveBtn) return;
+
+      e.preventDefault();
+      
+      const editor = document.querySelector('pixel-editor');
+      if (!editor) return;
+
+      // Validate content
+      if (!editor.hasContent()) {
+        alert('Cannot save empty avatar');
+        return;
+      }
+
+      // Find associated form
+      const form = saveBtn.closest('form');
+      if (!form) return;
+
+      // Populate hidden input with Base64 data
+      const hiddenInput = form.querySelector('[name="pixel_data"]');
+      if (hiddenInput) {
+        const blob = await editor.getSerializedData();
+        const reader = new FileReader();
+        reader.readAsDataURL(blob);
+        reader.onloadend = function() {
+          hiddenInput.value = reader.result.split(',')[1];
+          // Trigger HTMX submission
+          htmx.trigger(form, 'submit');
+        };
+      } else {
+        // Form data will be injected by htmx:configRequest
+        htmx.trigger(form, 'submit');
+      }
+    });
+  });
+</script>

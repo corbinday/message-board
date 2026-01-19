@@ -8,11 +8,9 @@ with
   updated_user := (
     update user
     set {
-      avatar := <optional bytes>$avatar ?? .avatar,
+      avatar := (select Avatar filter .id = <uuid>$avatar_id) if exists(<optional uuid>$avatar_id ?? <optional uuid>{}) else .avatar,
       username := <optional str>$username ?? .username,
       email := <optional str>$email ?? .email
     }
   )
-select updated_user {*};
-
-
+select updated_user {**};

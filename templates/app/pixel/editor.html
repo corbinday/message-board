@@ -1,0 +1,65 @@
+<pixel-editor width="53" height="11" class="pixel-grow block w-full pixel-context">
+  <div
+    class="flex flex-col gap-4 w-fit h-fit mx-auto p-2 sm:p-4 bg-slate-900 rounded-lg border border-slate-700 shadow-2xl">
+    <p class="font-['Press_Start_2P'] text-xs sm:text-sm text-slate-400 uppercase tracking-widest pl-2">Editor</p>
+    <!-- Controls Row -->
+    <div
+      class="flex flex-nowrap gap-3 items-end p-2 sm:p-4 bg-slate-800/50 rounded-lg border border-slate-700/50 overflow-x-auto">
+      <!-- Color Picker -->
+      <div class="flex flex-col gap-1 sm:gap-2 shrink-0">
+        <label
+          class="font-['Press_Start_2P'] text-[8px] sm:text-[10px] text-slate-400 uppercase tracking-widest">Color</label>
+        <input type="color" id="color-picker" value="#FF0000"
+          class="w-12 h-12 sm:w-16 sm:h-16 rounded-md border-2 border-slate-600 cursor-pointer p-1 bg-slate-800 hover:border-slate-400 transition-colors shadow-lg">
+      </div>
+
+      <!-- Tools -->
+      <div class="flex flex-col gap-1 sm:gap-2 grow">
+        <label
+          class="font-['Press_Start_2P'] text-[8px] sm:text-[10px] text-slate-400 uppercase tracking-widest">Tools</label>
+        <div class="grid grid-cols-2 sm:flex sm:gap-3 gap-2">
+          <button type="button" id="pen"
+            class="px-2 py-2 sm:px-4 sm:py-3 bg-slate-800 border-2 border-slate-600 rounded hover:bg-slate-700 hover:border-slate-400 text-white transition-all active:scale-95 shadow-md flex-1 min-w-[50px] sm:min-w-[80px]"
+            title="Pen">
+            <span class="font-['Press_Start_2P'] text-[8px] sm:text-[10px]">Pen</span>
+          </button>
+          <button type="button" id="eraser"
+            class="px-2 py-2 sm:px-4 sm:py-3 bg-slate-800 border-2 border-slate-600 rounded hover:bg-slate-700 hover:border-slate-400 text-white transition-all active:scale-95 shadow-md flex-1 min-w-[50px] sm:min-w-[80px]"
+            title="Eraser">
+            <span class="font-['Press_Start_2P'] text-[8px] sm:text-[10px]">Erase</span>
+          </button>
+          <button type="button" id="dropper"
+            class="px-2 py-2 sm:px-4 sm:py-3 bg-slate-800 border-2 border-slate-600 rounded hover:bg-slate-700 hover:border-slate-400 text-white transition-all active:scale-95 shadow-md flex-1 min-w-[50px] sm:min-w-[80px]"
+            title="Eye Dropper">
+            <span class="font-['Press_Start_2P'] text-[8px] sm:text-[10px]">Pick</span>
+          </button>
+          <button type="button" id="clear"
+            class="px-2 py-2 sm:px-4 sm:py-3 bg-red-900/20 border-2 border-red-900/40 rounded hover:bg-red-900/40 hover:border-red-500 text-red-200 transition-all active:scale-95 shadow-md flex-1 min-w-[50px] sm:min-w-[80px]"
+            title="Clear Canvas">
+            <span class="font-['Press_Start_2P'] text-[8px] sm:text-[10px]">Clear</span>
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Recent Colors -->
+    <div class="flex flex-col gap-2">
+      <label class="font-['Press_Start_2P'] text-[10px] text-slate-400 uppercase tracking-widest">Recent</label>
+      <div id="recent-colors" class="flex gap-2 h-8 w-full flex-wrap">
+        <!-- JS populates this -->
+      </div>
+    </div>
+
+    <!-- Grid Container -->
+    <div class="flex flex-col items-center gap-2">
+      <div class="relative p-1 bg-slate-800 rounded border border-slate-700 shadow-inner inline-block">
+        <div id="grid"></div>
+      </div>
+      <div class="flex justify-between w-full px-2">
+        <span id="autosave-status" class="font-['Press_Start_2P'] text-[8px] text-slate-500">Ready</span>
+        <span class="font-['Press_Start_2P'] text-[8px] text-slate-500">16x16</span>
+      </div>
+    </div>
+
+  </div>
+</pixel-editor>

@@ -1,73 +1,77 @@
 {% extends 'layout/primary.html' %} {% block content %}
-<div
-  class="pixel-context pixel-xs p-4 md:p-6 max-w-6xl mx-auto space-y-12 md:space-y-20"
->
-  <header class="pb-6 md:pb-8 border-b border-slate-800">
+<div class="pixel-context pixel-xs p-4 md:p-6 max-w-6xl mx-auto space-y-12 md:space-y-20">
+  <header class="flex justify-between items-center pb-6 md:pb-8 border-b border-slate-800">
     <p class="font-['Press_Start_2P'] text-lg text-white">
       Welcome, <span class="text-pico-green">{{ user.username }}</span>.
     </p>
+    <div class="flex gap-3">
+      <a href="{{ url_for('user.account_settings') }}"
+        class="font-['Press_Start_2P'] text-[10px] bg-slate-800 border-2 border-slate-700 p-3 text-white hover:bg-pico-blue hover:text-black hover:border-pico-blue transition-all w-fit">⚙️
+        Settings</a>
+    </div>
   </header>
 
+  <!-- Art Section -->
   <section class="space-y-8">
     <div
-      class="flex flex-col sm:flex-row sm:justify-between sm:items-end gap-3 sm:gap-0 border-l-4 border-pico-blue pl-4"
-    >
+      class="flex flex-col sm:flex-row sm:justify-between sm:items-end gap-3 sm:gap-0 border-l-4 border-pico-blue pl-4">
+      <div>
+        <h2 class="font-['Press_Start_2P'] text-lg text-white">Your Art</h2>
+      </div>
+      <a href="{{ url_for('app.create_art') }}"
+        class="font-['Press_Start_2P'] text-[10px] bg-slate-800 border-2 border-slate-700 p-3 text-white hover:bg-pico-green hover:text-black hover:border-pico-green transition-all w-fit">
+        [+] Create Art
+      </a>
+    </div>
+  </section>
+
+  <!-- Boards Section -->
+  <section class="space-y-8">
+    <div
+      class="flex flex-col sm:flex-row sm:justify-between sm:items-end gap-3 sm:gap-0 border-l-4 border-pico-blue pl-4">
       <div>
         <h2 class="font-['Press_Start_2P'] text-lg text-white">Your Boards</h2>
-        <p
-          class="text-slate-500 text-[10px] uppercase tracking-tighter mt-1 font-bold"
-        >
+        <p class="text-slate-500 text-[10px] uppercase tracking-tighter mt-1 font-bold">
           Manage connected hardware
         </p>
       </div>
-      <a
-        href="{{ url_for('user.add_board') }}"
-        class="font-['Press_Start_2P'] text-[10px] bg-slate-800 border-2 border-slate-700 p-3 text-white hover:bg-pico-green hover:text-black hover:border-pico-green transition-all w-fit"
-      >
+      <a href="{{ url_for('user.add_board') }}"
+        class="font-['Press_Start_2P'] text-[10px] bg-slate-800 border-2 border-slate-700 p-3 text-white hover:bg-pico-green hover:text-black hover:border-pico-green transition-all w-fit">
         [+] Add Board
       </a>
     </div>
 
-    <div class="flex flex-wrap justify-start gap-6 md:gap-8">
+    <div class="flex flex-wrap justify-start gap-4 md:gap-8">
       {% for board in boards %} {% if board.boardType == 'Galactic' %} {%
-      include 'user/board/_board_card_galactic.html' %} {% else %} {% include
-      'user/board/_board_card_square.html' %} {% endif %} {% endfor %}
+      include 'app/board/_board_card_galactic.html' %} {% else %} {% include
+      'app/board/_board_card_square.html' %} {% endif %} {% endfor %}
     </div>
   </section>
 
+  <!-- Friends Section -->
   <section class="space-y-8">
     <div
-      class="flex flex-col sm:flex-row sm:justify-between sm:items-end gap-3 sm:gap-0 border-l-4 border-pico-red pl-4"
-    >
+      class="flex flex-col sm:flex-row sm:justify-between sm:items-end gap-3 sm:gap-0 border-l-4 border-pico-red pl-4">
       <div>
         <h2 class="font-['Press_Start_2P'] text-lg text-white">Your Friends</h2>
-        <p
-          class="text-slate-500 text-[10px] uppercase tracking-tighter mt-1 font-bold"
-        >
+        <p class="text-slate-500 text-[10px] uppercase tracking-tighter mt-1 font-bold">
           Cross-device communication
         </p>
       </div>
-      <a
-        href="{{ url_for('user.add_friend') }}"
-        class="font-['Press_Start_2P'] text-[10px] bg-slate-800 border-2 border-slate-700 p-3 text-white hover:bg-pico-red hover:text-black hover:border-pico-red transition-all w-fit"
-      >
+      <a href="{{ url_for('user.add_friend') }}"
+        class="font-['Press_Start_2P'] text-[10px] bg-slate-800 border-2 border-slate-700 p-3 text-white hover:bg-pico-red hover:text-black hover:border-pico-red transition-all w-fit">
         [+] Add Friend
       </a>
     </div>
 
     <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-6">
       {% for friend_rel in friends %} {% set friend = friend_rel.friend %}
-      <div
-        class="bg-slate-900/40 border border-slate-800 rounded-lg p-4 flex items-center justify-between"
-      >
+      <div class="bg-slate-900/40 border border-slate-800 rounded-lg p-4 flex items-center justify-between">
         <div class="flex items-center gap-4">
           <div
-            class="w-10 h-10 md:w-12 md:h-12 rounded-md bg-slate-900 p-2 md:p-3 border border-slate-700 shadow-xl overflow-hidden flex items-center justify-center pixel-sm"
-          >
-            <pixel-art
-              src="{{ url_for('user.serve_avatar', user_id=friend.id) }}"
-              class="max-w-full h-auto"
-            ></pixel-art>
+            class="w-10 h-10 md:w-12 md:h-12 rounded-md bg-slate-900 p-2 md:p-3 border border-slate-700 shadow-xl overflow-hidden flex items-center justify-center pixel-sm">
+            <pixel-art src="{{ url_for('user.serve_avatar', user_id=friend.id) }}"
+              class="max-w-full h-auto"></pixel-art>
           </div>
           <div>
             <p class="font-['Press_Start_2P'] text-[10px] text-white">
@@ -78,23 +82,17 @@
             </p>
           </div>
         </div>
-        <button
-          hx-delete="{{ url_for('user.delete_friend', friend_id=friend.id) }}"
+        <button hx-delete="{{ url_for('user.delete_friend', friend_id=friend.id) }}"
           hx-confirm="Remove {{ friend.username }} as a friend?"
           class="font-['Press_Start_2P'] text-[8px] bg-slate-800 border border-slate-700 px-2 py-1 text-white hover:bg-slate-700 transition-all"
-          title="Remove friend"
-        >
+          title="Remove friend">
           ×
         </button>
       </div>
       {% endfor %} {% if not friends %}
       <p class="text-slate-500 text-xs col-span-full text-center py-8">
         No friends yet.
-        <a
-          href="{{ url_for('user.add_friend') }}"
-          class="text-pico-red hover:underline"
-          >Add some friends</a
-        >!
+        <a href="{{ url_for('user.add_friend') }}" class="text-pico-red hover:underline">Add some friends</a>!
       </p>
       {% endif %}
     </div>
@@ -107,9 +105,7 @@
       <h2 class="font-['Press_Start_2P'] text-lg text-white">
         Friend Requests
       </h2>
-      <p
-        class="text-slate-500 text-[10px] uppercase tracking-tighter mt-1 font-bold"
-      >
+      <p class="text-slate-500 text-[10px] uppercase tracking-tighter mt-1 font-bold">
         Pending invitations
       </p>
     </div>
@@ -117,16 +113,12 @@
     <div class="space-y-3">
       {% for request in friend_requests %}
       <div
-        class="friend-request-card bg-slate-900/40 border border-slate-800 rounded-lg p-4 flex items-center justify-between"
-      >
+        class="friend-request-card bg-slate-900/40 border border-slate-800 rounded-lg p-4 flex items-center justify-between">
         <div class="flex items-center gap-4">
           <div
-            class="w-10 h-10 rounded-md bg-slate-900 p-2 border border-slate-700 shadow-xl overflow-hidden flex items-center justify-center pixel-sm"
-          >
-            <pixel-art
-              src="{{ url_for('user.serve_avatar', user_id=request.sender.id) }}"
-              class="max-w-full h-auto"
-            ></pixel-art>
+            class="w-10 h-10 rounded-md bg-slate-900 p-2 border border-slate-700 shadow-xl overflow-hidden flex items-center justify-center pixel-sm">
+            <pixel-art src="{{ url_for('user.serve_avatar', user_id=request.sender.id) }}"
+              class="max-w-full h-auto"></pixel-art>
           </div>
           <div>
             <p class="font-['Press_Start_2P'] text-[10px] text-white">
@@ -138,18 +130,13 @@
           </div>
         </div>
         <div class="flex gap-2">
-          <button
-            hx-post="{{ url_for('user.accept_friend_request', request_id=request.id) }}"
-            class="font-['Press_Start_2P'] text-[8px] bg-pico-green border border-pico-green px-3 py-2 text-black hover:bg-pico-green/80 transition-all"
-          >
+          <button hx-post="{{ url_for('user.accept_friend_request', request_id=request.id) }}"
+            class="font-['Press_Start_2P'] text-[8px] bg-pico-green border border-pico-green px-3 py-2 text-black hover:bg-pico-green/80 transition-all">
             Accept
           </button>
-          <button
-            hx-post="{{ url_for('user.reject_friend_request', request_id=request.id) }}"
-            hx-target="closest .friend-request-card"
-            hx-swap="delete"
-            class="font-['Press_Start_2P'] text-[8px] bg-slate-800 border border-slate-700 px-3 py-2 text-white hover:bg-slate-700 transition-all"
-          >
+          <button hx-post="{{ url_for('user.reject_friend_request', request_id=request.id) }}"
+            hx-target="closest .friend-request-card" hx-swap="delete"
+            class="font-['Press_Start_2P'] text-[8px] bg-slate-800 border border-slate-700 px-3 py-2 text-white hover:bg-slate-700 transition-all">
             Reject
           </button>
         </div>
@@ -159,18 +146,15 @@
   </section>
   {% endif %}
 
+  <!-- Recent Logs Section -->
   <section class="space-y-8">
     <div class="border-l-4 border-slate-600 pl-4">
       <h2 class="font-['Press_Start_2P'] text-lg text-white">Recent Logs</h2>
-      <p
-        class="text-slate-500 text-[10px] uppercase tracking-tighter mt-1 font-bold"
-      >
+      <p class="text-slate-500 text-[10px] uppercase tracking-tighter mt-1 font-bold">
         System Activity
       </p>
     </div>
-    <div
-      class="bg-black/20 border border-slate-800 rounded-lg p-4 font-mono text-xs text-slate-400 space-y-2"
-    >
+    <div class="bg-black/20 border border-slate-800 rounded-lg p-4 font-mono text-xs text-slate-400 space-y-2">
       <p><span class="text-pico-blue">[INFO]</span> Dashboard initialized.</p>
       <p>
         <span class="text-pico-green">[SUCCESS]</span> Board "Sparky" checked in

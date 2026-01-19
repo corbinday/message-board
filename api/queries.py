@@ -84,7 +84,12 @@ class inserUserFromLocalProviderResult(NoPydanticValidation):
 class searchUserByUsernameResult(NoPydanticValidation):
     id: uuid.UUID
     username: str | None
-    avatar: bytes | None
+    avatar: searchUserByUsernameResultAvatar | None
+
+
+@dataclasses.dataclass
+class searchUserByUsernameResultAvatar(NoPydanticValidation):
+    id: uuid.UUID
 
 
 @dataclasses.dataclass
@@ -132,7 +137,26 @@ class selectGlobalUserResult(NoPydanticValidation):
     username: str | None
     id: uuid.UUID
     email: str | None
-    avatar: bytes | None
+    identity: list[selectGlobalUserResultIdentityItem]
+    avatar: selectGlobalUserResultAvatar | None
+
+
+@dataclasses.dataclass
+class selectGlobalUserResultAvatar(NoPydanticValidation):
+    id: uuid.UUID
+    binary: bytes
+    created_at: datetime.datetime
+    size: BoardType02
+    updated_at: datetime.datetime
+
+
+@dataclasses.dataclass
+class selectGlobalUserResultIdentityItem(NoPydanticValidation):
+    modified_at: datetime.datetime
+    created_at: datetime.datetime
+    id: uuid.UUID
+    issuer: str
+    subject: str
 
 
 @dataclasses.dataclass
@@ -453,7 +477,7 @@ def selectGlobalUser(
     return executor.query_single(
         """\
         select assert_single(
-            select User {*}
+            select User {**}
             filter assert_single(.identity = global ext::auth::ClientTokenIdentity)
         );\
         """,
@@ -501,7 +525,7 @@ def selectUserAvatar(
         select assert_single(
             select User
             filter .id = <uuid>$user_id
-        ).avatar;\
+        ).avatar.binary;\
         """,
         user_id=user_id,
     )
@@ -510,7 +534,7 @@ def selectUserAvatar(
 def updateGlobalUser(
     executor: gel.Executor,
     *,
-    avatar: bytes | None = None,
+    avatar_id: uuid.UUID,
     username: str | None = None,
     email: str | None = None,
 ) -> selectGlobalUserResult | None:
@@ -526,14 +550,14 @@ def updateGlobalUser(
           updated_user := (
             update user
             set {
-              avatar := <optional bytes>$avatar ?? .avatar,
+              avatar := (select Avatar filter .id = <uuid>$avatar_id) if exists(<optional uuid>$avatar_id ?? <optional uuid>{}) else .avatar,
               username := <optional str>$username ?? .username,
               email := <optional str>$email ?? .email
             }
           )
-        select updated_user {*};\
+        select updated_user {**};\
         """,
-        avatar=avatar,
+        avatar_id=avatar_id,
         username=username,
         email=email,
     )

@@ -6,27 +6,27 @@ import struct
 
 def generate_default_avatar() -> bytes:
     """
-    Generate a default 32x32 pixel avatar.
+    Generate a default 16x16 pixel avatar.
     Returns PNG bytes.
     Creates a simple PNG manually without PIL.
     """
     # PNG signature
     png_signature = b"\x89PNG\r\n\x1a\n"
 
-    # Create 32x32 RGB image data
+    # Create 16x16 RGB image data
     # Dark grey background (40, 40, 40)
     # Red square in center (255, 0, 0)
-    width, height = 32, 32
+    width, height = 16, 16
     pixels = []
 
     for y in range(height):
         row = []
         for x in range(width):
-            # Red square in center (8-24)
-            if 8 <= x < 24 and 8 <= y < 24:
+            # Red square in center (4-12)
+            if 4 <= x < 12 and 4 <= y < 12:
                 r, g, b = 255, 0, 0
             # Border
-            elif x == 0 or x == 31 or y == 0 or y == 31:
+            elif x == 0 or x == 15 or y == 0 or y == 15:
                 r, g, b = 100, 100, 100
             # Background
             else:

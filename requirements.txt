@@ -4,3 +4,4 @@ gel
 python-dotenv
 resend
 flask-login
+Pillow

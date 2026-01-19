@@ -25,19 +25,19 @@ def check_username():
     username = request.args.get("username").strip()
     if len(username) < 4:
         return render_template(
-            "user/username-availability.html",
+            "app/user/username-availability.html",
             message="Username must be longer than 3 characters",
             status="error",
         )
     elif q.usernameExists(g.client, username=username):
         return render_template(
-            "user/username-availability.html",
+            "app/user/username-availability.html",
             message=f"{username} is not available",
             status="error",
         )
     else:
         return render_template(
-            "user/username-availability.html",
+            "app/user/username-availability.html",
             message=f"{username} is available!",
             status="available",
         )
@@ -46,7 +46,7 @@ def check_username():
 @bp.route("/add-board", methods=["GET", "POST"])
 def add_board():
     if request.method == "GET":
-        return render_template("user/add-board.html")
+        return render_template("app/user/add-board.html")
 
     """ Handle POST """
     # determine the size of the board
@@ -71,7 +71,7 @@ def board_details(board_id):
     board = q.selectGlobalUserBoard(g.client, board_id=board_id)
     if not board:
         abort(404, description="Board does not exist!")
-    return render_template("user/board/details.html", board=board)
+    return render_template("app/board/details.html", board=board)
 
 
 @bp.route("/board/<board_id>/download_config", methods=["POST"])
@@ -118,7 +118,7 @@ def board_status(board_id):
         is_active = board.last_connected_at > threshold
 
     return render_template(
-        "user/board/status_indicator.html", board=board, is_active=is_active
+        "app/board/status_indicator.html", board=board, is_active=is_active
     )
 
 
@@ -129,18 +129,18 @@ def update_board_name(board_id):
         # Update DB
         board = q.updateGlobalUserBoard(g.client, board_id=board_id, name=new_name)
         # Re-render the read-only partial
-        return render_template("user/board/_name_display.html", board=board)
+        return render_template("app/board/_name_display.html", board=board)
 
     # GET: Show the edit form
     board = q.selectGlobalUserBoard(g.client, board_id=board_id)
-    return render_template("user/board/edit_name.html", board=board)
+    return render_template("app/board/edit_name.html", board=board)
 
 
 @bp.route("/board/<board_id>/name-partial")
 def name_partial(board_id):
     # Helper for the 'Cancel' button to revert the UI
     board = q.selectGlobalUserBoard(g.client, board_id=board_id)
-    return render_template("user/board/_name_display.html", board=board)
+    return render_template("app/board/_name_display.html", board=board)
 
 
 @bp.route("/add-friend", methods=["GET"])
@@ -151,7 +151,7 @@ def add_friend():
         if hasattr(q, "selectFriendRequestsSent")
         else []
     )
-    return render_template("user/friend/add.html", sent_requests=sent_requests)
+    return render_template("app/friend/add.html", sent_requests=sent_requests)
 
 
 @bp.route("/search", methods=["POST"])
@@ -172,7 +172,7 @@ def search_users():
         No users found.
       </p>
         """)
-    return render_template("user/friend/search-results.html", users=users)
+    return render_template("app/friend/search-results.html", users=users)
 
 
 @bp.route("/friend-request/send", methods=["POST"])
@@ -253,7 +253,7 @@ def avatar():
         current_user = q.selectGlobalUser(g.client)
         has_avatar = current_user.avatar is not None if current_user else False
         return render_template(
-            "user/avatar.html", has_avatar=has_avatar, user=current_user
+            "app/user/avatar.html", has_avatar=has_avatar, user=current_user
         )
 
     # POST: Save avatar
@@ -279,8 +279,8 @@ def avatar():
 
             # Read width and height from IHDR (bytes 16-23)
             width, height = struct.unpack(">II", png_data[16:24])
-            if width != 32 or height != 32:
-                return jsonify({"error": "Image must be exactly 32x32 pixels"}), 400
+            if width != 16 or height != 16:
+                return jsonify({"error": "Avatar must be exactly 16x16 pixels"}), 400
 
         elif mode == "upload":
             # Upload mode: receive PNG file
@@ -300,17 +300,40 @@ def avatar():
 
             # Read width and height from IHDR (bytes 16-23)
             width, height = struct.unpack(">II", png_data[16:24])
-            if width != 32 or height != 32:
-                return jsonify({"error": "Image must be exactly 32x32 pixels"}), 400
+            if width != 16 or height != 16:
+                return jsonify({"error": "Avatar must be exactly 16x16 pixels"}), 400
         else:
             return jsonify({"error": "Invalid mode"}), 400
 
-        # Save to database
-        q.updateGlobalUser(g.client, avatar=png_data)
+        # Create Avatar object
+        try:
+            user = q.selectGlobalUser(g.client)
+            if not user:
+                return jsonify({"error": "User not found"}), 401
 
-        response = make_response("", 204)
-        response.headers["HX-Location"] = url_for("user.avatar")
-        return response
+            # Insert new Avatar
+            avatar_result = g.client.query_single(
+                """
+                INSERT Avatar {
+                    binary := <bytes>$data,
+                    size := BoardType.Stellar,
+                    creator := (select User filter .id = <uuid>$user_id)
+                }
+                """,
+                data=png_data,
+                user_id=user.id,
+            )
+
+            # Set as active avatar
+            q.updateGlobalUser(g.client, avatar_id=avatar_result.id)
+
+            response = make_response("", 204)
+            response.headers["HX-Location"] = url_for("user.avatar")
+            return response
+
+        except Exception as e:
+            current_app.logger.error(f"Error creating avatar: {e}")
+            return jsonify({"error": str(e)}), 500
 
     except Exception as e:
         current_app.logger.error(f"Error saving avatar: {e}")
@@ -320,8 +343,132 @@ def avatar():
 @bp.route("/avatar/paint", methods=["GET"])
 def avatar_paint():
     return render_template(
-        "paint/canvas.html", BOARD_WIDTH=32, BOARD_HEIGHT=32, avatar_mode=True
+        "paint/canvas.html", BOARD_WIDTH=16, BOARD_HEIGHT=16, avatar_mode=True
     )
+
+
+@bp.route("/avatar/editor", methods=["GET"])
+def avatar_editor():
+    """HTMX endpoint to get avatar editor (16x16 only)."""
+    user = q.selectGlobalUser(g.client)
+    has_avatar = user.avatar is not None if user else False
+    return render_template(
+        "app/user/avatar_editor.html", user=user, initial_avatar=has_avatar
+    )
+
+
+@bp.route("/avatar/save", methods=["POST"])
+def save_avatar():
+    """Save avatar from pixel editor."""
+    b64_data = request.form.get("pixel_data")
+
+    if not b64_data:
+        return jsonify({"error": "No pixel data received"}), 400
+
+    try:
+        # Decode Base64 to PNG bytes
+        image_data = base64.b64decode(b64_data)
+
+        # Validate PNG format
+        if not image_data.startswith(b"\x89PNG\r\n\x1a\n"):
+            return jsonify({"error": "Invalid PNG format"}), 400
+
+        # Read width and height from IHDR (bytes 16-23)
+        width, height = struct.unpack(">II", image_data[16:24])
+        if width != 16 or height != 16:
+            return jsonify({"error": "Avatar must be exactly 16x16 pixels"}), 400
+
+        # Create Avatar object
+        user = q.selectGlobalUser(g.client)
+        if not user:
+            return jsonify({"error": "User not found"}), 401
+
+        # Insert new Avatar
+        avatar_result = g.client.query_single(
+            """
+            INSERT Avatar {
+                binary := <bytes>$data,
+                size := BoardType.Stellar,
+                creator := (select User filter .id = <uuid>$user_id)
+            }
+            """,
+            data=image_data,
+            user_id=user.id,
+        )
+
+        # Set as active avatar
+        q.updateGlobalUser(g.client, avatar_id=avatar_result.id)
+
+        if request.headers.get("HX-Request"):
+            return make_response(
+                "<div class=\"font-['Press_Start_2P'] text-xs text-pico-green\">Avatar saved successfully!</div>",
+                200,
+            )
+
+        response = make_response("", 204)
+        response.headers["HX-Location"] = url_for("user.account_settings")
+        return response
+
+    except Exception as e:
+        current_app.logger.error(f"Error saving avatar: {e}")
+        return jsonify({"error": str(e)}), 500
+
+
+@bp.route("/account/settings", methods=["GET"])
+def account_settings():
+    """Account settings page for updating avatar and username."""
+    user = q.selectGlobalUser(g.client)
+    if not user:
+        abort(401)
+
+    has_avatar = user.avatar is not None
+    return render_template(
+        "app/user/account-settings.html", user=user, has_avatar=has_avatar
+    )
+
+
+@bp.route("/account/username", methods=["POST"])
+def update_username():
+    """Update user's username."""
+    new_username = request.form.get("username", "").strip()
+
+    if not new_username or len(new_username) < 4:
+        return jsonify({"error": "Username must be at least 4 characters"}), 400
+
+    # Check if username is taken
+    if q.usernameExists(g.client, username=new_username):
+        return jsonify({"error": "Username already taken"}), 400
+
+    try:
+        user = q.selectGlobalUser(g.client)
+        if not user:
+            return jsonify({"error": "User not found"}), 401
+
+        # Update username (you'll need to add this query)
+        # For now, using a raw query
+        g.client.query_single(
+            """
+            UPDATE User 
+            FILTER .id = <uuid>$user_id
+            SET { username := <str>$username }
+            """,
+            user_id=user.id,
+            username=new_username,
+        )
+
+        if request.headers.get("HX-Request"):
+            return make_response(
+                f"<div class=\"font-['Press_Start_2P'] text-xs text-pico-green\">Username updated to {new_username}!</div>",
+                200,
+            )
+
+        response = make_response("", 204)
+        response.headers["HX-Location"] = url_for("user.account_settings")
+        return response
+
+    except Exception as e:
+        current_app.logger.error(f"Error updating username: {e}")
+        return jsonify({"error": str(e)}), 500
 
 
 @bp.route("/avatar/<user_id>")
