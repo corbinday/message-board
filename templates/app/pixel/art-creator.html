@@ -1,0 +1,150 @@
+{% extends 'layout/primary.html' %} {% block content %}
+<div class="p-4 md:p-6 max-w-6xl mx-auto space-y-8">
+  <header class="pb-6 border-b border-slate-800 flex justify-between items-center">
+    <div>
+      <h1 class="font-['Press_Start_2P'] text-lg text-white">Create Art</h1>
+      <p class="text-slate-500 text-[10px] uppercase tracking-tighter mt-2 font-bold">
+        Design pixel art for your boards
+      </p>
+    </div>
+    <a href="{{ url_for('app.home') }}"
+      class="font-['Press_Start_2P'] text-[10px] bg-slate-800 border-2 border-slate-700 p-3 text-white hover:bg-slate-700 transition-all">
+      Back to Dashboard
+    </a>
+  </header>
+
+  <section class="space-y-4">
+    <div class="border-l-4 border-pico-green pl-4">
+      <h2 class="font-['Press_Start_2P'] text-sm text-white">Pixel Editor</h2>
+      <p class="text-slate-500 text-[10px] uppercase tracking-tighter mt-1 font-bold">
+        Create static images or animations
+      </p>
+    </div>
+
+    {% set editor_width = 32 %}
+    {% set editor_height = 32 %}
+    {% set allow_animation = true %}
+    {% set show_size_selector = true %}
+    {% include "app/pixel/editor.html" %}
+
+    <!-- Auto-save listener (invisible) -->
+    <div id="autosave-trigger"
+      hx-post="{{ url_for('app.save_draft') }}"
+      hx-trigger="editor-changed from:body"
+      hx-swap="none"
+      hx-include="#draft-data, #draft-frames, #draft-delay, #draft-size"
+      class="hidden">
+    </div>
+    <input type="hidden" id="draft-data" name="pixel_data" />
+    <input type="hidden" id="draft-frames" name="frames" value="1" />
+    <input type="hidden" id="draft-delay" name="frame_delay_ms" value="100" />
+    <input type="hidden" id="draft-size" name="size" value="Galactic" />
+
+    <!-- Finish Button -->
+    <div class="flex flex-col items-center gap-3 pt-4">
+      <div id="save-status" class="font-['Press_Start_2P'] text-[8px] text-slate-500">
+        Auto-saving enabled
+      </div>
+      <button type="button" id="finish-btn"
+        hx-post="{{ url_for('app.finish_draft') }}"
+        hx-target="#save-status"
+        hx-swap="innerHTML"
+        class="font-['Press_Start_2P'] text-[10px] bg-pico-green border-2 border-pico-green px-6 py-3 text-black hover:bg-pico-green/80 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+        disabled>
+        Finish & Save
+      </button>
+      <!-- Delete Draft Button (only show if editing existing draft) -->
+      {% if draft_id %}
+      <button type="button"
+        hx-delete="{{ url_for('app.delete_draft_route', draft_id=draft_id) }}"
+        hx-confirm="Delete this draft? This cannot be undone."
+        class="font-['Press_Start_2P'] text-[10px] bg-slate-800 border-2 border-red-900/40 px-6 py-3 text-red-200 hover:bg-red-900/40 hover:border-red-500 transition-all">
+        Delete Draft
+      </button>
+      {% endif %}
+    </div>
+  </section>
+</div>
+
+<script nonce="{{ nonce }}">
+document.addEventListener('DOMContentLoaded', function() {
+  const editor = document.getElementById('pixel-editor-instance');
+  const draftData = document.getElementById('draft-data');
+  const draftFrames = document.getElementById('draft-frames');
+  const draftDelay = document.getElementById('draft-delay');
+  const draftSize = document.getElementById('draft-size');
+  const finishBtn = document.getElementById('finish-btn');
+  const saveStatus = document.getElementById('save-status');
+  const autosaveStatus = document.getElementById('autosave-status');
+
+  if (!editor) return;
+
+  // Listen for editor changes
+  editor.addEventListener('editor-changed', async function(e) {
+    const { hasContent, frameCount, frameDelay } = e.detail;
+
+    // Update hidden form data
+    draftFrames.value = frameCount;
+    draftDelay.value = frameDelay || 100;
+
+    // Get the image data as base64
+    try {
+      let blob;
+      if (frameCount > 1) {
+        blob = await editor.getAnimationData();
+      } else {
+        blob = await editor.exportBlob();
+      }
+
+      const reader = new FileReader();
+      reader.onload = function() {
+        // Remove data URL prefix (data:image/png;base64,)
+        const base64 = reader.result.split(',')[1];
+        draftData.value = base64;
+
+        // Determine size based on editor dimensions
+        const width = parseInt(editor.getAttribute('width'), 10);
+        if (width <= 16) {
+          draftSize.value = 'Stellar';
+        } else if (width <= 32) {
+          draftSize.value = 'Galactic';
+        } else {
+          draftSize.value = 'Cosmic';
+        }
+
+        // Trigger the auto-save via htmx
+        htmx.trigger('#autosave-trigger', 'editor-changed');
+
+        // Update status
+        if (autosaveStatus) {
+          autosaveStatus.textContent = 'Saving...';
+          setTimeout(() => {
+            autosaveStatus.textContent = 'Saved';
+          }, 500);
+        }
+      };
+      reader.readAsDataURL(blob);
+
+      // Enable/disable finish button based on content
+      finishBtn.disabled = !hasContent;
+    } catch (err) {
+      console.error('Error preparing draft data:', err);
+      if (autosaveStatus) {
+        autosaveStatus.textContent = 'Save failed';
+      }
+    }
+  });
+
+  // Handle finish button response
+  document.body.addEventListener('htmx:afterRequest', function(e) {
+    if (e.detail.elt === finishBtn && e.detail.successful) {
+      saveStatus.innerHTML = '<span class="text-pico-green">Saved successfully!</span>';
+      // Optionally redirect after a delay
+      setTimeout(() => {
+        window.location.href = "{{ url_for('app.home') }}";
+      }, 1500);
+    }
+  });
+});
+</script>
+{% endblock %}

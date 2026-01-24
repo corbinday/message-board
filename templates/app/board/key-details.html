@@ -31,7 +31,7 @@
   </div>
 
   <form
-    action="{{ url_for('user.download_config', board_id=board_id) }}"
+    action="{{ url_for('app.download_config', board_id=board_id) }}"
     method="POST"
     class="space-y-6"
   >
@@ -101,7 +101,7 @@
 
   <div class="pt-6 border-t border-slate-800 flex justify-center">
     <button
-      hx-post="{{ url_for('auth.register_board', board_id=board_id) }}"
+      hx-post="{{ url_for('app.register_board', board_id=board_id) }}"
       hx-target="#setup-area"
       class="text-[10px] font-bold uppercase tracking-widest text-slate-600 hover:text-red-500 transition"
     >

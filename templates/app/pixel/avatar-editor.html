@@ -1,0 +1,134 @@
+{% extends 'layout/primary.html' %} {% block content %}
+<div class="pixel-context pixel-xs p-4 md:p-6 max-w-4xl mx-auto space-y-8">
+  <header class="pb-6 border-b border-slate-800 flex justify-between items-center">
+    <div>
+      <h1 class="font-['Press_Start_2P'] text-lg text-white">Edit Avatar</h1>
+      <p class="text-slate-500 text-[10px] uppercase tracking-tighter mt-2 font-bold">
+        Create your 16x16 pixel avatar
+      </p>
+    </div>
+    <a href="{{ url_for('user.account_settings') }}"
+      class="font-['Press_Start_2P'] text-[10px] bg-slate-800 border-2 border-slate-700 p-3 text-white hover:bg-slate-700 transition-all">
+      Back to Settings
+    </a>
+  </header>
+
+  <!-- Current Avatar Preview -->
+  {% if user and user.avatar %}
+  <section class="space-y-4">
+    <div class="border-l-4 border-pico-blue pl-4">
+      <h2 class="font-['Press_Start_2P'] text-sm text-white">Current Avatar</h2>
+    </div>
+    <div class="bg-slate-900/40 border border-slate-800 rounded-lg p-6">
+      <div class="w-24 h-24 mx-auto rounded-md bg-slate-800 p-3 border border-slate-700 shadow-xl overflow-hidden flex items-center justify-center pixel-sm">
+        <pixel-art src="{{ url_for('user.serve_avatar', user_id=user.id) }}" class="max-w-full h-auto"></pixel-art>
+      </div>
+    </div>
+  </section>
+  {% endif %}
+
+  <!-- Avatar Editor -->
+  <section class="space-y-4">
+    <div class="border-l-4 border-pico-green pl-4">
+      <h2 class="font-['Press_Start_2P'] text-sm text-white">Pixel Editor</h2>
+      <p class="text-slate-500 text-[10px] uppercase tracking-tighter mt-1 font-bold">
+        Draw your new avatar below
+      </p>
+    </div>
+
+    {% set editor_width = 16 %}
+    {% set editor_height = 16 %}
+    {% set allow_animation = false %}
+    {% if user and user.avatar %}
+      {% set initial_src = url_for('user.serve_avatar', user_id=user.id) %}
+    {% endif %}
+    {% include "app/pixel/editor.html" %}
+
+    <!-- Auto-save listener (invisible) -->
+    <div id="autosave-trigger"
+      hx-post="{{ url_for('user.save_avatar') }}"
+      hx-trigger="editor-changed from:body"
+      hx-swap="none"
+      hx-include="#draft-data"
+      class="hidden">
+    </div>
+    <input type="hidden" id="draft-data" name="pixel_data" />
+
+    <!-- Finish Button -->
+    <div class="flex flex-col items-center gap-3 pt-4">
+      <div id="save-status" class="font-['Press_Start_2P'] text-[8px] text-slate-500">
+        Auto-saving enabled
+      </div>
+      <button type="button" id="finish-btn"
+        hx-post="{{ url_for('user.save_avatar') }}"
+        hx-include="#draft-data"
+        hx-target="#save-status"
+        hx-swap="innerHTML"
+        class="font-['Press_Start_2P'] text-[10px] bg-pico-green border-2 border-pico-green px-6 py-3 text-black hover:bg-pico-green/80 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+        disabled>
+        Save Avatar
+      </button>
+    </div>
+  </section>
+</div>
+
+<script nonce="{{ nonce }}">
+document.addEventListener('DOMContentLoaded', function() {
+  const editor = document.getElementById('pixel-editor-instance');
+  const draftData = document.getElementById('draft-data');
+  const finishBtn = document.getElementById('finish-btn');
+  const saveStatus = document.getElementById('save-status');
+  const autosaveStatus = document.getElementById('autosave-status');
+
+  if (!editor) return;
+
+  // Listen for editor changes
+  editor.addEventListener('editor-changed', async function(e) {
+    const { hasContent } = e.detail;
+
+    // Get the image data as base64
+    try {
+      const blob = await editor.exportBlob();
+
+      const reader = new FileReader();
+      reader.onload = function() {
+        // Remove data URL prefix (data:image/png;base64,)
+        const base64 = reader.result.split(',')[1];
+        draftData.value = base64;
+
+        // Trigger the auto-save via htmx
+        htmx.trigger('#autosave-trigger', 'editor-changed');
+
+        // Update status
+        if (autosaveStatus) {
+          autosaveStatus.textContent = 'Saving...';
+          setTimeout(() => {
+            autosaveStatus.textContent = 'Saved';
+          }, 500);
+        }
+      };
+      reader.readAsDataURL(blob);
+
+      // Enable/disable finish button based on content
+      finishBtn.disabled = !hasContent;
+    } catch (err) {
+      console.error('Error preparing draft data:', err);
+      if (autosaveStatus) {
+        autosaveStatus.textContent = 'Save failed';
+      }
+    }
+  });
+
+  // Handle finish button response
+  document.body.addEventListener('htmx:afterRequest', function(e) {
+    if (e.detail.elt === finishBtn && e.detail.successful) {
+      saveStatus.innerHTML = '<span class="text-pico-green">Avatar saved!</span>';
+      // Redirect after a delay
+      setTimeout(() => {
+        window.location.href = "{{ url_for('user.account_settings') }}";
+      }, 1500);
+    }
+  });
+});
+</script>
+{% endblock %}

@@ -1,7 +1,46 @@
-<pixel-editor width="53" height="11" class="pixel-grow block w-full pixel-context">
-  <div
-    class="flex flex-col gap-4 w-fit h-fit mx-auto p-2 sm:p-4 bg-slate-900 rounded-lg border border-slate-700 shadow-2xl">
-    <p class="font-['Press_Start_2P'] text-xs sm:text-sm text-slate-400 uppercase tracking-widest pl-2">Editor</p>
+{#
+Unified Pixel Editor Component
+
+Variables:
+- editor_width: int (default 32) - canvas width in pixels
+- editor_height: int (default 11) - canvas height in pixels
+- allow_animation: bool (default false) - show frame controls
+- initial_src: string (optional) - URL to load initial image from
+- save_url: string (required) - URL to POST save data to
+- save_button_text: string (default "Save") - text for save button
+- show_size_selector: bool (default false) - show size presets
+#}
+{% set editor_width = editor_width|default(32) %}
+{% set editor_height = editor_height|default(11) %}
+{% set allow_animation = allow_animation|default(false) %}
+{% set save_button_text = save_button_text|default("Save") %}
+{% set show_size_selector = show_size_selector|default(false) %}
+
+{% if show_size_selector %}
+<!-- Size Selection -->
+<div class="bg-slate-900/40 border border-slate-800 rounded-lg p-4 mb-4">
+  <div class="flex flex-wrap gap-3 items-center justify-center">
+    <button type="button" data-size="16x16"
+      class="size-preset font-['Press_Start_2P'] text-[8px] bg-slate-800 border-2 border-slate-700 px-3 py-2 text-white hover:bg-pico-blue hover:text-black hover:border-pico-blue transition-all">
+      16x16
+    </button>
+    <button type="button" data-size="32x32"
+      class="size-preset font-['Press_Start_2P'] text-[8px] bg-slate-800 border-2 border-slate-700 px-3 py-2 text-white hover:bg-pico-blue hover:text-black hover:border-pico-blue transition-all">
+      32x32
+    </button>
+    <button type="button" data-size="53x11"
+      class="size-preset font-['Press_Start_2P'] text-[8px] bg-slate-800 border-2 border-slate-700 px-3 py-2 text-white hover:bg-pico-blue hover:text-black hover:border-pico-blue transition-all">
+      53x11
+    </button>
+  </div>
+</div>
+{% endif %}
+
+<pixel-editor width="{{ editor_width }}" height="{{ editor_height }}" {% if allow_animation %}allow-animation{% endif %}
+  {% if initial_src %}initial-src="{{ initial_src }}" {% endif %} emit-changes debounce-ms="1000"
+  class="pixel-grow block w-full pixel-context" id="pixel-editor-instance">
+  <div class="flex flex-col gap-4 w-full h-fit p-2 sm:p-4 bg-slate-900 rounded-lg border border-slate-700 shadow-2xl">
+
     <!-- Controls Row -->
     <div
       class="flex flex-nowrap gap-3 items-end p-2 sm:p-4 bg-slate-800/50 rounded-lg border border-slate-700/50 overflow-x-auto">
@@ -10,45 +49,59 @@
         <label
           class="font-['Press_Start_2P'] text-[8px] sm:text-[10px] text-slate-400 uppercase tracking-widest">Color</label>
         <input type="color" id="color-picker" value="#FF0000"
-          class="w-12 h-12 sm:w-16 sm:h-16 rounded-md border-2 border-slate-600 cursor-pointer p-1 bg-slate-800 hover:border-slate-400 transition-colors shadow-lg">
+          class="w-10 h-10 sm:w-12 sm:h-12 rounded-md border-2 border-slate-600 cursor-pointer p-1 bg-slate-800 hover:border-slate-400 transition-colors shadow-lg">
       </div>
 
       <!-- Tools -->
       <div class="flex flex-col gap-1 sm:gap-2 grow">
         <label
           class="font-['Press_Start_2P'] text-[8px] sm:text-[10px] text-slate-400 uppercase tracking-widest">Tools</label>
-        <div class="grid grid-cols-2 sm:flex sm:gap-3 gap-2">
+        <div class="flex flex-wrap gap-2">
           <button type="button" id="pen"
-            class="px-2 py-2 sm:px-4 sm:py-3 bg-slate-800 border-2 border-slate-600 rounded hover:bg-slate-700 hover:border-slate-400 text-white transition-all active:scale-95 shadow-md flex-1 min-w-[50px] sm:min-w-[80px]"
+            class="px-2 py-2 bg-slate-800 border-2 border-slate-600 rounded hover:bg-slate-700 hover:border-slate-400 text-white transition-all active:scale-95 shadow-md"
             title="Pen">
-            <span class="font-['Press_Start_2P'] text-[8px] sm:text-[10px]">Pen</span>
+            <span class="font-['Press_Start_2P'] text-[8px]">Pen</span>
           </button>
           <button type="button" id="eraser"
-            class="px-2 py-2 sm:px-4 sm:py-3 bg-slate-800 border-2 border-slate-600 rounded hover:bg-slate-700 hover:border-slate-400 text-white transition-all active:scale-95 shadow-md flex-1 min-w-[50px] sm:min-w-[80px]"
+            class="px-2 py-2 bg-slate-800 border-2 border-slate-600 rounded hover:bg-slate-700 hover:border-slate-400 text-white transition-all active:scale-95 shadow-md"
             title="Eraser">
-            <span class="font-['Press_Start_2P'] text-[8px] sm:text-[10px]">Erase</span>
+            <span class="font-['Press_Start_2P'] text-[8px]">Erase</span>
           </button>
           <button type="button" id="dropper"
-            class="px-2 py-2 sm:px-4 sm:py-3 bg-slate-800 border-2 border-slate-600 rounded hover:bg-slate-700 hover:border-slate-400 text-white transition-all active:scale-95 shadow-md flex-1 min-w-[50px] sm:min-w-[80px]"
+            class="px-2 py-2 bg-slate-800 border-2 border-slate-600 rounded hover:bg-slate-700 hover:border-slate-400 text-white transition-all active:scale-95 shadow-md"
             title="Eye Dropper">
-            <span class="font-['Press_Start_2P'] text-[8px] sm:text-[10px]">Pick</span>
+            <span class="font-['Press_Start_2P'] text-[8px]">Pick</span>
           </button>
           <button type="button" id="clear"
-            class="px-2 py-2 sm:px-4 sm:py-3 bg-red-900/20 border-2 border-red-900/40 rounded hover:bg-red-900/40 hover:border-red-500 text-red-200 transition-all active:scale-95 shadow-md flex-1 min-w-[50px] sm:min-w-[80px]"
+            class="px-2 py-2 bg-red-900/20 border-2 border-red-900/40 rounded hover:bg-red-900/40 hover:border-red-500 text-red-200 transition-all active:scale-95 shadow-md"
             title="Clear Canvas">
-            <span class="font-['Press_Start_2P'] text-[8px] sm:text-[10px]">Clear</span>
+            <span class="font-['Press_Start_2P'] text-[8px]">Clear</span>
           </button>
         </div>
+      </div>
+
+      <!-- Load File -->
+      <div class="flex flex-col gap-1 sm:gap-2 shrink-0">
+        <label
+          class="font-['Press_Start_2P'] text-[8px] sm:text-[10px] text-slate-400 uppercase tracking-widest">Load</label>
+        <label class="cursor-pointer">
+          <input type="file" accept="image/png" data-editor-action="load-file" class="hidden">
+          <span
+            class="px-2 py-2 bg-slate-800 border-2 border-slate-600 rounded hover:bg-slate-700 hover:border-slate-400 text-white transition-all shadow-md inline-block">
+            <span class="font-['Press_Start_2P'] text-[8px]">PNG</span>
+          </span>
+        </label>
       </div>
     </div>
 
     <!-- Recent Colors -->
     <div class="flex flex-col gap-2">
       <label class="font-['Press_Start_2P'] text-[10px] text-slate-400 uppercase tracking-widest">Recent</label>
-      <div id="recent-colors" class="flex gap-2 h-8 w-full flex-wrap">
+      <div id="recent-colors" class="flex gap-2 h-6 w-full flex-wrap">
         <!-- JS populates this -->
       </div>
     </div>
+
 
     <!-- Grid Container -->
     <div class="flex flex-col items-center gap-2">
@@ -57,9 +110,138 @@
       </div>
       <div class="flex justify-between w-full px-2">
         <span id="autosave-status" class="font-['Press_Start_2P'] text-[8px] text-slate-500">Ready</span>
-        <span class="font-['Press_Start_2P'] text-[8px] text-slate-500">16x16</span>
+        <span id="size-display" class="font-['Press_Start_2P'] text-[8px] text-slate-500">{{ editor_width }}x{{
+          editor_height }}</span>
       </div>
     </div>
 
+    {% if allow_animation %}
+    <!-- Frame Controls and Thumbnails (below grid) -->
+    <div class="space-y-3 p-3 bg-slate-800/50 rounded-lg border border-slate-700/50">
+      <!-- Frame Actions Row -->
+      <div class="flex flex-wrap gap-2 items-center">
+        <span class="font-['Press_Start_2P'] text-[8px] text-slate-400">Frames:</span>
+        <button type="button" data-editor-action="add-frame"
+          class="font-['Press_Start_2P'] text-[8px] bg-slate-800 border border-slate-700 px-2 py-1 text-white hover:bg-slate-700 transition-all">
+          + Add
+        </button>
+        <button type="button" data-editor-action="duplicate-frame"
+          class="font-['Press_Start_2P'] text-[8px] bg-slate-800 border border-slate-700 px-2 py-1 text-white hover:bg-slate-700 transition-all">
+          Copy
+        </button>
+        <button type="button" data-editor-action="delete-frame"
+          class="font-['Press_Start_2P'] text-[8px] bg-slate-800 border border-red-900/40 px-2 py-1 text-red-200 hover:bg-red-900/40 transition-all">
+          Del
+        </button>
+        <button type="button" data-editor-action="delete-all-frames"
+          class="font-['Press_Start_2P'] text-[8px] bg-slate-800 border border-red-900/40 px-2 py-1 text-red-200 hover:bg-red-900/40 transition-all">
+          Clear All
+        </button>
+        <button type="button" data-editor-action="reverse-frames"
+          class="font-['Press_Start_2P'] text-[8px] bg-slate-800 border border-slate-700 px-2 py-1 text-white hover:bg-slate-700 transition-all">
+          Reverse
+        </button>
+        <div class="flex items-center gap-1 ml-auto">
+          <label class="font-['Press_Start_2P'] text-[8px] text-slate-400">Delay:</label>
+          <input type="number" data-editor-control="frame-delay" min="100" max="2000" value="100"
+            class="w-16 bg-slate-800 border border-slate-700 p-1 text-white font-['Press_Start_2P'] text-[8px] focus:border-pico-blue focus:outline-none">
+          <span class="font-['Press_Start_2P'] text-[8px] text-slate-400">ms</span>
+        </div>
+      </div>
+      <!-- Frame Thumbnails -->
+      <div data-editor-section="frame-thumbnails"
+        class="flex flex-wrap gap-2 p-2 bg-slate-900/50 rounded border border-slate-700/30 min-h-[40px]">
+        <!-- Populated by editor JS with pixel-art tags -->
+      </div>
+    </div>
+    {% endif %}
+
   </div>
 </pixel-editor>
+
+{% if show_size_selector %}
+<script nonce="{{ nonce }}">
+  (function () {
+    // Size selector functionality
+    document.querySelectorAll('.size-preset').forEach(btn => {
+      btn.addEventListener('click', function () {
+        const [w, h] = this.dataset.size.split('x').map(Number);
+        const oldEditor = document.getElementById('pixel-editor-instance');
+
+        // Check if editor has content
+        if (oldEditor && oldEditor.hasContent && oldEditor.hasContent()) {
+          if (!confirm('Changing size will discard your current pixel art. Continue?')) {
+            return;
+          }
+        }
+
+        // Determine the board type based on dimensions
+        let boardType = 'Galactic';
+        if (w <= 16 && h <= 16) {
+          boardType = 'Stellar';
+        } else if (w > 32 || h > 32) {
+          boardType = 'Cosmic';
+        }
+
+        // Reset the draft in the database
+        fetch('{{ url_for("app.reset_draft") }}', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/x-www-form-urlencoded',
+          },
+          body: `size=${boardType}`
+        }).then(() => {
+          resizeEditor(w, h);
+        }).catch(err => {
+          console.error('Failed to reset draft:', err);
+          resizeEditor(w, h);
+        });
+      });
+    });
+
+    function resizeEditor(width, height) {
+      const sizeDisplay = document.getElementById('size-display');
+      if (sizeDisplay) sizeDisplay.textContent = `${width}x${height}`;
+
+      const oldEditor = document.getElementById('pixel-editor-instance');
+      if (!oldEditor) return;
+
+      // Create new editor with grid inside
+      const newEditor = document.createElement('pixel-editor');
+      newEditor.setAttribute('width', width);
+      newEditor.setAttribute('height', height);
+      if (oldEditor.hasAttribute('allow-animation')) {
+        newEditor.setAttribute('allow-animation', '');
+      }
+      if (oldEditor.hasAttribute('emit-changes')) {
+        newEditor.setAttribute('emit-changes', '');
+      }
+      if (oldEditor.hasAttribute('debounce-ms')) {
+        newEditor.setAttribute('debounce-ms', oldEditor.getAttribute('debounce-ms'));
+      }
+      newEditor.className = oldEditor.className;
+      newEditor.id = 'pixel-editor-instance';
+
+      // Clone the inner content structure using cloneNode to avoid CSP errors with inline styles
+      // (innerHTML serialization/parsing triggers CSP violations for style attributes)
+      Array.from(oldEditor.childNodes).forEach(child => {
+        newEditor.appendChild(child.cloneNode(true));
+      });
+
+      oldEditor.replaceWith(newEditor);
+
+      // Update the draft-size hidden input if it exists
+      const draftSize = document.getElementById('draft-size');
+      if (draftSize) {
+        if (width <= 16 && height <= 16) {
+          draftSize.value = 'Stellar';
+        } else if (width > 32 || height > 32) {
+          draftSize.value = 'Cosmic';
+        } else {
+          draftSize.value = 'Galactic';
+        }
+      }
+    }
+  })();
+</script>
+{% endif %}

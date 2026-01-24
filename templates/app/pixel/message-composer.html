@@ -1,0 +1,209 @@
+{% extends 'layout/primary.html' %} {% block content %}
+<div class="pixel-context pixel-xs p-4 md:p-6 max-w-6xl mx-auto space-y-8">
+  <header class="pb-6 border-b border-slate-800 flex justify-between items-center">
+    <div>
+      <h1 class="font-['Press_Start_2P'] text-lg text-white">Send Message</h1>
+      <p class="text-slate-500 text-[10px] uppercase tracking-tighter mt-2 font-bold">
+        Create a pixel message for a friend
+      </p>
+    </div>
+    <a href="{{ url_for('app.home') }}"
+      class="font-['Press_Start_2P'] text-[10px] bg-slate-800 border-2 border-slate-700 p-3 text-white hover:bg-slate-700 transition-all">
+      Back to Dashboard
+    </a>
+  </header>
+
+  <!-- Friend Selection -->
+  <section id="friend-selection" class="space-y-4">
+    <div class="border-l-4 border-pico-red pl-4">
+      <h2 class="font-['Press_Start_2P'] text-sm text-white">Select Recipient</h2>
+      <p class="text-slate-500 text-[10px] uppercase tracking-tighter mt-1 font-bold">
+        Choose a friend to send your message to
+      </p>
+    </div>
+
+    <div class="bg-slate-900/40 border border-slate-800 rounded-lg p-6">
+      {% if friends %}
+      <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-4">
+        {% for friend_rel in friends %}
+        {% set friend = friend_rel.friend %}
+        <button type="button" data-friend-id="{{ friend.id }}" data-friend-username="{{ friend.username }}"
+          class="friend-select flex flex-col items-center gap-2 p-3 bg-slate-800 border-2 border-slate-700 rounded-lg hover:border-pico-red hover:bg-slate-700 transition-all">
+          <div class="w-10 h-10 rounded-md bg-slate-900 p-1 border border-slate-700 shadow-xl overflow-hidden flex items-center justify-center pixel-xs">
+            <pixel-art src="{{ url_for('user.serve_avatar', user_id=friend.id) }}" class="max-w-full h-auto"></pixel-art>
+          </div>
+          <span class="font-['Press_Start_2P'] text-[8px] text-white truncate max-w-full">{{ friend.username }}</span>
+        </button>
+        {% endfor %}
+      </div>
+      {% else %}
+      <div class="text-center py-8">
+        <p class="text-slate-500 text-sm mb-4">You don't have any friends yet.</p>
+        <a href="{{ url_for('app.add_friend') }}"
+          class="font-['Press_Start_2P'] text-[10px] bg-pico-red border-2 border-pico-red px-4 py-2 text-black hover:bg-pico-red/80 transition-all inline-block">
+          Add Friends
+        </a>
+      </div>
+      {% endif %}
+    </div>
+  </section>
+
+  <!-- Message Composer (hidden until friend selected) -->
+  <section id="composer-section" class="space-y-4 hidden">
+    <div class="border-l-4 border-pico-green pl-4">
+      <h2 class="font-['Press_Start_2P'] text-sm text-white">Compose Message</h2>
+      <p class="text-slate-500 text-[10px] uppercase tracking-tighter mt-1 font-bold">
+        Sending to: <span id="recipient-name" class="text-pico-red"></span>
+      </p>
+    </div>
+
+    <div id="editor-wrapper">
+      {% set editor_width = 32 %}
+      {% set editor_height = 32 %}
+      {% set allow_animation = true %}
+      {% include "app/pixel/editor.html" %}
+
+      <!-- Auto-save listener (invisible) -->
+      <div id="autosave-trigger"
+        hx-post="{{ url_for('app.save_draft') }}"
+        hx-trigger="editor-changed from:body"
+        hx-swap="none"
+        hx-include="#draft-data,#draft-frames,#draft-delay,#draft-size"
+        class="hidden">
+      </div>
+      <input type="hidden" id="draft-data" name="pixel_data" />
+      <input type="hidden" id="draft-frames" name="frames" value="1" />
+      <input type="hidden" id="draft-delay" name="frame_delay_ms" value="100" />
+      <input type="hidden" id="draft-size" name="size" value="Galactic" />
+      <input type="hidden" id="recipient-id" name="recipient_id" />
+
+      <!-- Send Button -->
+      <div class="flex flex-col items-center gap-3 pt-4">
+        <div id="save-status" class="font-['Press_Start_2P'] text-[8px] text-slate-500">
+          Auto-saving enabled
+        </div>
+        <button type="button" id="send-btn"
+          hx-post="{{ url_for('app.send_message') }}"
+          hx-include="#recipient-id"
+          hx-target="#save-status"
+          hx-swap="innerHTML"
+          class="font-['Press_Start_2P'] text-[10px] bg-pico-red border-2 border-pico-red px-6 py-3 text-black hover:bg-pico-red/80 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+          disabled>
+          Send Message
+        </button>
+      </div>
+    </div>
+  </section>
+</div>
+
+<script nonce="{{ nonce }}">
+document.addEventListener('DOMContentLoaded', function() {
+  const composerSection = document.getElementById('composer-section');
+  const recipientName = document.getElementById('recipient-name');
+  const recipientId = document.getElementById('recipient-id');
+
+  // Friend selection
+  document.querySelectorAll('.friend-select').forEach(btn => {
+    btn.addEventListener('click', function() {
+      // Remove selection from others
+      document.querySelectorAll('.friend-select').forEach(b => {
+        b.classList.remove('border-pico-red', 'bg-pico-red/10');
+        b.classList.add('border-slate-700');
+      });
+
+      // Select this one
+      this.classList.remove('border-slate-700');
+      this.classList.add('border-pico-red', 'bg-pico-red/10');
+
+      const username = this.dataset.friendUsername;
+      const friendId = this.dataset.friendId;
+      recipientName.textContent = username;
+      recipientId.value = friendId;
+
+      // Show composer
+      composerSection.classList.remove('hidden');
+      composerSection.scrollIntoView({ behavior: 'smooth' });
+    });
+  });
+
+  // Editor auto-save handling
+  const editor = document.getElementById('pixel-editor-instance');
+  const draftData = document.getElementById('draft-data');
+  const draftFrames = document.getElementById('draft-frames');
+  const draftDelay = document.getElementById('draft-delay');
+  const draftSize = document.getElementById('draft-size');
+  const sendBtn = document.getElementById('send-btn');
+  const saveStatus = document.getElementById('save-status');
+  const autosaveStatus = document.getElementById('autosave-status');
+
+  if (!editor) return;
+
+  // Listen for editor changes
+  editor.addEventListener('editor-changed', async function(e) {
+    const { hasContent, frameCount, frameDelay } = e.detail;
+
+    // Update hidden form data
+    draftFrames.value = frameCount;
+    draftDelay.value = frameDelay || 100;
+
+    // Get the image data as base64
+    try {
+      let blob;
+      if (frameCount > 1) {
+        blob = await editor.getAnimationData();
+      } else {
+        blob = await editor.exportBlob();
+      }
+
+      const reader = new FileReader();
+      reader.onload = function() {
+        // Remove data URL prefix (data:image/png;base64,)
+        const base64 = reader.result.split(',')[1];
+        draftData.value = base64;
+
+        // Determine size based on editor dimensions
+        const width = parseInt(editor.getAttribute('width'), 10);
+        if (width <= 16) {
+          draftSize.value = 'Stellar';
+        } else if (width <= 32) {
+          draftSize.value = 'Galactic';
+        } else {
+          draftSize.value = 'Cosmic';
+        }
+
+        // Trigger the auto-save via htmx
+        htmx.trigger('#autosave-trigger', 'editor-changed');
+
+        // Update status
+        if (autosaveStatus) {
+          autosaveStatus.textContent = 'Saving...';
+          setTimeout(() => {
+            autosaveStatus.textContent = 'Saved';
+          }, 500);
+        }
+      };
+      reader.readAsDataURL(blob);
+
+      // Enable/disable send button based on content and recipient
+      sendBtn.disabled = !hasContent || !recipientId.value;
+    } catch (err) {
+      console.error('Error preparing draft data:', err);
+      if (autosaveStatus) {
+        autosaveStatus.textContent = 'Save failed';
+      }
+    }
+  });
+
+  // Handle send button response
+  document.body.addEventListener('htmx:afterRequest', function(e) {
+    if (e.detail.elt === sendBtn && e.detail.successful) {
+      saveStatus.innerHTML = '<span class="text-pico-green">Message sent!</span>';
+      // Redirect after a delay
+      setTimeout(() => {
+        window.location.href = "{{ url_for('app.home') }}";
+      }, 1500);
+    }
+  });
+});
+</script>
+{% endblock %}

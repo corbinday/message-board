@@ -71,14 +71,11 @@ def save_painting():
 
     # 4. Save the Message to EdgeDB
     try:
-        # Assuming g.client is correctly set up for database transactions
-        result = g.client.query_single(
-            """
-            INSERT Message {
-                payload := <bytes>$data,
-            }
-            """,
+        result = q.insertMessage(
+            g.client,
             data=raw_binary_data,
+            size="Galactic",  # 32x32 canvas
+            recipient_id=None,  # No recipient for now
         )
 
         # Log successful insertion
@@ -98,14 +95,7 @@ def save_painting():
 def get_canvas():
     # 1. Fetch the latest message data
     try:
-        # Assuming you fetch the latest message, sorting by created_at descending
-        message = g.client.query_single(
-            """
-            select Message { payload }
-            order by .created_at desc
-            limit 1;
-            """
-        )
+        message = q.selectLatestMessage(g.client)
     except Exception as e:
         print(f"EdgeDB query error: {e}")
         # Return a server error if the database query fails
@@ -117,7 +107,7 @@ def get_canvas():
         return jsonify({"pixel_data_b64": ""}), 200
 
     # The data fetched from EdgeDB is a bytes object
-    raw_bytes = message.payload
+    raw_bytes = message.graphic.binary
 
     # 2. Encode the raw bytes into a Base64 string
     # Python's base64.b64encode returns bytes, so we decode it to a UTF-8 string

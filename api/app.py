@@ -152,7 +152,7 @@ def apply_csp(response):
         "default-src 'self'; "
         f"script-src 'self' 'nonce-{g.nonce}' ; "
         f"style-src 'self' 'nonce-{g.nonce}'; "
-        "img-src 'self' https://gj6vlq8nqjtpg33c.public.blob.vercel-storage.com/; "
+        "img-src 'self' blob: https://gj6vlq8nqjtpg33c.public.blob.vercel-storage.com/;"
         "connect-src 'self'; "
         "font-src 'self'; "
         "object-src 'none'; "

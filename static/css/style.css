@@ -24,10 +24,8 @@
   /* -------------------------------------------------
    * PIXEL CONTEXTS (THE IMPORTANT PART)
    * ------------------------------------------------- */
-
-  .pixel-context {
-    container-type: inline-size;
-  }
+  
+  /* .pixel-context class is used by JS to find the sizing container */
 
   /* Clearfix utility for floated pixel elements on small/md screens */
   .clear-floats::after {
@@ -37,6 +35,15 @@
   }
 
   /* Preset scales - can be used with Tailwind responsive prefixes */
+  .pixel-4xs {
+    --pixel-size: 1px;
+  }
+  .pixel-3xs {
+    --pixel-size: 2px;
+  }
+  .pixel-2xs {
+    --pixel-size: 3px;
+  }
   .pixel-xs {
     --pixel-size: 5px;
   }
@@ -122,7 +129,6 @@
     width: max-content;
     max-width: 100%;
     gap: var(--pixel-gap);
-    background-color: var(--blank-pixel-color, oklch(15% 0 0));
     padding: calc(var(--pixel-gap) / 2);
   }
 
@@ -144,6 +150,103 @@
       0 0 0 1px white;
     z-index: 10;
     position: relative;
+  }
+
+  /* -------------------------------------------------
+   * PIXEL EDITOR GRID (container for pixels)
+   * ------------------------------------------------- */
+
+  .editor-grid {
+    display: grid;
+    background-color: var(--blank-pixel-color, #262626);
+    gap: var(--pixel-gap, 2px);
+    padding: calc(var(--pixel-gap, 2px) / 2);
+    grid-template-columns: repeat(var(--grid-cols, 32), var(--pixel-size, 10px));
+    grid-auto-rows: var(--pixel-size, 10px);
+    width: var(--grid-width, auto);
+    height: var(--grid-height, auto);
+  }
+
+  /* Individual pixel cells in the editor */
+  .editor-pixel {
+    width: var(--pixel-size, 10px);
+    height: var(--pixel-size, 10px);
+    background-color: var(--bg-color, transparent);
+    box-shadow: inset 0 0 0 0.5px rgba(255, 255, 255, 0.15);
+    cursor: crosshair;
+    transition: background-color 0.05s ease;
+  }
+
+  .editor-pixel:hover,
+  .editor-pixel.hovered {
+    box-shadow: inset 0 0 0 0.5px rgba(255, 255, 255, 0.15), 0 0 0 1px white;
+    z-index: 10;
+    position: relative;
+  }
+
+  /* -------------------------------------------------
+   * RECENT COLOR SWATCHES
+   * ------------------------------------------------- */
+
+  .color-swatch {
+    width: var(--pixel-size, 10px);
+    height: var(--pixel-size, 10px);
+    background-color: var(--swatch-color, #ff0000);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    cursor: pointer;
+  }
+
+  .color-swatch:hover {
+    border-color: rgba(255, 255, 255, 0.5);
+  }
+
+  /* -------------------------------------------------
+   * FRAME THUMBNAILS
+   * ------------------------------------------------- */
+
+  .frame-thumbnail-wrapper {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    height: fit-content;
+  }
+
+  .frame-thumbnail {
+    display: grid;
+    background-color: var(--blank-pixel-color, #262626);
+    gap: 0;
+    width: fit-content;
+  }
+
+  .frame-thumbnail-pixel {
+    width: 1px;
+    height: 1px;
+    background-color: transparent;
+  }
+
+  .frame-thumbnail-pixel.has-color {
+    background-color: var(--pixel-color, transparent);
+  }
+
+  .frame-thumbnail-add {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 32px;
+    min-height: 32px;
+    cursor: pointer;
+    border: 2px dashed;
+    border-radius: 0.25rem;
+    transition: all 0.15s;
+  }
+
+  /* CSP-safe modal and drag styles */
+  .modal-overlay-blur {
+    @apply backdrop-blur;
+  }
+
+  .frame-dragging {
+    @apply opacity-50;
   }
 }
 

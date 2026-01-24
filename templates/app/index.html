@@ -1,32 +1,86 @@
 {% extends 'layout/primary.html' %} {% block content %}
-<div class="pixel-context pixel-xs p-4 md:p-6 max-w-6xl mx-auto space-y-12 md:space-y-20">
-  <header class="flex justify-between items-center pb-6 md:pb-8 border-b border-slate-800">
+<header class="flex justify-between items-center pb-2 border-b border-slate-800 mb-12">
+  <div class="flex items-center gap-4">
+    <!-- User Avatar with its own pixel-context for smaller sizing -->
+
+    <div
+      class="pixel-context pixel-4xs w-fit rounded-md bg-slate-800 p-1 border border-slate-700 flex items-center justify-center">
+      {% if user and user.avatar %}
+      <pixel-art src="{{ url_for('static', filename='img/check.png') }}" class="max-w-full h-auto"></pixel-art>
+      {% else %}
+      <pixel-art src="{{ url_for('static', filename='img/x.png') }}" width="16" height="16"
+        class="max-w-full h-auto"></pixel-art>
+      {% endif %}
+
+    </div>
     <p class="font-['Press_Start_2P'] text-lg text-white">
       Welcome, <span class="text-pico-green">{{ user.username }}</span>.
     </p>
-    <div class="flex gap-3">
-      <a href="{{ url_for('user.account_settings') }}"
-        class="font-['Press_Start_2P'] text-[10px] bg-slate-800 border-2 border-slate-700 p-3 text-white hover:bg-pico-blue hover:text-black hover:border-pico-blue transition-all w-fit">⚙️
-        Settings</a>
-    </div>
-  </header>
+  </div>
+  <div class="flex gap-3">
+    <a href="{{ url_for('user.account_settings') }}"
+      class="font-['Press_Start_2P'] text-[10px] bg-slate-800 border-2 border-slate-700 p-3 text-white hover:bg-pico-blue hover:text-black hover:border-pico-blue transition-all w-fit">⚙️
+      Settings</a>
+  </div>
+</header>
+<div class="space-y-12 md:space-y-20">
 
   <!-- Art Section -->
-  <section class="space-y-8">
+  <section class="pixel-context pixel-xs space-y-8 min-h-48">
     <div
       class="flex flex-col sm:flex-row sm:justify-between sm:items-end gap-3 sm:gap-0 border-l-4 border-pico-blue pl-4">
       <div>
         <h2 class="font-['Press_Start_2P'] text-lg text-white">Your Art</h2>
       </div>
-      <a href="{{ url_for('app.create_art') }}"
+      <a href="{{ url_for('app.art_create') }}"
         class="font-['Press_Start_2P'] text-[10px] bg-slate-800 border-2 border-slate-700 p-3 text-white hover:bg-pico-green hover:text-black hover:border-pico-green transition-all w-fit">
         [+] Create Art
       </a>
     </div>
   </section>
 
+  <!-- Drafts Section -->
+  {% if drafts %}
+  <section class="pixel-context pixel-xs space-y-8 min-h-48">
+    <div class="flex flex-col sm:flex-row sm:justify-between sm:items-end gap-3 sm:gap-0 border-l-4 border-pico-green pl-4">
+      <div>
+        <h2 class="font-['Press_Start_2P'] text-lg text-white">Your Drafts</h2>
+        <p class="text-slate-500 text-[10px] uppercase tracking-tighter mt-1 font-bold">
+          Work in progress
+        </p>
+      </div>
+    </div>
+
+    <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-4">
+      {% for draft in drafts %}
+      <div class="draft-card bg-slate-900/40 border border-slate-800 rounded-lg p-3 flex flex-col items-center gap-2">
+        <div class="w-16 h-16 rounded-md bg-slate-800 p-1 border border-slate-700 overflow-hidden flex items-center justify-center">
+          <span class="text-slate-600 text-[8px] font-['Press_Start_2P']">
+            {{ draft.frames }} frame{% if draft.frames > 1 %}s{% endif %}
+          </span>
+        </div>
+        <p class="text-[8px] text-slate-500 text-center">
+          {{ draft.size.value }} - {{ draft.updated_at|time_ago }}
+        </p>
+        <div class="flex gap-2">
+          <a href="{{ url_for('app.art_create') }}?draft_id={{ draft.id }}"
+            class="font-['Press_Start_2P'] text-[6px] bg-slate-800 border border-slate-700 px-2 py-1 text-white hover:bg-slate-700 transition-all">
+            Edit
+          </a>
+          <button hx-delete="{{ url_for('app.delete_draft_route', draft_id=draft.id) }}"
+            hx-target="closest .draft-card" hx-swap="outerHTML" hx-confirm="Delete this draft?"
+            class="font-['Press_Start_2P'] text-[6px] bg-slate-800 border border-slate-700 px-2 py-1 text-white hover:bg-pico-red hover:text-black hover:border-pico-red transition-all">
+            X
+          </button>
+        </div>
+      </div>
+      {% endfor %}
+    </div>
+  </section>
+  {% endif %}
+
   <!-- Boards Section -->
-  <section class="space-y-8">
+  <section class="pixel-context pixel-xs space-y-8 min-h-48">
     <div
       class="flex flex-col sm:flex-row sm:justify-between sm:items-end gap-3 sm:gap-0 border-l-4 border-pico-blue pl-4">
       <div>
@@ -35,13 +89,13 @@
           Manage connected hardware
         </p>
       </div>
-      <a href="{{ url_for('user.add_board') }}"
+      <a href="{{ url_for('app.add_board') }}"
         class="font-['Press_Start_2P'] text-[10px] bg-slate-800 border-2 border-slate-700 p-3 text-white hover:bg-pico-green hover:text-black hover:border-pico-green transition-all w-fit">
         [+] Add Board
       </a>
     </div>
 
-    <div class="flex flex-wrap justify-start gap-4 md:gap-8">
+    <div class="flex flex-wrap items-start justify-start gap-4 md:gap-8">
       {% for board in boards %} {% if board.boardType == 'Galactic' %} {%
       include 'app/board/_board_card_galactic.html' %} {% else %} {% include
       'app/board/_board_card_square.html' %} {% endif %} {% endfor %}
@@ -49,7 +103,7 @@
   </section>
 
   <!-- Friends Section -->
-  <section class="space-y-8">
+  <section class="pixel-context pixel-4xs space-y-8 min-h-48">
     <div
       class="flex flex-col sm:flex-row sm:justify-between sm:items-end gap-3 sm:gap-0 border-l-4 border-pico-red pl-4">
       <div>
@@ -58,21 +112,28 @@
           Cross-device communication
         </p>
       </div>
-      <a href="{{ url_for('user.add_friend') }}"
-        class="font-['Press_Start_2P'] text-[10px] bg-slate-800 border-2 border-slate-700 p-3 text-white hover:bg-pico-red hover:text-black hover:border-pico-red transition-all w-fit">
-        [+] Add Friend
-      </a>
+      <div class="flex gap-3">
+        <a href="{{ url_for('app.message_compose') }}"
+          class="font-['Press_Start_2P'] text-[10px] bg-slate-800 border-2 border-slate-700 p-3 text-white hover:bg-pico-green hover:text-black hover:border-pico-green transition-all w-fit">
+          Send Message
+        </a>
+        <a href="{{ url_for('app.add_friend') }}"
+          class="font-['Press_Start_2P'] text-[10px] bg-slate-800 border-2 border-slate-700 p-3 text-white hover:bg-pico-red hover:text-black hover:border-pico-red transition-all w-fit">
+          [+] Add Friend
+        </a>
+      </div>
     </div>
 
     <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-6">
       {% for friend_rel in friends %} {% set friend = friend_rel.friend %}
       <div class="bg-slate-900/40 border border-slate-800 rounded-lg p-4 flex items-center justify-between">
         <div class="flex items-center gap-4">
+
           <div
-            class="w-10 h-10 md:w-12 md:h-12 rounded-md bg-slate-900 p-2 md:p-3 border border-slate-700 shadow-xl overflow-hidden flex items-center justify-center pixel-sm">
-            <pixel-art src="{{ url_for('user.serve_avatar', user_id=friend.id) }}"
-              class="max-w-full h-auto"></pixel-art>
+            class="w-fit rounded-md bg-slate-800 p-1 border border-slate-700 shadow-xl overflow-hidden flex items-center justify-center">
+            <pixel-art src="{{ url_for('static', filename='img/check.png') }}"></pixel-art>
           </div>
+
           <div>
             <p class="font-['Press_Start_2P'] text-[10px] text-white">
               {{ friend.username }}
@@ -82,7 +143,7 @@
             </p>
           </div>
         </div>
-        <button hx-delete="{{ url_for('user.delete_friend', friend_id=friend.id) }}"
+        <button hx-delete="{{ url_for('app.delete_friend', friend_id=friend.id) }}"
           hx-confirm="Remove {{ friend.username }} as a friend?"
           class="font-['Press_Start_2P'] text-[8px] bg-slate-800 border border-slate-700 px-2 py-1 text-white hover:bg-slate-700 transition-all"
           title="Remove friend">
@@ -92,7 +153,7 @@
       {% endfor %} {% if not friends %}
       <p class="text-slate-500 text-xs col-span-full text-center py-8">
         No friends yet.
-        <a href="{{ url_for('user.add_friend') }}" class="text-pico-red hover:underline">Add some friends</a>!
+        <a href="{{ url_for('app.add_friend') }}" class="text-pico-red hover:underline">Add some friends</a>!
       </p>
       {% endif %}
     </div>
@@ -100,7 +161,7 @@
 
   <!-- Friend Requests Section -->
   {% if friend_requests %}
-  <section class="space-y-8">
+  <section class="pixel-context pixel-xs max-w-6xl space-y-8 min-h-48">
     <div class="border-l-4 border-pico-green pl-4">
       <h2 class="font-['Press_Start_2P'] text-lg text-white">
         Friend Requests
@@ -115,10 +176,11 @@
       <div
         class="friend-request-card bg-slate-900/40 border border-slate-800 rounded-lg p-4 flex items-center justify-between">
         <div class="flex items-center gap-4">
-          <div
-            class="w-10 h-10 rounded-md bg-slate-900 p-2 border border-slate-700 shadow-xl overflow-hidden flex items-center justify-center pixel-sm">
-            <pixel-art src="{{ url_for('user.serve_avatar', user_id=request.sender.id) }}"
-              class="max-w-full h-auto"></pixel-art>
+          <div class="pixel-context pixel-4xs">
+            <div
+              class="w-fit rounded-md bg-slate-800 p-1 border border-slate-700 shadow-xl overflow-hidden flex items-center justify-center">
+              <pixel-art src="{{ url_for('static', filename='img/check.png') }}"></pixel-art>
+            </div>
           </div>
           <div>
             <p class="font-['Press_Start_2P'] text-[10px] text-white">
@@ -130,11 +192,11 @@
           </div>
         </div>
         <div class="flex gap-2">
-          <button hx-post="{{ url_for('user.accept_friend_request', request_id=request.id) }}"
+          <button hx-post="{{ url_for('app.accept_friend_request', request_id=request.id) }}"
             class="font-['Press_Start_2P'] text-[8px] bg-pico-green border border-pico-green px-3 py-2 text-black hover:bg-pico-green/80 transition-all">
             Accept
           </button>
-          <button hx-post="{{ url_for('user.reject_friend_request', request_id=request.id) }}"
+          <button hx-post="{{ url_for('app.reject_friend_request', request_id=request.id) }}"
             hx-target="closest .friend-request-card" hx-swap="delete"
             class="font-['Press_Start_2P'] text-[8px] bg-slate-800 border border-slate-700 px-3 py-2 text-white hover:bg-slate-700 transition-all">
             Reject
@@ -147,7 +209,7 @@
   {% endif %}
 
   <!-- Recent Logs Section -->
-  <section class="space-y-8">
+  <section class="pixel-context pixel-xs max-w-6xl space-y-8 min-h-48">
     <div class="border-l-4 border-slate-600 pl-4">
       <h2 class="font-['Press_Start_2P'] text-lg text-white">Recent Logs</h2>
       <p class="text-slate-500 text-[10px] uppercase tracking-tighter mt-1 font-bold">

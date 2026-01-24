@@ -1,5 +1,5 @@
 <form
-  hx-patch="{{ url_for('user.update_board_name', board_id=board.id) }}"
+  hx-patch="{{ url_for('app.update_board_name', board_id=board.id) }}"
   hx-target="#board-name-container"
   hx-swap="outerHTML"
   class="flex items-center gap-4 mb-6"
@@ -23,7 +23,7 @@
       Save
     </button>
     <button
-      hx-get="{{ url_for('user.name_partial', board_id=board.id) }}"
+      hx-get="{{ url_for('app.name_partial', board_id=board.id) }}"
       hx-target="#board-name-container"
       hx-swap="outerHTML"
       class="text-slate-500 font-bold text-xs uppercase tracking-widest hover:text-white"

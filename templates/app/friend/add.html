@@ -8,7 +8,7 @@
   <!-- Search Form -->
   <section class="space-y-4">
     <form
-      hx-post="{{ url_for('user.search_users') }}"
+      hx-post="{{ url_for('app.search_users') }}"
       hx-target="#search-results"
       hx-trigger="input delay:300ms"
       class="space-y-4"
@@ -65,7 +65,7 @@
           </div>
         </div>
         <button
-          hx-delete="{{ url_for('user.delete_friend_request', request_id=request.id) }}"
+          hx-delete="{{ url_for('app.delete_friend_request', request_id=request.id) }}"
           hx-target="closest div"
           hx-swap="outerHTML"
           class="font-['Press_Start_2P'] text-[8px] bg-slate-800 border border-slate-700 px-3 py-2 text-white hover:bg-slate-700 transition-all"

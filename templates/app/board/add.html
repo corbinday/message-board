@@ -1,0 +1,41 @@
+{% extends 'layout/primary.html' %} {% block content %}
+<h1 class="font-['Press_Start_2P'] mb-12">Add Board</h1>
+
+<div class="pixel-context pixel-sm md:pixel-md mx-auto md:mx-0 flex flex-col gap-8 w-fit items-center md:items-baseline">
+  <div hx-post="{{ url_for('app.add_board', board_type='stellar') }}"
+    class="cursor-pointer flex flex-col p-2 md:p-4 hover:bg-blue-800 sm:flex-row items-center gap-4 sm:gap-12">
+    <div class="bg-slate-800 p-2 rounded-md border border-slate-700">
+      <pixel-art src="{{ url_for('static', filename='img/stellar.png') }}" hover-trail
+        trail-color-override="255, 255, 255" alt="Stellar"></pixel-art>
+    </div>
+    <div class="flex flex-col gap-2">
+      <label class="cursor-pointer">Stellar</label>
+      <label class="cursor-pointer">16 x 16 pixels</label>
+    </div>
+  </div>
+
+  <div hx-post="{{ url_for('app.add_board', board_type='galactic') }}"
+    class="cursor-pointer flex flex-col p-2 md:p-4 hover:bg-blue-800 lg:flex-row items-center gap-4 md:gap-12">
+    <div class="bg-slate-800 p-2 rounded-md border border-slate-700">
+      <pixel-art src="{{ url_for('static', filename='img/galactic.png') }}" hover-trail
+        trail-color-override="255, 255, 255" alt="Galactic"></pixel-art>
+    </div>
+    <div class="flex flex-col gap-2">
+      <label class="cursor-pointer">Galactic</label>
+      <label class="text-nowrap cursor-pointer">53 x 11 pixels</label>
+    </div>
+  </div>
+
+  <div hx-post="{{ url_for('app.add_board', board_type='cosmic') }}"
+    class="cursor-pointer flex flex-col p-2 md:p-4 hover:bg-blue-800 sm:flex-row items-center gap-4 sm:gap-12">
+    <div class="bg-slate-800 p-2 rounded-md border border-slate-700">
+      <pixel-art src="{{ url_for('static', filename='img/cosmic.png') }}" hover-trail trail-color-override="255, 255, 255"
+        alt="Cosmic"></pixel-art>
+    </div>
+    <div class="flex flex-col gap-2">
+      <label class="cursor-pointer">Cosmic</label>
+      <label class="cursor-pointer">32 x 32 pixels</label>
+    </div>
+  </div>
+</div>
+{% endblock %}

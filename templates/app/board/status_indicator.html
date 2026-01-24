@@ -1,6 +1,6 @@
 <div
   id="status-container"
-  hx-get="{{ url_for('user.board_status', board_id=board.id) }}"
+  hx-get="{{ url_for('app.board_status', board_id=board.id) }}"
   hx-trigger="every 60s"
   hx-swap="outerHTML"
 >
