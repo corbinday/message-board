@@ -83,7 +83,10 @@ document.addEventListener('DOMContentLoaded', function() {
   if (!editor) return;
 
   // Listen for editor changes
-  editor.addEventListener('editor-changed', async function(e) {
+  document.body.addEventListener('editor-changed', async function(e) {
+    const editor = e.target;
+    if (editor.tagName !== 'PIXEL-EDITOR') return;
+
     const { hasContent } = e.detail;
 
     // Get the image data as base64
@@ -100,10 +103,11 @@ document.addEventListener('DOMContentLoaded', function() {
         htmx.trigger('#autosave-trigger', 'editor-changed');
 
         // Update status
-        if (autosaveStatus) {
-          autosaveStatus.textContent = 'Saving...';
+        const currentAutosaveStatus = document.getElementById('autosave-status');
+        if (currentAutosaveStatus) {
+          currentAutosaveStatus.textContent = 'Saving...';
           setTimeout(() => {
-            autosaveStatus.textContent = 'Saved';
+            currentAutosaveStatus.textContent = 'Saved';
           }, 500);
         }
       };
@@ -113,8 +117,9 @@ document.addEventListener('DOMContentLoaded', function() {
       finishBtn.disabled = !hasContent;
     } catch (err) {
       console.error('Error preparing draft data:', err);
-      if (autosaveStatus) {
-        autosaveStatus.textContent = 'Save failed';
+      const currentAutosaveStatus = document.getElementById('autosave-status');
+      if (currentAutosaveStatus) {
+        currentAutosaveStatus.textContent = 'Save failed';
       }
     }
   });

@@ -1,0 +1,83 @@
+{% extends 'layout/primary.html' %} {% block content %}
+<div class="pixel-context pixel-xs p-4 md:p-6 max-w-6xl mx-auto space-y-8">
+  <header class="pb-6 border-b border-slate-800 flex justify-between items-center">
+    <div>
+      <h1 class="font-['Press_Start_2P'] text-lg text-white">Messages</h1>
+      <p class="text-slate-500 text-[10px] uppercase tracking-tighter mt-2 font-bold">
+        All received messages
+      </p>
+    </div>
+    <a href="{{ url_for('app.home') }}"
+      class="font-['Press_Start_2P'] text-[10px] bg-slate-800 border-2 border-slate-700 p-3 text-white hover:bg-slate-700 transition-all">
+      Back to Dashboard
+    </a>
+  </header>
+
+  <section class="min-h-48">
+    {% if messages %}
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-6">
+      {% for message in messages %}
+      <div data-pixel-card
+        class="bg-slate-900/40 border border-slate-800 rounded-lg p-4 inline-flex flex-col gap-3 w-fit">
+        <div class="flex items-center gap-3">
+          <div class="pixel-context pixel-4xs w-fit">
+            <div
+              class="rounded-md bg-slate-900 p-1 border border-slate-700 shadow-xl overflow-hidden flex items-center justify-center">
+              <pixel-art src="{{ url_for('user.serve_avatar', user_id=message.sender.id) }}"
+                class="max-w-full h-auto"></pixel-art>
+            </div>
+          </div>
+          <div class="space-y-1">
+            <p class="font-['Press_Start_2P'] text-[10px] text-white">
+              {{ message.sender.username }}
+            </p>
+            <p class="text-[9px] text-slate-400 uppercase tracking-wider">
+              {{ message.sent_at|time_ago }}
+            </p>
+            <p class="text-[9px] text-slate-500 uppercase tracking-wider">
+              {{ message.graphic.size.value }}
+            </p>
+          </div>
+        </div>
+        <div class="pixel-context pixel-xs w-fit">
+          <div
+            class="rounded-md bg-slate-900 p-2 border border-slate-700 shadow-xl overflow-hidden flex items-center justify-center">
+            {% if message.graphic.frames > 1 %}
+            <pixel-animation src="{{ url_for('app.serve_graphic', graphic_id=message.graphic.id) }}"
+              frame-width="{{ 16 if message.graphic.size.value == 'Stellar' else (53 if message.graphic.size.value == 'Galactic' else 32) }}"
+              frame-height="{{ 16 if message.graphic.size.value == 'Stellar' else (11 if message.graphic.size.value == 'Galactic' else 32) }}"
+              class="max-w-full h-auto" speed="{{ message.graphic.frame_delay_ms }}"></pixel-animation>
+            {% else %}
+            <pixel-art src="{{ url_for('app.serve_graphic', graphic_id=message.graphic.id) }}"
+              class="max-w-full h-auto"></pixel-art>
+            {% endif %}
+          </div>
+        </div>
+        <div class="flex gap-2 w-full">
+          <button hx-post="{{ url_for('app.save_message_graphic', graphic_id=message.graphic.id) }}"
+            hx-target="this" hx-swap="outerHTML"
+            class="flex-1 font-['Press_Start_2P'] text-[8px] bg-slate-800 border border-slate-700 p-2 text-white hover:bg-pico-blue hover:text-white transition-all rounded"
+            title="Save to Gallery">
+            Save
+          </button>
+          <button type="button" data-pixel-download data-download-filename="message-{{ message.graphic.id }}.png"
+            class="flex-1 font-['Press_Start_2P'] text-[8px] bg-slate-800 border border-slate-700 p-2 text-white hover:bg-pico-green hover:text-black transition-all rounded"
+            title="Download PNG">
+            {% include 'icon/download.html' %}
+          </button>
+        </div>
+      </div>
+      {% endfor %}
+    </div>
+    {% else %}
+    <div class="text-center py-12">
+      <p class="text-slate-500 text-sm mb-4">No messages yet.</p>
+      <a href="{{ url_for('app.message_compose') }}"
+        class="font-['Press_Start_2P'] text-[10px] bg-pico-green border-2 border-pico-green px-4 py-3 text-black hover:bg-pico-green/80 transition-all inline-block">
+        Compose a Message
+      </a>
+    </div>
+    {% endif %}
+  </section>
+</div>
+{% endblock %}

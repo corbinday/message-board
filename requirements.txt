@@ -1,7 +1,11 @@
-flask
+fastapi
+uvicorn[standard]
+httpx
+python-multipart
+jinja2
 requests
 gel
 python-dotenv
 resend
-flask-login
 Pillow
+werkzeug

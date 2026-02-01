@@ -47,7 +47,10 @@ module default {
     }
 
     type PixelAnimation extending PixelGraphic {
-        required frames: int16;
+        required frames: int16 {
+            constraint min_value(2);
+            constraint max_value(24);
+        }
         required frame_delay_ms: int16 {
             default := 100;
             constraint min_value(10);

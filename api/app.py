@@ -1,182 +1,180 @@
+from contextlib import asynccontextmanager
 from datetime import datetime
-from flask import (
-    Flask,
-    g,
-    redirect,
-    render_template,
-    url_for,
-    make_response,
-    request,
-    send_from_directory,
-)
-from flask_login import LoginManager, current_user, logout_user
+from fastapi import FastAPI, Request, Depends, HTTPException
+from fastapi.responses import RedirectResponse, HTMLResponse, FileResponse
+from fastapi.staticfiles import StaticFiles
+from fastapi.templating import Jinja2Templates
+from starlette.middleware.base import BaseHTTPMiddleware
 from dotenv import load_dotenv
 import gel
 import logging
 import resend
 import os
 import secrets
-import api.blueprints.auth as auth
-import api.blueprints.user as user
-import api.blueprints.message as message
-import api.blueprints.app as app_routes
-from api.user import User
+
+from api.routers import auth, user, message, app as app_routes
+from api.dependencies import get_current_user, get_client, OptionalUser
 
 load_dotenv()
-app = Flask(__name__, static_folder="../static", template_folder="../templates")
-app.debug = True
-app.logger.setLevel(logging.DEBUG)
+
+# Configure logging
+logging.basicConfig(level=logging.DEBUG)
+logger = logging.getLogger(__name__)
+
 resend.api_key = os.getenv("RESEND_API_KEY")
-base_client = gel.create_client()
 
-login_manager = LoginManager(app)
-
-
-@login_manager.request_loader
-def load_user_from_request(req):
-    token = req.cookies.get("gel-auth-token")
-
-    if token:
-        # perform login
-        return User(token)
-
-    # unauthenticated user case
-    return None
+# Global async Gel client - created at startup
+base_client: gel.AsyncIOClient = None
 
 
-app.register_blueprint(auth.bp, url_prefix="/auth")
-app.register_blueprint(user.bp, url_prefix="/user")
-app.register_blueprint(message.bp, url_prefix="/message")
-app.register_blueprint(app_routes.bp, url_prefix="/app")
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    """Manage application lifespan - create and close Gel client."""
+    global base_client
+    base_client = gel.create_async_client()
+    yield
+    await base_client.aclose()
 
 
-@app.before_request
-def generate_nonce():
-    g.nonce = secrets.token_urlsafe(16)
+app = FastAPI(lifespan=lifespan)
+
+# Mount static files
+static_folder = os.path.join(os.path.dirname(__file__), "..", "static")
+app.mount("/static", StaticFiles(directory=static_folder), name="static")
+
+# Setup templates
+templates_folder = os.path.join(os.path.dirname(__file__), "..", "templates")
+templates = Jinja2Templates(directory=templates_folder)
 
 
-@app.before_request
-def initialize_gel_client():
-    """
-    Attaches a scoped Gel client to g.client.
-    The request_loader has already validated the cookie by this point.
-    """
-    if current_user.is_authenticated:
-        # current_user.id contains the token (see User class)
-        g.client = base_client.with_globals(
-            {"ext::auth::client_token": current_user.id}
-        )
-    else:
-        # No token? Use the base client.
-        # Ensure your Gel Access Policies handle NULL globals safely!
-        g.client = base_client
-
-
-@app.after_request
-def close_gel_client(response):
-    g.client.close()
-    return response
-
-
-@app.context_processor
-def inject_nonce():
-    if "nonce" not in g:
-        g.nonce = generate_nonce()
-    return {"nonce": g.nonce}
-
-
-@app.route("/favicon.ico")
-def favicon():
-    return send_from_directory(
-        os.path.join(app.static_folder, "favicon"),
-        "favicon.ico",
-        mimetype="image/vnd.microsoft.icon",
-    )
-
-
-@app.route("/")
-def index():
-    return render_template("index.html")
-
-
-@app.route("/get-started")
-def get_started():
-    if current_user.is_authenticated:
-        return redirect(url_for("app.home"))
-
-    # User is anonymous, send them to the sign-in/sign-up choice
-    # You could also redirect straight to /ui/signin if you want to skip a step
-    return redirect(url_for("auth.signin"))
-
-
-@app.route("/logout")
-def logout():
-    # 1. Clear the Flask-Login session context
-    logout_user()
-
-    # 2. Prepare the redirect
-    response = make_response(redirect(url_for("index")))
-
-    # 3. Explicitly clear all auth-related cookies
-    # We set expires to 0 to tell the browser to delete them immediately
-    for cookie in request.cookies:
-        response.set_cookie(cookie, "", expires=0, path="/")
-    response.set_cookie("gel-auth-challenge", "", expires=0, path="/")
-
-    return response
-
-
-@app.errorhandler(400)
-def bad_request(e):
-    # 'e' is the error object
-    reason = getattr(e, "description", "Bad request!")
-    return render_template("error.html", error_code=404, reason=reason), 404
-
-
-@app.errorhandler(404)
-def page_not_found(e):
-    # 'e' is the error object
-    return render_template("error.html", error_code=404, reason="Page not found!"), 404
-
-
-@app.errorhandler(500)
-def server_error(e):
-    return render_template(
-        "error.html", error_code=500, reason="Internal server error!"
-    ), 500
-
-
-@app.after_request
-def apply_csp(response):
-    csp_policy = (
-        "default-src 'self'; "
-        f"script-src 'self' 'nonce-{g.nonce}' ; "
-        f"style-src 'self' 'nonce-{g.nonce}'; "
-        "img-src 'self' blob: https://gj6vlq8nqjtpg33c.public.blob.vercel-storage.com/;"
-        "connect-src 'self'; "
-        "font-src 'self'; "
-        "object-src 'none'; "
-        "base-uri 'self'; "
-        "form-action 'self'; "
-        "frame-ancestors 'none';"
-    )
-    response.headers["Content-Security-Policy"] = csp_policy
-    return response
-
-
-@app.context_processor
-def current_year():
-    return {"current_year": datetime.now().year}
-
-
-@app.template_filter("format_date")
+# Add custom template filters
 def format_date(value):
     return value.strftime("%B %d, %Y")
 
 
-@app.template_filter("time_ago")
 def time_ago(value):
     if not value:
         return "Never"
-    # Basic logic: format as Jan 1, 2:23 PM
     return value.strftime("%b %d, %I:%M %p")
+
+
+templates.env.filters["format_date"] = format_date
+templates.env.filters["time_ago"] = time_ago
+
+
+# CSP Nonce Middleware
+class CSPNonceMiddleware(BaseHTTPMiddleware):
+    async def dispatch(self, request: Request, call_next):
+        # Generate nonce and store in request state
+        request.state.nonce = secrets.token_urlsafe(16)
+
+        response = await call_next(request)
+
+        # Apply CSP header
+        nonce = request.state.nonce
+        csp_policy = (
+            "default-src 'self'; "
+            f"script-src 'self' 'nonce-{nonce}' ; "
+            f"style-src 'self' 'nonce-{nonce}'; "
+            "img-src 'self' blob: data: ;"
+            "connect-src 'self'; "
+            "font-src 'self'; "
+            "object-src 'none'; "
+            "base-uri 'self'; "
+            "form-action 'self'; "
+            "frame-ancestors 'none';"
+        )
+        response.headers["Content-Security-Policy"] = csp_policy
+        return response
+
+
+app.add_middleware(CSPNonceMiddleware)
+
+
+# Include routers
+app.include_router(auth.router, prefix="/auth", tags=["auth"])
+app.include_router(user.router, prefix="/user", tags=["user"])
+app.include_router(message.router, prefix="/message", tags=["message"])
+app.include_router(app_routes.router, prefix="/app", tags=["app"])
+
+
+def get_base_client() -> gel.AsyncIOClient:
+    """Dependency to get the base Gel client."""
+    return base_client
+
+
+# Helper to add common template context
+def get_template_context(request: Request, **kwargs):
+    """Build template context with common variables."""
+
+    # Shim url_for to support Flask-style 'filename' param for static files
+    def shimmed_url_for(name: str, **path_params):
+        if name == "static" and "filename" in path_params:
+            path_params["path"] = path_params.pop("filename")
+        return request.url_for(name, **path_params)
+
+    context = {
+        "request": request,
+        "nonce": getattr(request.state, "nonce", ""),
+        "current_year": datetime.now().year,
+        "url_for": shimmed_url_for,
+    }
+    context.update(kwargs)
+    return context
+
+
+# Make template context helper available to routers
+app.state.get_template_context = get_template_context
+app.state.templates = templates
+app.state.get_base_client = get_base_client
+
+
+@app.get("/favicon.ico")
+async def favicon():
+    favicon_path = os.path.join(static_folder, "favicon", "favicon.ico")
+    return FileResponse(favicon_path, media_type="image/vnd.microsoft.icon")
+
+
+@app.get("/", response_class=HTMLResponse)
+async def index(request: Request):
+    context = get_template_context(request)
+    return templates.TemplateResponse("index.html", context)
+
+
+@app.get("/get-started")
+async def get_started(user: OptionalUser = Depends(get_current_user)):
+    if user:
+        return RedirectResponse(url="/app/", status_code=302)
+    return RedirectResponse(url="/auth/ui/signin", status_code=302)
+
+
+@app.get("/logout")
+async def logout(request: Request):
+    response = RedirectResponse(url="/", status_code=302)
+    # Clear all cookies
+    for cookie in request.cookies:
+        response.delete_cookie(cookie, path="/")
+    response.delete_cookie("gel-auth-challenge", path="/")
+    return response
+
+
+# Exception handlers
+@app.exception_handler(400)
+async def bad_request_handler(request: Request, exc: HTTPException):
+    reason = getattr(exc, "detail", "Bad request!")
+    context = get_template_context(request, error_code=400, reason=reason)
+    return templates.TemplateResponse("error.html", context, status_code=400)
+
+
+@app.exception_handler(404)
+async def not_found_handler(request: Request, exc: HTTPException):
+    context = get_template_context(request, error_code=404, reason="Page not found!")
+    return templates.TemplateResponse("error.html", context, status_code=404)
+
+
+@app.exception_handler(500)
+async def server_error_handler(request: Request, exc: Exception):
+    context = get_template_context(
+        request, error_code=500, reason="Internal server error!"
+    )
+    return templates.TemplateResponse("error.html", context, status_code=500)

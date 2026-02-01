@@ -1,0 +1,84 @@
+{% extends 'layout/primary.html' %} {% block content %}
+<div class="pixel-context pixel-xs p-4 md:p-6 max-w-6xl mx-auto space-y-8">
+  <header class="pb-6 border-b border-slate-800 flex justify-between items-center">
+    <div>
+      <h1 class="font-['Press_Start_2P'] text-lg text-white">Your Art</h1>
+      <p class="text-slate-500 text-[10px] uppercase tracking-tighter mt-2 font-bold">
+        All finished masterpieces
+      </p>
+    </div>
+    <a href="{{ url_for('app.home') }}"
+      class="font-['Press_Start_2P'] text-[10px] bg-slate-800 border-2 border-slate-700 p-3 text-white hover:bg-slate-700 transition-all">
+      Back to Dashboard
+    </a>
+  </header>
+
+  <section class="min-h-48">
+    {% if graphics %}
+    <div class="flex flex-wrap items-start justify-start gap-4 md:gap-8">
+      {% for graphic in graphics %}
+      <div
+        class="group bg-slate-900/40 border border-slate-800 rounded-lg p-2 hover:border-pico-blue/50 transition-all shadow-inner flex flex-col justify-between w-fit gap-2">
+
+        <div class="flex justify-between items-start gap-3">
+          <div class="flex flex-col gap-1">
+            <h3 class="font-['Press_Start_2P'] text-[10px] md:text-xs text-white">
+              {{ graphic.size.value }}
+            </h3>
+            <p class="text-[9px] text-slate-400 uppercase tracking-wider">
+              {{ graphic.updated_at|time_ago }}
+            </p>
+          </div>
+          {% if graphic.frames > 1 %}
+          <span class="text-[8px] text-slate-500 font-['Press_Start_2P'] bg-slate-800 px-1 rounded">
+            {{ graphic.frames }}f
+          </span>
+          {% endif %}
+        </div>
+
+        <div
+          class="pixel-sm bg-slate-900 p-2 rounded-md border border-slate-700 shadow-xl overflow-hidden flex items-center justify-center {% if graphic.size.value != 'Galactic' %}w-fit my-auto{% endif %}">
+          {% if graphic.frames > 1 %}
+          <pixel-animation src="{{ url_for('app.serve_graphic', graphic_id=graphic.id) }}"
+            frame-width="{{ 16 if graphic.size.value == 'Stellar' else (53 if graphic.size.value == 'Galactic' else 32) }}"
+            frame-height="{{ 16 if graphic.size.value == 'Stellar' else (11 if graphic.size.value == 'Galactic' else 32) }}"
+            class="max-w-full h-auto" speed="{{ graphic.frame_delay_ms }}"></pixel-animation>
+          {% else %}
+          <pixel-art src="{{ url_for('app.serve_graphic', graphic_id=graphic.id) }}"
+            class="max-w-full h-auto"></pixel-art>
+          {% endif %}
+        </div>
+
+        <div class="flex gap-2 w-full mt-1">
+          <button hx-post="{{ url_for('app.copy_graphic', graphic_id=graphic.id) }}"
+            class="flex-1 font-['Press_Start_2P'] text-[8px] bg-slate-800 border border-slate-700 p-2 text-white hover:bg-pico-blue hover:text-white transition-all rounded"
+            title="Copy to Draft">
+            Copy
+          </button>
+          <button type="button" data-pixel-download data-download-filename="art-{{ graphic.id }}.png"
+            class="flex-1 w-4 font-['Press_Start_2P'] text-[8px] bg-slate-800 border border-slate-700 p-2 text-white hover:bg-pico-green hover:text-black transition-all rounded"
+            title="Download PNG">
+            {% include 'icon/download.html' %}
+          </button>
+          <button hx-delete="{{ url_for('app.delete_graphic', graphic_id=graphic.id) }}" hx-target="closest .group"
+            hx-swap="outerHTML" hx-confirm="Delete this artwork? This cannot be undone."
+            class="font-['Press_Start_2P'] text-[8px] bg-slate-800 border border-slate-700 p-2 text-white hover:bg-pico-red hover:text-black hover:border-pico-red transition-all rounded w-full"
+            title="Delete">
+            Delete
+          </button>
+        </div>
+      </div>
+      {% endfor %}
+    </div>
+    {% else %}
+    <div class="text-center py-12">
+      <p class="text-slate-500 text-sm mb-4">No finished art yet.</p>
+      <a href="{{ url_for('app.art_create') }}"
+        class="font-['Press_Start_2P'] text-[10px] bg-pico-green border-2 border-pico-green px-4 py-3 text-black hover:bg-pico-green/80 transition-all inline-block">
+        Create Your First Masterpiece
+      </a>
+    </div>
+    {% endif %}
+  </section>
+</div>
+{% endblock %}

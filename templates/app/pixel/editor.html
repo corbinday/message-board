@@ -94,6 +94,33 @@ Variables:
       </div>
     </div>
 
+    <!-- Transform Controls -->
+    <div class="flex flex-col gap-1 sm:gap-2">
+      <label class="font-['Press_Start_2P'] text-[10px] text-slate-400 uppercase tracking-widest">Shift</label>
+      <div class="flex gap-2">
+        <button type="button" data-editor-action="shift-up"
+          class="px-3 py-2 bg-slate-800 border-2 border-slate-600 rounded hover:bg-slate-700 hover:border-slate-400 text-white transition-all active:scale-95 shadow-md"
+          title="Shift Up">
+          <span class="font-['Press_Start_2P'] text-[8px]">↑</span>
+        </button>
+        <button type="button" data-editor-action="shift-left"
+          class="px-3 py-2 bg-slate-800 border-2 border-slate-600 rounded hover:bg-slate-700 hover:border-slate-400 text-white transition-all active:scale-95 shadow-md"
+          title="Shift Left">
+          <span class="font-['Press_Start_2P'] text-[8px]">←</span>
+        </button>
+        <button type="button" data-editor-action="shift-down"
+          class="px-3 py-2 bg-slate-800 border-2 border-slate-600 rounded hover:bg-slate-700 hover:border-slate-400 text-white transition-all active:scale-95 shadow-md"
+          title="Shift Down">
+          <span class="font-['Press_Start_2P'] text-[8px]">↓</span>
+        </button>
+        <button type="button" data-editor-action="shift-right"
+          class="px-3 py-2 bg-slate-800 border-2 border-slate-600 rounded hover:bg-slate-700 hover:border-slate-400 text-white transition-all active:scale-95 shadow-md"
+          title="Shift Right">
+          <span class="font-['Press_Start_2P'] text-[8px]">→</span>
+        </button>
+      </div>
+    </div>
+
     <!-- Recent Colors -->
     <div class="flex flex-col gap-2">
       <label class="font-['Press_Start_2P'] text-[10px] text-slate-400 uppercase tracking-widest">Recent</label>
@@ -143,7 +170,8 @@ Variables:
         </button>
         <div class="flex items-center gap-1 ml-auto">
           <label class="font-['Press_Start_2P'] text-[8px] text-slate-400">Delay:</label>
-          <input type="number" data-editor-control="frame-delay" min="100" max="2000" value="100"
+          <input type="number" data-editor-control="frame-delay" min="100" max="2000"
+            value="{{ frame_delay|default(100) }}"
             class="w-16 bg-slate-800 border border-slate-700 p-1 text-white font-['Press_Start_2P'] text-[8px] focus:border-pico-blue focus:outline-none">
           <span class="font-['Press_Start_2P'] text-[8px] text-slate-400">ms</span>
         </div>
@@ -163,42 +191,10 @@ Variables:
 <script nonce="{{ nonce }}">
   (function () {
     // Size selector functionality
-    document.querySelectorAll('.size-preset').forEach(btn => {
-      btn.addEventListener('click', function () {
-        const [w, h] = this.dataset.size.split('x').map(Number);
-        const oldEditor = document.getElementById('pixel-editor-instance');
+    // Define resizeEditor in scope or use an event-based approach if moving to external file
+    // For now, keeping it here but ensuring it's robust
 
-        // Check if editor has content
-        if (oldEditor && oldEditor.hasContent && oldEditor.hasContent()) {
-          if (!confirm('Changing size will discard your current pixel art. Continue?')) {
-            return;
-          }
-        }
-
-        // Determine the board type based on dimensions
-        let boardType = 'Galactic';
-        if (w <= 16 && h <= 16) {
-          boardType = 'Stellar';
-        } else if (w > 32 || h > 32) {
-          boardType = 'Cosmic';
-        }
-
-        // Reset the draft in the database
-        fetch('{{ url_for("app.reset_draft") }}', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/x-www-form-urlencoded',
-          },
-          body: `size=${boardType}`
-        }).then(() => {
-          resizeEditor(w, h);
-        }).catch(err => {
-          console.error('Failed to reset draft:', err);
-          resizeEditor(w, h);
-        });
-      });
-    });
-
+    // Function to resize editor
     function resizeEditor(width, height) {
       const sizeDisplay = document.getElementById('size-display');
       if (sizeDisplay) sizeDisplay.textContent = `${width}x${height}`;
@@ -235,13 +231,29 @@ Variables:
       if (draftSize) {
         if (width <= 16 && height <= 16) {
           draftSize.value = 'Stellar';
-        } else if (width > 32 || height > 32) {
-          draftSize.value = 'Cosmic';
-        } else {
+        } else if (width === 53 || width > 32) {
           draftSize.value = 'Galactic';
+        } else {
+          draftSize.value = 'Cosmic';
         }
       }
     }
+
+    document.querySelectorAll('.size-preset').forEach(btn => {
+      btn.addEventListener('click', function () {
+        const [w, h] = this.dataset.size.split('x').map(Number);
+        const oldEditor = document.getElementById('pixel-editor-instance');
+
+        // Check if editor has content
+        if (oldEditor && typeof oldEditor.hasContent === 'function' && oldEditor.hasContent()) {
+          if (!confirm('Changing size will discard your current pixel art. Continue?')) {
+            return;
+          }
+        }
+
+        resizeEditor(w, h);
+      });
+    });
   })();
 </script>
 {% endif %}

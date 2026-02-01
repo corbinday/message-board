@@ -21,130 +21,167 @@
       </p>
     </div>
 
-    {% set editor_width = 32 %}
-    {% set editor_height = 32 %}
+    {% set editor_width = editor_width|default(32) %}
+    {% set editor_height = editor_height|default(32) %}
     {% set allow_animation = true %}
     {% set show_size_selector = true %}
     {% include "app/pixel/editor.html" %}
 
     <!-- Auto-save listener (invisible) -->
-    <div id="autosave-trigger"
-      hx-post="{{ url_for('app.save_draft') }}"
-      hx-trigger="editor-changed from:body"
-      hx-swap="none"
-      hx-include="#draft-data, #draft-frames, #draft-delay, #draft-size"
-      class="hidden">
+    <div id="autosave-trigger" hx-post="{{ url_for('app.save_draft') }}" hx-trigger="editor-changed from:body"
+      hx-swap="none" hx-include="#draft-data, #draft-frames, #draft-delay, #draft-size, #draft-id" class="hidden">
     </div>
     <input type="hidden" id="draft-data" name="pixel_data" />
     <input type="hidden" id="draft-frames" name="frames" value="1" />
-    <input type="hidden" id="draft-delay" name="frame_delay_ms" value="100" />
-    <input type="hidden" id="draft-size" name="size" value="Galactic" />
+    <input type="hidden" id="draft-delay" name="frame_delay_ms" value="{{ frame_delay|default(100) }}" />
+    <!-- Initialize draft-size with the value passed from backend or default to Cosmic/Galactic based on width -->
+    <input type="hidden" id="draft-size" name="size" value="{{ draft_size|default('Cosmic') }}" />
+    <input type="hidden" id="draft-id" name="draft_id" value="{{ draft_id or '' }}" />
 
     <!-- Finish Button -->
     <div class="flex flex-col items-center gap-3 pt-4">
       <div id="save-status" class="font-['Press_Start_2P'] text-[8px] text-slate-500">
         Auto-saving enabled
       </div>
-      <button type="button" id="finish-btn"
-        hx-post="{{ url_for('app.finish_draft') }}"
-        hx-target="#save-status"
-        hx-swap="innerHTML"
+      <button type="button" id="finish-btn" hx-post="{{ url_for('app.finish_draft') }}" hx-target="#save-status"
+        hx-swap="innerHTML" hx-include="#draft-id"
         class="font-['Press_Start_2P'] text-[10px] bg-pico-green border-2 border-pico-green px-6 py-3 text-black hover:bg-pico-green/80 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
         disabled>
         Finish & Save
       </button>
-      <!-- Delete Draft Button (only show if editing existing draft) -->
-      {% if draft_id %}
-      <button type="button"
-        hx-delete="{{ url_for('app.delete_draft_route', draft_id=draft_id) }}"
+      <button type="button" hx-delete="{{ url_for('app.delete_draft_route', draft_id=draft_id) }}"
         hx-confirm="Delete this draft? This cannot be undone."
         class="font-['Press_Start_2P'] text-[10px] bg-slate-800 border-2 border-red-900/40 px-6 py-3 text-red-200 hover:bg-red-900/40 hover:border-red-500 transition-all">
         Delete Draft
       </button>
-      {% endif %}
     </div>
   </section>
 </div>
 
 <script nonce="{{ nonce }}">
-document.addEventListener('DOMContentLoaded', function() {
-  const editor = document.getElementById('pixel-editor-instance');
-  const draftData = document.getElementById('draft-data');
-  const draftFrames = document.getElementById('draft-frames');
-  const draftDelay = document.getElementById('draft-delay');
-  const draftSize = document.getElementById('draft-size');
-  const finishBtn = document.getElementById('finish-btn');
-  const saveStatus = document.getElementById('save-status');
-  const autosaveStatus = document.getElementById('autosave-status');
+  document.addEventListener('DOMContentLoaded', function () {
+    const editor = document.getElementById('pixel-editor-instance');
+    const draftData = document.getElementById('draft-data');
+    const draftFrames = document.getElementById('draft-frames');
+    const draftDelay = document.getElementById('draft-delay');
+    const draftSize = document.getElementById('draft-size');
+    const finishBtn = document.getElementById('finish-btn');
+    const saveStatus = document.getElementById('save-status');
+    const autosaveStatus = document.getElementById('autosave-status');
 
-  if (!editor) return;
+    if (!editor) return;
 
-  // Listen for editor changes
-  editor.addEventListener('editor-changed', async function(e) {
-    const { hasContent, frameCount, frameDelay } = e.detail;
+    // Listen for editor changes (delegated to body to handle editor replacement)
+    document.body.addEventListener('editor-changed', async function (e) {
+      const editor = e.target;
+      if (editor.tagName !== 'PIXEL-EDITOR') return;
 
-    // Update hidden form data
-    draftFrames.value = frameCount;
-    draftDelay.value = frameDelay || 100;
+      const { hasContent, frameCount, frameDelay } = e.detail;
 
-    // Get the image data as base64
-    try {
-      let blob;
-      if (frameCount > 1) {
-        blob = await editor.getAnimationData();
-      } else {
-        blob = await editor.exportBlob();
-      }
+      // Update hidden form data
+      if (draftFrames) draftFrames.value = frameCount;
+      if (draftDelay) draftDelay.value = frameDelay || 100;
 
-      const reader = new FileReader();
-      reader.onload = function() {
-        // Remove data URL prefix (data:image/png;base64,)
-        const base64 = reader.result.split(',')[1];
-        draftData.value = base64;
-
-        // Determine size based on editor dimensions
-        const width = parseInt(editor.getAttribute('width'), 10);
-        if (width <= 16) {
-          draftSize.value = 'Stellar';
-        } else if (width <= 32) {
-          draftSize.value = 'Galactic';
+      // Get the image data as base64
+      try {
+        let blob;
+        if (frameCount > 1) {
+          blob = await editor.getAnimationData();
         } else {
-          draftSize.value = 'Cosmic';
+          blob = await editor.exportBlob();
         }
 
-        // Trigger the auto-save via htmx
-        htmx.trigger('#autosave-trigger', 'editor-changed');
+        const reader = new FileReader();
+        reader.onload = function () {
+          // Remove data URL prefix (data:image/png;base64,)
+          const base64 = reader.result.split(',')[1];
+          draftData.value = base64;
 
-        // Update status
-        if (autosaveStatus) {
-          autosaveStatus.textContent = 'Saving...';
-          setTimeout(() => {
-            autosaveStatus.textContent = 'Saved';
-          }, 500);
+          // Determine size based on editor dimensions
+          const width = parseInt(editor.getAttribute('width'), 10);
+          if (width <= 16) {
+            draftSize.value = 'Stellar';
+          } else if (width === 32) {
+            draftSize.value = 'Cosmic';
+          } else {
+            draftSize.value = 'Galactic';
+          }
+
+          // Trigger the auto-save via htmx
+          htmx.trigger('#autosave-trigger', 'editor-changed');
+
+          // Update status - look up fresh element since it may have been replaced
+          const currentAutosaveStatus = document.getElementById('autosave-status');
+          if (currentAutosaveStatus) {
+            currentAutosaveStatus.textContent = 'Saving...';
+            setTimeout(() => {
+              currentAutosaveStatus.textContent = 'Saved';
+            }, 500);
+          }
+        };
+        reader.readAsDataURL(blob);
+
+        // Enable/disable finish button based on content or frame count (allow saving animations even if current frame is blank)
+        if (finishBtn) {
+          finishBtn.disabled = !(hasContent || frameCount > 1);
         }
-      };
-      reader.readAsDataURL(blob);
-
-      // Enable/disable finish button based on content
-      finishBtn.disabled = !hasContent;
-    } catch (err) {
-      console.error('Error preparing draft data:', err);
-      if (autosaveStatus) {
-        autosaveStatus.textContent = 'Save failed';
+      } catch (err) {
+        console.error('Error preparing draft data:', err);
+        const currentAutosaveStatus = document.getElementById('autosave-status');
+        if (currentAutosaveStatus) {
+          currentAutosaveStatus.textContent = 'Save failed';
+        }
       }
-    }
-  });
+    });
 
-  // Handle finish button response
-  document.body.addEventListener('htmx:afterRequest', function(e) {
-    if (e.detail.elt === finishBtn && e.detail.successful) {
-      saveStatus.innerHTML = '<span class="text-pico-green">Saved successfully!</span>';
-      // Optionally redirect after a delay
-      setTimeout(() => {
-        window.location.href = "{{ url_for('app.home') }}";
-      }, 1500);
+    // Handle finish button response
+    document.body.addEventListener('htmx:afterRequest', function (e) {
+      if (finishBtn && e.detail.elt === finishBtn && e.detail.successful) {
+        if (saveStatus) saveStatus.innerHTML = '<span class="text-pico-green">Saved successfully!</span>';
+        // Optionally redirect after a delay
+        setTimeout(() => {
+          window.location.href = "{{ url_for('app.home') }}";
+        }, 1500);
+      }
+    });
+
+    // Initial check for existing content (handles race condition where image loads before listener is ready)
+    function checkInitialContent() {
+      const hasContent = editor && typeof editor.hasContent === 'function' && editor.hasContent();
+      const frameCount = editor && typeof editor.getFrameCount === 'function' ? editor.getFrameCount() : 1;
+
+      if (hasContent || frameCount > 1) {
+        finishBtn.disabled = false;
+
+        // Trigger update of hidden fields
+        const detail = {
+          hasContent: hasContent,
+          frameCount: frameCount,
+          currentFrame: typeof editor.getCurrentFrame === 'function' ? editor.getCurrentFrame() : 0,
+          frameDelay: typeof editor.getFrameDelay === 'function' ? editor.getFrameDelay() : 100
+        };
+
+        // Manually trigger the handler logic
+        const event = new CustomEvent('editor-changed', {
+          bubbles: true,
+          detail: detail
+        });
+        editor.dispatchEvent(event);
+        return true;
+      }
+      return false;
+    }
+
+    // Check immediately and poll briefly
+    if (!checkInitialContent()) {
+      let attempts = 0;
+      const interval = setInterval(() => {
+        attempts++;
+        if (checkInitialContent() || attempts > 10) { // Try for 1 second
+          clearInterval(interval);
+        }
+      }, 100);
     }
   });
-});
 </script>
 {% endblock %}

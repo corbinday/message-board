@@ -13,7 +13,10 @@ select DraftGraphic {
 }
 filter .creator = user
   and (
-    (.active_board.id = <optional uuid>$board_id) if exists <optional uuid>$board_id
-    else not exists .active_board
+    (.id = <optional uuid>$draft_id) if exists <optional uuid>$draft_id else
+    (
+      (.active_board.id = <optional uuid>$board_id) if exists <optional uuid>$board_id
+      else not exists .active_board
+    )
   )
 limit 1

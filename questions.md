@@ -36,3 +36,8 @@ The second error is that the button is entirely grayed out sometimes and the cur
 * Another issue is that the frame delay ms rate doesn't seem to be saving to the database when I change it. That should trigger an autosave as well, with at least 500ms of debouncing.
 * Another issue is that the size in the database is not being saved properly. All my DraftGraphic data shows the board size as Galactic. 16x16 is Stellar, 32x32 is Cosmic, and 53x11 is Galactic. When the user updates what size of board they are drafting on, that needs to be reflected in the database as well. Let's make sure everything is synching properly to the database (board type, frame refresh rate, and frame count).
 * Let's add a sub-view to the app dashboard under "Your Art" where Drafts appear. In the draft editor itself, let's add an option to delete a draft and remove it fully from the database. Let's also add the delete option to art pieces as well.
+
+
+# Pico Operating System
+* The `A` button does 
+* Pull new messages from the server when an ably message is received over mqtt saying that board with a given ID is 

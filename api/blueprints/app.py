@@ -441,7 +441,7 @@ def finish_draft():
             )
 
         # Finish the draft (converts to StaticImage or PixelAnimation)
-        result = q.finishDraft(g.client, draft_id=draft.id)
+        q.finishDraft(g.client, draft_id=draft.id)
 
         if request.headers.get("HX-Request"):
             return '<span class="text-pico-green">Saved successfully!</span>'

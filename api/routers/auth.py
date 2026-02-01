@@ -1,0 +1,152 @@
+import base64
+import hashlib
+import os
+import httpx
+import secrets
+import logging
+from dotenv import load_dotenv
+from fastapi import APIRouter, Request, Depends, HTTPException
+from fastapi.responses import RedirectResponse, HTMLResponse
+from urllib.parse import urljoin
+
+from api.dependencies import get_client, Client
+from api.user import create_new_user
+import api.queries as q
+
+router = APIRouter()
+logger = logging.getLogger(__name__)
+
+# Load environment variables
+load_dotenv()
+GEL_AUTH_BASE_URL = os.getenv("GEL_AUTH_BASE_URL").rstrip("/") + "/"
+COOKIE_OPTS = {
+    "httponly": True,
+    "secure": False,
+    "samesite": "lax",
+    "path": "/",
+}
+
+
+def generate_pkce():
+    verifier = secrets.token_urlsafe(32)
+    challenge = hashlib.sha256(verifier.encode()).digest()
+    challenge_base64 = base64.urlsafe_b64encode(challenge).decode("utf-8").rstrip("=")
+    return verifier, challenge_base64
+
+
+async def retrieve_auth_token(request: Request):
+    """Exchange OAuth code for auth token."""
+    # 1. Extract ?code
+    code = request.query_params.get("code")
+    if not code:
+        error = request.query_params.get("error", "Unknown error")
+        raise HTTPException(
+            status_code=400,
+            detail=f"OAuth callback is missing 'code'. OAuth provider responded with error: {error}",
+        )
+
+    # 2. Read PKCE verifier from cookie
+    verifier = request.cookies.get("gel-pkce-verifier")
+    if not verifier:
+        raise HTTPException(
+            status_code=400,
+            detail="Could not find 'verifier' in the cookie store. "
+            "Is this the same user agent/browser that started the authorization flow?",
+        )
+
+    # 3. Build the code exchange URL
+    code_exchange_url = urljoin(GEL_AUTH_BASE_URL, "token")
+    params = {"code": code, "verifier": verifier}
+
+    # 4. Exchange code + verifier for auth_token (async HTTP)
+    async with httpx.AsyncClient() as http_client:
+        exchange_resp = await http_client.get(code_exchange_url, params=params)
+
+    if not exchange_resp.is_success:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Error from the auth server: {exchange_resp.text}",
+        )
+
+    return exchange_resp.json()
+
+
+def create_login_response(auth_token: str, redirect_url: str) -> RedirectResponse:
+    """Create a redirect response with auth cookies set."""
+    response = RedirectResponse(url=redirect_url, status_code=302)
+    response.set_cookie("gel-auth-token", auth_token, **COOKIE_OPTS)
+    response.delete_cookie("gel-pkce-verifier", path="/")
+    response.delete_cookie("gel-auth-challenge", path="/")
+    return response
+
+
+@router.get("/ui/signup", name="auth.signup")
+async def signup():
+    verifier, challenge = generate_pkce()
+    # Construct redirect URL: GEL_AUTH_BASE_URL + "ui/signup?challenge=..."
+    redirect_url = urljoin(GEL_AUTH_BASE_URL, "ui/signup")
+    redirect_url = f"{redirect_url}?challenge={challenge}"
+
+    response = RedirectResponse(url=redirect_url, status_code=302)
+
+    # Set HttpOnly cookie
+    response.set_cookie("gel-pkce-verifier", verifier, **COOKIE_OPTS)
+
+    # Set the challenge as a cookie for the gel auth ui on local email flows
+    response.set_cookie("gel-auth-challenge", challenge, **COOKIE_OPTS)
+
+    return response
+
+
+@router.get("/callback/signup", name="auth.callback_signup")
+async def callback_signup(request: Request, client: Client):
+    logger.info("Handling SIGN-UP")
+    data = await retrieve_auth_token(request)
+    logger.info(data)
+    auth_token = data.get("auth_token")
+
+    # Update client with auth token for user creation
+    if auth_token:
+        client = client.with_globals({"ext::auth::client_token": auth_token})
+
+    # Create new User
+    try:
+        await create_new_user(client, data)
+    except Exception as e:
+        error_message = str(e)
+        templates = request.app.state.templates
+        get_context = request.app.state.get_template_context
+        context = get_context(request, message=error_message)
+        return templates.TemplateResponse("error.html", context, status_code=401)
+
+    # Redirect to welcome page
+    return create_login_response(auth_token, "/app/")
+
+
+@router.get("/ui/signin", name="auth.signin")
+async def signin():
+    verifier, challenge = generate_pkce()
+
+    # Build redirect URL
+    redirect_url = urljoin(GEL_AUTH_BASE_URL, "ui/signin")
+    redirect_url = f"{redirect_url}?challenge={challenge}"
+
+    response = RedirectResponse(url=redirect_url, status_code=302)
+
+    # Set the PKCE verifier cookie
+    response.set_cookie("gel-pkce-verifier", verifier, **COOKIE_OPTS)
+
+    # Set the challenge as a cookie for the gel auth ui on local email flows
+    response.set_cookie("gel-auth-challenge", challenge, **COOKIE_OPTS)
+
+    return response
+
+
+@router.get("/callback/signin", name="auth.callback_signin")
+async def callback_signin(request: Request, client: Client):
+    logger.info("Handling SIGN-IN")
+    data = await retrieve_auth_token(request)
+    logger.info(data)
+    auth_token = data.get("auth_token")
+
+    return create_login_response(auth_token, "/app/")

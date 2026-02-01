@@ -14,7 +14,7 @@
   </header>
 
   <!-- Friend Selection -->
-  <section id="friend-selection" class="space-y-4">
+  <section id="friend-selection" class="space-y-4" data-friend-boards='{{ friend_boards|tojson }}'>
     <div class="border-l-4 border-pico-red pl-4">
       <h2 class="font-['Press_Start_2P'] text-sm text-white">Select Recipient</h2>
       <p class="text-slate-500 text-[10px] uppercase tracking-tighter mt-1 font-bold">
@@ -29,7 +29,7 @@
         {% set friend = friend_rel.friend %}
         <button type="button" data-friend-id="{{ friend.id }}" data-friend-username="{{ friend.username }}"
           class="friend-select flex flex-col items-center gap-2 p-3 bg-slate-800 border-2 border-slate-700 rounded-lg hover:border-pico-red hover:bg-slate-700 transition-all">
-          <div class="w-10 h-10 rounded-md bg-slate-900 p-1 border border-slate-700 shadow-xl overflow-hidden flex items-center justify-center pixel-xs">
+          <div class="pixel-context pixel-4xs w-fit rounded-md bg-slate-900 p-1 border border-slate-700 shadow-xl overflow-hidden flex items-center justify-center">
             <pixel-art src="{{ url_for('user.serve_avatar', user_id=friend.id) }}" class="max-w-full h-auto"></pixel-art>
           </div>
           <span class="font-['Press_Start_2P'] text-[8px] text-white truncate max-w-full">{{ friend.username }}</span>
@@ -56,6 +56,16 @@
         Sending to: <span id="recipient-name" class="text-pico-red"></span>
       </p>
     </div>
+    <div class="bg-slate-900/40 border border-slate-800 rounded-lg p-4">
+      <div class="flex flex-col gap-2">
+        <label class="font-['Press_Start_2P'] text-[10px] text-white">Select Board</label>
+        <select id="board-select"
+          class="w-full font-['Press_Start_2P'] text-[10px] bg-slate-800 border-2 border-slate-700 p-3 text-white focus:border-pico-green focus:outline-none">
+          <option value="" selected disabled>Select a board</option>
+        </select>
+        <div id="board-help" class="text-[9px] text-slate-400 uppercase tracking-wider"></div>
+      </div>
+    </div>
 
     <div id="editor-wrapper">
       {% set editor_width = 32 %}
@@ -68,14 +78,16 @@
         hx-post="{{ url_for('app.save_draft') }}"
         hx-trigger="editor-changed from:body"
         hx-swap="none"
-        hx-include="#draft-data,#draft-frames,#draft-delay,#draft-size"
+        hx-include="#draft-data,#draft-frames,#draft-delay,#draft-size,#draft-id,#board-id"
         class="hidden">
       </div>
       <input type="hidden" id="draft-data" name="pixel_data" />
       <input type="hidden" id="draft-frames" name="frames" value="1" />
       <input type="hidden" id="draft-delay" name="frame_delay_ms" value="100" />
       <input type="hidden" id="draft-size" name="size" value="Galactic" />
+      <input type="hidden" id="draft-id" name="draft_id" value="" />
       <input type="hidden" id="recipient-id" name="recipient_id" />
+      <input type="hidden" id="board-id" name="board_id" />
 
       <!-- Send Button -->
       <div class="flex flex-col items-center gap-3 pt-4">
@@ -84,7 +96,7 @@
         </div>
         <button type="button" id="send-btn"
           hx-post="{{ url_for('app.send_message') }}"
-          hx-include="#recipient-id"
+          hx-include="#recipient-id,#draft-id,#board-id"
           hx-target="#save-status"
           hx-swap="innerHTML"
           class="font-['Press_Start_2P'] text-[10px] bg-pico-red border-2 border-pico-red px-6 py-3 text-black hover:bg-pico-red/80 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
@@ -101,6 +113,56 @@ document.addEventListener('DOMContentLoaded', function() {
   const composerSection = document.getElementById('composer-section');
   const recipientName = document.getElementById('recipient-name');
   const recipientId = document.getElementById('recipient-id');
+  const boardSelect = document.getElementById('board-select');
+  const boardHelp = document.getElementById('board-help');
+  const boardId = document.getElementById('board-id');
+  const draftId = document.getElementById('draft-id');
+  const sendBtn = document.getElementById('send-btn');
+  const saveStatus = document.getElementById('save-status');
+  const friendSelection = document.getElementById('friend-selection');
+  const friendBoards = friendSelection?.dataset?.friendBoards
+    ? JSON.parse(friendSelection.dataset.friendBoards)
+    : {};
+  let lastHasContent = false;
+  let lastBoardId = '';
+
+  function getBoardSize(boardType) {
+    if (boardType === 'Stellar') return { width: 16, height: 16 };
+    if (boardType === 'Cosmic') return { width: 32, height: 32 };
+    return { width: 53, height: 11 };
+  }
+
+  function updateSendButton() {
+    if (!sendBtn) return;
+    sendBtn.disabled =
+      !lastHasContent || !recipientId.value || !boardId.value || !draftId.value;
+  }
+
+  function resizeEditor(width, height) {
+    const oldEditor = document.getElementById('pixel-editor-instance');
+    if (!oldEditor) return;
+
+    const newEditor = document.createElement('pixel-editor');
+    newEditor.setAttribute('width', width);
+    newEditor.setAttribute('height', height);
+    if (oldEditor.hasAttribute('allow-animation')) {
+      newEditor.setAttribute('allow-animation', '');
+    }
+    if (oldEditor.hasAttribute('emit-changes')) {
+      newEditor.setAttribute('emit-changes', '');
+    }
+    if (oldEditor.hasAttribute('debounce-ms')) {
+      newEditor.setAttribute('debounce-ms', oldEditor.getAttribute('debounce-ms'));
+    }
+    newEditor.className = oldEditor.className;
+    newEditor.id = 'pixel-editor-instance';
+
+    Array.from(oldEditor.childNodes).forEach(child => {
+      newEditor.appendChild(child.cloneNode(true));
+    });
+
+    oldEditor.replaceWith(newEditor);
+  }
 
   // Friend selection
   document.querySelectorAll('.friend-select').forEach(btn => {
@@ -119,6 +181,31 @@ document.addEventListener('DOMContentLoaded', function() {
       const friendId = this.dataset.friendId;
       recipientName.textContent = username;
       recipientId.value = friendId;
+      draftId.value = '';
+
+      // Populate board selector
+      const boards = friendBoards[friendId] || [];
+      boardSelect.innerHTML = '<option value="" selected disabled>Select a board</option>';
+      if (boards.length === 0) {
+        boardHelp.textContent = 'No boards found for this friend.';
+        boardId.value = '';
+        updateSendButton();
+      } else {
+        boards.forEach(board => {
+          const option = document.createElement('option');
+          option.value = board.id;
+          option.textContent = board.name ? `${board.name} (${board.boardType})` : board.boardType;
+          option.dataset.boardType = board.boardType;
+        boardSelect.appendChild(option);
+        });
+        boardSelect.value = boards[0].id;
+        boardId.value = boards[0].id;
+        lastBoardId = boards[0].id;
+        const size = getBoardSize(boards[0].boardType);
+        resizeEditor(size.width, size.height);
+      boardHelp.textContent = `Board size: ${boards[0].boardType}`;
+        updateSendButton();
+      }
 
       // Show composer
       composerSection.classList.remove('hidden');
@@ -132,15 +219,17 @@ document.addEventListener('DOMContentLoaded', function() {
   const draftFrames = document.getElementById('draft-frames');
   const draftDelay = document.getElementById('draft-delay');
   const draftSize = document.getElementById('draft-size');
-  const sendBtn = document.getElementById('send-btn');
-  const saveStatus = document.getElementById('save-status');
   const autosaveStatus = document.getElementById('autosave-status');
 
   if (!editor) return;
 
   // Listen for editor changes
-  editor.addEventListener('editor-changed', async function(e) {
+  document.body.addEventListener('editor-changed', async function(e) {
+    const editor = e.target;
+    if (editor.tagName !== 'PIXEL-EDITOR') return;
+
     const { hasContent, frameCount, frameDelay } = e.detail;
+    lastHasContent = hasContent;
 
     // Update hidden form data
     draftFrames.value = frameCount;
@@ -165,38 +254,69 @@ document.addEventListener('DOMContentLoaded', function() {
         const width = parseInt(editor.getAttribute('width'), 10);
         if (width <= 16) {
           draftSize.value = 'Stellar';
-        } else if (width <= 32) {
-          draftSize.value = 'Galactic';
-        } else {
+        } else if (width === 32) {
           draftSize.value = 'Cosmic';
+        } else {
+          draftSize.value = 'Galactic';
         }
 
         // Trigger the auto-save via htmx
         htmx.trigger('#autosave-trigger', 'editor-changed');
 
         // Update status
-        if (autosaveStatus) {
-          autosaveStatus.textContent = 'Saving...';
+        const currentAutosaveStatus = document.getElementById('autosave-status');
+        if (currentAutosaveStatus) {
+          currentAutosaveStatus.textContent = 'Saving...';
           setTimeout(() => {
-            autosaveStatus.textContent = 'Saved';
+            currentAutosaveStatus.textContent = 'Saved';
           }, 500);
         }
       };
       reader.readAsDataURL(blob);
 
-      // Enable/disable send button based on content and recipient
-      sendBtn.disabled = !hasContent || !recipientId.value;
+      // Enable/disable send button based on content and recipient/board
+      updateSendButton();
     } catch (err) {
       console.error('Error preparing draft data:', err);
-      if (autosaveStatus) {
-        autosaveStatus.textContent = 'Save failed';
+      const currentAutosaveStatus = document.getElementById('autosave-status');
+      if (currentAutosaveStatus) {
+        currentAutosaveStatus.textContent = 'Save failed';
       }
     }
   });
 
+  document.body.addEventListener('draft-saved', function(e) {
+    if (e.detail && e.detail.draftId) {
+      draftId.value = e.detail.draftId;
+      updateSendButton();
+    }
+  });
+
+  boardSelect.addEventListener('change', function() {
+    const option = boardSelect.selectedOptions[0];
+    if (!option) return;
+    const boardType = option.dataset.boardType;
+    const editor = document.getElementById('pixel-editor-instance');
+
+    if (editor && typeof editor.hasContent === 'function' && editor.hasContent()) {
+      if (!confirm('Changing boards will clear your current message. Continue?')) {
+        boardSelect.value = lastBoardId;
+        return;
+      }
+    }
+
+    boardId.value = option.value;
+    draftId.value = '';
+    lastBoardId = option.value;
+    const size = getBoardSize(boardType);
+    resizeEditor(size.width, size.height);
+    boardHelp.textContent = `Board size: ${boardType}`;
+    updateSendButton();
+  });
+
   // Handle send button response
   document.body.addEventListener('htmx:afterRequest', function(e) {
-    if (e.detail.elt === sendBtn && e.detail.successful) {
+    if (sendBtn && e.detail.elt === sendBtn && e.detail.successful) {
       saveStatus.innerHTML = '<span class="text-pico-green">Message sent!</span>';
       // Redirect after a delay
       setTimeout(() => {

@@ -5,12 +5,8 @@ with
   ),
   existing := (
     select DraftGraphic
-    filter .creator = user
-      and (
-        (.active_board.id = <optional uuid>$board_id) if exists <optional uuid>$board_id
-        else not exists .active_board
-      )
-    limit 1
+    filter .id = <optional uuid>$draft_id
+      and .creator = user
   ),
   upserted := (
     update existing
@@ -19,6 +15,7 @@ with
       frames := <int16>$frames,
       frame_delay_ms := <int16>$frame_delay_ms,
       size := <BoardType>$size,
+      active_board := (select Board filter .id = <optional uuid>$board_id),
       updated_at := datetime_of_statement()
     }
   ) if exists existing else (

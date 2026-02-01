@@ -65,13 +65,15 @@
       {% if has_avatar %}
       <div class="bg-slate-900/40 border border-slate-800 rounded-lg p-6 space-y-4">
         <h3 class="font-['Press_Start_2P'] text-xs text-white">Current Avatar</h3>
-        <div
-          class="w-32 h-32 mx-auto rounded-md bg-slate-900 p-4 border border-slate-700 shadow-xl overflow-hidden flex items-center justify-center pixel-sm"
-        >
-          <pixel-art
-            src="{{ url_for('user.serve_avatar', user_id=user.id) }}"
-            class="max-w-full h-auto"
-          ></pixel-art>
+        <div class="pixel-context pixel-xs w-fit mx-auto">
+          <div
+            class="rounded-md bg-slate-900 p-2 border border-slate-700 shadow-xl overflow-hidden flex items-center justify-center"
+          >
+            <pixel-art
+              src="{{ url_for('user.serve_avatar', user_id=user.id) }}"
+              class="max-w-full h-auto"
+            ></pixel-art>
+          </div>
         </div>
       </div>
       {% endif %}
@@ -85,7 +87,7 @@
       <div class="bg-slate-900/40 border border-slate-800 rounded-lg p-6 space-y-4">
         <h3 class="font-['Press_Start_2P'] text-xs text-white">Or Upload a PNG</h3>
         <form
-          hx-post="{{ url_for('user.avatar') }}"
+          hx-post="{{ url_for('user.avatar_post') }}"
           hx-encoding="multipart/form-data"
           hx-target="body"
           class="space-y-4"

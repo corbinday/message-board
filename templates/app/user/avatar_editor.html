@@ -1,53 +1,98 @@
-<div class="flex flex-col gap-4 w-full">
-  <div class="flex gap-4 items-center justify-center flex-wrap">
-    <label class="font-['Press_Start_2P'] text-[10px] text-white">Color:</label>
-    <input 
-      type="color" 
-      data-editor-control="color-picker"
-      value="#FF0000"
-      class="w-12 h-12 rounded border-2 border-slate-700 cursor-pointer"
-    >
-    
-    <!-- Recent colors -->
-    <div data-editor-section="recent-colors" class="flex gap-2">
-      <!-- Populated by JS -->
+<div class="flex flex-col gap-4 w-full" data-avatar-editor data-editor-context>
+  <div class="flex flex-col gap-2">
+    <div class="flex flex-wrap gap-3 items-end justify-center">
+      <div class="flex flex-col gap-1 shrink-0">
+        <label class="font-['Press_Start_2P'] text-[8px] text-slate-400 uppercase tracking-widest">Color</label>
+        <input 
+          type="color" 
+          data-editor-control="color-picker"
+          value="#FF0000"
+          class="w-10 h-10 rounded-md border-2 border-slate-600 cursor-pointer p-1 bg-slate-800 hover:border-slate-400 transition-colors shadow-lg"
+        >
+      </div>
+
+      <div class="flex flex-col gap-1 grow">
+        <label class="font-['Press_Start_2P'] text-[8px] text-slate-400 uppercase tracking-widest">Tools</label>
+        <div class="flex flex-wrap gap-2">
+          <button
+            type="button"
+            data-editor-control="pen"
+            class="px-2 py-2 bg-slate-800 border-2 border-slate-600 rounded hover:bg-slate-700 hover:border-slate-400 text-white transition-all active:scale-95 shadow-md"
+          >
+            <span class="font-['Press_Start_2P'] text-[8px]">Pen</span>
+          </button>
+          <button
+            type="button"
+            data-editor-control="eraser"
+            class="px-2 py-2 bg-slate-800 border-2 border-slate-600 rounded hover:bg-slate-700 hover:border-slate-400 text-white transition-all active:scale-95 shadow-md"
+          >
+            <span class="font-['Press_Start_2P'] text-[8px]">Erase</span>
+          </button>
+          <button
+            type="button"
+            data-editor-control="dropper"
+            class="px-2 py-2 bg-slate-800 border-2 border-slate-600 rounded hover:bg-slate-700 hover:border-slate-400 text-white transition-all active:scale-95 shadow-md"
+          >
+            <span class="font-['Press_Start_2P'] text-[8px]">Pick</span>
+          </button>
+          <button
+            type="button"
+            data-editor-control="clear"
+            class="px-2 py-2 bg-red-900/20 border-2 border-red-900/40 rounded hover:bg-red-900/40 hover:border-red-500 text-red-200 transition-all active:scale-95 shadow-md"
+          >
+            <span class="font-['Press_Start_2P'] text-[8px]">Clear</span>
+          </button>
+        </div>
+      </div>
+
+      <div class="flex flex-col gap-1 shrink-0">
+        <label class="font-['Press_Start_2P'] text-[8px] text-slate-400 uppercase tracking-widest">Load</label>
+        <label class="cursor-pointer">
+          <input 
+            type="file" 
+            accept="image/png" 
+            data-editor-action="load-file"
+            class="hidden"
+          >
+          <span class="px-2 py-2 bg-slate-800 border-2 border-slate-600 rounded hover:bg-slate-700 hover:border-slate-400 text-white transition-all shadow-md inline-block">
+            <span class="font-['Press_Start_2P'] text-[8px]">PNG</span>
+          </span>
+        </label>
+      </div>
     </div>
-    
-    <button
-      type="button"
-      data-editor-action="set-tool"
-      data-tool="pen"
-      class="font-['Press_Start_2P'] text-[8px] bg-pico-green border-2 border-pico-green px-3 py-2 text-black hover:bg-pico-green/80 transition-all"
-    >
-      Pen
-    </button>
-    <button
-      type="button"
-      data-editor-action="set-tool"
-      data-tool="eraser"
-      class="font-['Press_Start_2P'] text-[8px] bg-slate-800 border-2 border-slate-700 px-3 py-2 text-white hover:bg-slate-700 transition-all"
-    >
-      Eraser
-    </button>
-    <button
-      type="button"
-      data-editor-action="set-tool"
-      data-tool="eyedropper"
-      class="font-['Press_Start_2P'] text-[8px] bg-slate-800 border-2 border-slate-700 px-3 py-2 text-white hover:bg-slate-700 transition-all"
-    >
-      Eye Dropper
-    </button>
-    <label class="font-['Press_Start_2P'] text-[10px] text-white">
-      <input 
-        type="file" 
-        accept="image/png" 
-        data-editor-action="load-file"
-        class="hidden"
-      >
-      <span class="bg-slate-800 border-2 border-slate-700 px-3 py-2 text-white hover:bg-slate-700 transition-all cursor-pointer inline-block">
-        Load PNG
-      </span>
-    </label>
+
+    <div class="flex flex-col gap-1">
+      <label class="font-['Press_Start_2P'] text-[8px] text-slate-400 uppercase tracking-widest">Shift</label>
+      <div class="flex gap-2">
+        <button type="button" data-editor-action="shift-up"
+          class="px-3 py-2 bg-slate-800 border-2 border-slate-600 rounded hover:bg-slate-700 hover:border-slate-400 text-white transition-all active:scale-95 shadow-md"
+          title="Shift Up">
+          <span class="font-['Press_Start_2P'] text-[8px]">↑</span>
+        </button>
+        <button type="button" data-editor-action="shift-left"
+          class="px-3 py-2 bg-slate-800 border-2 border-slate-600 rounded hover:bg-slate-700 hover:border-slate-400 text-white transition-all active:scale-95 shadow-md"
+          title="Shift Left">
+          <span class="font-['Press_Start_2P'] text-[8px]">←</span>
+        </button>
+        <button type="button" data-editor-action="shift-down"
+          class="px-3 py-2 bg-slate-800 border-2 border-slate-600 rounded hover:bg-slate-700 hover:border-slate-400 text-white transition-all active:scale-95 shadow-md"
+          title="Shift Down">
+          <span class="font-['Press_Start_2P'] text-[8px]">↓</span>
+        </button>
+        <button type="button" data-editor-action="shift-right"
+          class="px-3 py-2 bg-slate-800 border-2 border-slate-600 rounded hover:bg-slate-700 hover:border-slate-400 text-white transition-all active:scale-95 shadow-md"
+          title="Shift Right">
+          <span class="font-['Press_Start_2P'] text-[8px]">→</span>
+        </button>
+      </div>
+    </div>
+
+    <div class="flex flex-col gap-1">
+      <label class="font-['Press_Start_2P'] text-[8px] text-slate-400 uppercase tracking-widest">Recent</label>
+      <div data-editor-control="recent-colors" class="flex gap-2 h-6 w-full flex-wrap">
+        <!-- Populated by JS -->
+      </div>
+    </div>
   </div>
 
   <div class="flex justify-center w-full">
@@ -57,14 +102,16 @@
       {% if initial_avatar and user %}initial-src="{{ url_for('user.serve_avatar', user_id=user.id) }}"{% endif %}
       class="border-2 border-slate-700 shadow-xl"
       id="pixel-editor-instance"
-    ></pixel-editor>
+    >
+      <div id="grid"></div>
+    </pixel-editor>
   </div>
 
   <form 
     id="editor-form" 
     hx-post="{{ url_for('user.save_avatar') }}" 
     hx-trigger="submit"
-    hx-on::after-request="if(event.detail.successful) { alert('Avatar saved successfully!'); window.location.href = '{{ url_for('user.account_settings') }}'; }"
+    data-avatar-success-url="{{ url_for('user.account_settings') }}"
     class="flex justify-center"
   >
     <input type="hidden" name="pixel_data" id="hidden-pixel-data" />
@@ -78,105 +125,3 @@
     </button>
   </form>
 </div>
-
-<script nonce="{{ nonce }}">
-  // HTMX Guard Pattern & Editor Integration for Avatar
-  document.addEventListener('DOMContentLoaded', function () {
-    const editorContainer = document.getElementById('editor-container') || document.body;
-
-    // ============================================================
-    // HTMX REQUEST INJECTION: Auto-populate form with editor data
-    // ============================================================
-    document.body.addEventListener('htmx:configRequest', async function(evt) {
-      const form = evt.detail.elt.closest('form');
-      if (!form || form.id !== 'editor-form') return;
-
-      const editor = document.querySelector('pixel-editor');
-      if (!editor) return;
-
-      // Validate content before save
-      if (!editor.hasContent()) {
-        evt.preventDefault();
-        alert('Cannot save empty avatar');
-        return;
-      }
-
-      // Get serialized data from editor
-      try {
-        const blob = await editor.getSerializedData();
-        
-        // Convert to Base64 for hidden input
-        const reader = new FileReader();
-        reader.readAsDataURL(blob);
-        reader.onloadend = function() {
-          const base64 = reader.result.split(',')[1];
-          const hiddenInput = form.querySelector('[name="pixel_data"]');
-          if (hiddenInput) {
-            hiddenInput.value = base64;
-          }
-        };
-      } catch (err) {
-        console.error('Failed to serialize editor data:', err);
-        evt.preventDefault();
-        alert('Error preparing avatar for save');
-      }
-    });
-
-    // ============================================================
-    // BUTTON STATE SYNC: Update save button based on content
-    // ============================================================
-    editorContainer.addEventListener('editor-changed', function(e) {
-      const hasContent = e.detail.hasContent;
-      const saveButtons = document.querySelectorAll('[data-editor-action="save"]');
-      
-      saveButtons.forEach(btn => {
-        if (hasContent) {
-          btn.disabled = false;
-          btn.classList.remove('opacity-50', 'cursor-not-allowed');
-        } else {
-          btn.disabled = true;
-          btn.classList.add('opacity-50', 'cursor-not-allowed');
-        }
-      });
-    });
-
-    // ============================================================
-    // SAVE TRIGGER: Button click triggers HTMX form submission
-    // ============================================================
-    document.addEventListener('click', async function(e) {
-      const saveBtn = e.target.closest('[data-editor-action="save"]');
-      if (!saveBtn) return;
-
-      e.preventDefault();
-      
-      const editor = document.querySelector('pixel-editor');
-      if (!editor) return;
-
-      // Validate content
-      if (!editor.hasContent()) {
-        alert('Cannot save empty avatar');
-        return;
-      }
-
-      // Find associated form
-      const form = saveBtn.closest('form');
-      if (!form) return;
-
-      // Populate hidden input with Base64 data
-      const hiddenInput = form.querySelector('[name="pixel_data"]');
-      if (hiddenInput) {
-        const blob = await editor.getSerializedData();
-        const reader = new FileReader();
-        reader.readAsDataURL(blob);
-        reader.onloadend = function() {
-          hiddenInput.value = reader.result.split(',')[1];
-          // Trigger HTMX submission
-          htmx.trigger(form, 'submit');
-        };
-      } else {
-        // Form data will be injected by htmx:configRequest
-        htmx.trigger(form, 'submit');
-      }
-    });
-  });
-</script>

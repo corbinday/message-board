@@ -11,23 +11,40 @@ Space Unicorn Variants:
 ## Web Components
 ### Tech Stack
 - geldata database
-- flask server
+- FastAPI server
 - htmx and tailwindcss front-end
+- Ably realtime pub/sub messaging
 - vercel deployment
 - raspberry pico
 - python script controlling the boards
 
 ### Functions
+#### App Overview
 - Ability to create user accounts
-- Ability to add boards to your account
-- Ability to add friends
-- Message board web page for writing your message
+- Ability to add boards to your a user account
+- Ability to add friends to a user
+- Message board web page for painting messages and animations
+- Real-time updates of the online status of boards and users (active web session) via ably
+- Real-time updates from server to board over ably when they should poll for new content
 - A web viewer for your messages
-- A browser flashing tool to set up a new board
 - Pulling new messages from the server to your board
+
+#### Web UI Basics
+
+#### Web UI Dashboard
+
+#### Web UI Messages
 - The ability to save messages to your account
+
+#### Web UI Editor
+
+#### Web UI Board Adding Tool
+- A browser flashing tool to set up a new board
+
+#### Pico Message Board OS
 - A cool animation around the border when there is a new message that you have to acknowledge by pushing `A`
 - `C` for cycle
+- 
 
 ## To Do
 - [x] Auth and user accounts

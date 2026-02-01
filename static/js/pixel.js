@@ -27,7 +27,7 @@ class PixelGridBase extends HTMLElement {
     this.style.setProperty('--pixel-size', `${snapped}px`);
     this.style.setProperty(
       '--pixel-gap',
-      `${Math.max(1, Math.round(snapped / 6))}px`
+      `${Math.max(1, Math.round(snapped / 6))}px`,
     );
 
     return snapped;
@@ -58,6 +58,18 @@ class PixelGridBase extends HTMLElement {
 
   isRendered() {
     return this.hasAttribute('rendered');
+  }
+
+  download(filename = 'pixel-art.png') {
+    const src = this.getAttribute('src');
+    if (!src) return;
+
+    const a = document.createElement('a');
+    a.href = src;
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
   }
 
   disconnectedCallback() {
@@ -101,7 +113,7 @@ class PixelAnimation extends PixelGridBase {
     }
 
     const canvas = document.createElement('canvas');
-    const ctx = canvas.getContext('2d');
+    const ctx = canvas.getContext('2d', { willReadFrequently: true });
 
     canvas.width = frameW;
     canvas.height = frameH;
@@ -225,7 +237,7 @@ class PixelArt extends PixelGridBase {
     }
 
     const canvas = document.createElement('canvas');
-    const ctx = canvas.getContext('2d');
+    const ctx = canvas.getContext('2d', { willReadFrequently: true });
 
     canvas.width = img.width;
     canvas.height = img.height;
@@ -296,7 +308,7 @@ class PixelArt extends PixelGridBase {
     opacity,
     duration,
     bloomSpeed = '0s',
-    fadeSpeed = '8s'
+    fadeSpeed = '8s',
   ) {
     el.style.setProperty('--effect-color', color);
     el.style.setProperty('--effect-opacity', opacity);
@@ -321,7 +333,7 @@ class PixelArt extends PixelGridBase {
             this.RAIN_OPACITY,
             this.RAIN_ACTIVE_HOLD,
             '2s',
-            '8s'
+            '8s',
           );
           setTimeout(() => this.currentRainCount--, this.RAIN_ACTIVE_HOLD);
         }
@@ -358,11 +370,11 @@ class PixelEditor extends PixelGridBase {
     this.dragStartSnapshot = null;
 
     // Frame system for animations
-    this.frames = [];              // Array of ImageData objects
+    this.frames = []; // Array of ImageData objects
     this.currentFrameIndex = 0;
     this.allowAnimation = false;
     this.maxFrames = 24;
-    this.frameDelay = 100;         // Default frame delay in ms
+    this.frameDelay = 100; // Default frame delay in ms
 
     // Change tracking
     this._dirty = false;
@@ -383,30 +395,34 @@ class PixelEditor extends PixelGridBase {
   resolveAndSnapPixelSize() {
     // Handle pixel-grow mode (dynamic sizing to fill container)
     if (this.classList.contains('pixel-grow')) {
-       // Find the main wrapper to determine available width
-       const wrapper = this.firstElementChild;
-       if (wrapper) {
-          const style = getComputedStyle(wrapper);
-          const paddingX = parseFloat(style.paddingLeft) + parseFloat(style.paddingRight);
-          // Also account for the grid container's own padding/border (approx 10px overhead)
-          const overhead = 10;
-          
-          // CRITICAL FIX: Use this.clientWidth (the full component width) instead of wrapper.clientWidth
-          // because wrapper is w-fit and will be collapsed initially. We want to fill the *available* space.
-          const availableWidth = this.clientWidth - paddingX - overhead;
-          
-          if (availableWidth > 0) {
-            const width = parseInt(this.getAttribute('width'), 10) || 32;
-            
-            // Formula: Width = N*S + (N+1)*(S/6) roughly, but gap is S/6.
-            // Using safer integer math floor: S = W / (N * 1.166)
-            const size = (availableWidth * 6) / (width * 7);
-            const snapped = Math.min(16, Math.max(1, Math.floor(size)));
-            
-            this.style.setProperty('--pixel-size', `${snapped}px`);
-            this.style.setProperty('--pixel-gap', `${Math.max(1, Math.round(snapped/6))}px`);
-          }
-       }
+      // Find the main wrapper to determine available width
+      const wrapper = this.firstElementChild;
+      if (wrapper) {
+        const style = getComputedStyle(wrapper);
+        const paddingX =
+          parseFloat(style.paddingLeft) + parseFloat(style.paddingRight);
+        // Also account for the grid container's own padding/border (approx 10px overhead)
+        const overhead = 10;
+
+        // CRITICAL FIX: Use this.clientWidth (the full component width) instead of wrapper.clientWidth
+        // because wrapper is w-fit and will be collapsed initially. We want to fill the *available* space.
+        const availableWidth = this.clientWidth - paddingX - overhead;
+
+        if (availableWidth > 0) {
+          const width = parseInt(this.getAttribute('width'), 10) || 32;
+
+          // Formula: Width = N*S + (N+1)*(S/6) roughly, but gap is S/6.
+          // Using safer integer math floor: S = W / (N * 1.166)
+          const size = (availableWidth * 6) / (width * 7);
+          const snapped = Math.min(16, Math.max(1, Math.floor(size)));
+
+          this.style.setProperty('--pixel-size', `${snapped}px`);
+          this.style.setProperty(
+            '--pixel-gap',
+            `${Math.max(1, Math.round(snapped / 6))}px`,
+          );
+        }
+      }
     } else {
       // Standard mode: Remove inline style to read from CSS classes
       this.style.removeProperty('--pixel-size');
@@ -426,8 +442,8 @@ class PixelEditor extends PixelGridBase {
       const pGap = parseFloat(pixelGap);
 
       // Calculate total dimensions
-      const totalWidth = (width * pSize) + ((width - 1) * pGap) + pGap;
-      const totalHeight = (height * pSize) + ((height - 1) * pGap) + pGap;
+      const totalWidth = width * pSize + (width - 1) * pGap + pGap;
+      const totalHeight = height * pSize + (height - 1) * pGap + pGap;
 
       // Update via CSS custom properties (CSP-safe)
       this.grid.style.setProperty('--pixel-size', `${pSize}px`);
@@ -463,7 +479,7 @@ class PixelEditor extends PixelGridBase {
       const timeout = setTimeout(() => {
         observer.disconnect();
         const hasChildren = this.children.length > 0;
-        const errorMsg = hasChildren 
+        const errorMsg = hasChildren
           ? 'PixelEditor requires a descendant div with id="grid" (can be nested within other elements). Found children but no #grid element.'
           : 'PixelEditor requires a descendant div with id="grid" (can be nested within other elements). No children found.';
         reject(new Error(errorMsg));
@@ -481,7 +497,7 @@ class PixelEditor extends PixelGridBase {
       // Observe the element for child additions (including nested children)
       observer.observe(this, {
         childList: true,
-        subtree: true
+        subtree: true,
       });
 
       // Also check immediately after observer setup and on next frames
@@ -544,10 +560,14 @@ class PixelEditor extends PixelGridBase {
 
     // Ensure CSS variables are accessible to the nested grid div
     // Read from inline style (set by resolveAndSnapPixelSize) or computed style
-    const pixelSize = this.style.getPropertyValue('--pixel-size') ||
-                      getComputedStyle(this).getPropertyValue('--pixel-size') || '10px';
-    const pixelGap = this.style.getPropertyValue('--pixel-gap') ||
-                     getComputedStyle(this).getPropertyValue('--pixel-gap') || '2px';
+    const pixelSize =
+      this.style.getPropertyValue('--pixel-size') ||
+      getComputedStyle(this).getPropertyValue('--pixel-size') ||
+      '10px';
+    const pixelGap =
+      this.style.getPropertyValue('--pixel-gap') ||
+      getComputedStyle(this).getPropertyValue('--pixel-gap') ||
+      '2px';
 
     // Use CSS class for base styling, set dynamic values via CSS custom properties
     this.grid.classList.add('editor-grid');
@@ -561,8 +581,8 @@ class PixelEditor extends PixelGridBase {
     // Calculate total dimensions to force container size (prevent collapsing)
     const pSize = parseFloat(pixelSize);
     const pGap = parseFloat(pixelGap);
-    const totalWidth = (width * pSize) + ((width - 1) * pGap) + pGap; // + padding
-    const totalHeight = (height * pSize) + ((height - 1) * pGap) + pGap; // + padding
+    const totalWidth = width * pSize + (width - 1) * pGap + pGap; // + padding
+    const totalHeight = height * pSize + (height - 1) * pGap + pGap; // + padding
 
     // Set dimensions via CSS custom properties
     this.grid.style.setProperty('--grid-width', `${totalWidth}px`);
@@ -594,14 +614,29 @@ class PixelEditor extends PixelGridBase {
 
     // Load initial image if provided
     if (initialSrc) {
-      await this.loadBytes(initialSrc);
+      // If it's a data URL, load it directly
+      if (initialSrc.startsWith('data:')) {
+        await this.loadBytes(initialSrc);
+      } else {
+        // If it's a relative URL, fetch it first to avoid cross-origin taint
+        try {
+          const response = await fetch(initialSrc);
+          const blob = await response.blob();
+          await this.loadBytes(blob);
+        } catch (err) {
+          console.error('Failed to load initial image:', err);
+        }
+      }
     }
 
     // Bind mouse/touch events
     this.setupDrawingEvents();
-    
+
     // Bind tool controls
     this.setupControls();
+
+    // Bind transform controls
+    this.setupTransformControls();
 
     // Initial render of recent colors
     this.renderRecentColors();
@@ -611,10 +646,10 @@ class PixelEditor extends PixelGridBase {
       this.setupFrameControls();
       this.renderFrameThumbnails();
     }
-    
+
     // Listen for window resize to handle CSS media query changes
     window.addEventListener('resize', this._handleWindowResize);
-    
+
     // Listen for undo/redo shortcuts
     window.addEventListener('keydown', this._handleKeyDown);
   }
@@ -643,7 +678,9 @@ class PixelEditor extends PixelGridBase {
     // Then try data-attribute based (scoped to editor context)
     const context = this.closest('[data-editor-context]');
     if (context) {
-      const scoped = context.querySelector(`[data-editor-control="${controlName}"]`);
+      const scoped = context.querySelector(
+        `[data-editor-control="${controlName}"]`,
+      );
       if (scoped) return scoped;
     }
 
@@ -700,7 +737,9 @@ class PixelEditor extends PixelGridBase {
     }
 
     // PNG file upload handler
-    const loadFileInput = this.querySelector('[data-editor-action="load-file"]');
+    const loadFileInput = this.querySelector(
+      '[data-editor-action="load-file"]',
+    );
     if (loadFileInput) {
       loadFileInput.addEventListener('change', async (e) => {
         const file = e.target.files[0];
@@ -713,15 +752,84 @@ class PixelEditor extends PixelGridBase {
     this.updateToolUI();
   }
 
+  setupTransformControls() {
+    const shiftUpBtn = this.querySelector('[data-editor-action="shift-up"]');
+    const shiftDownBtn = this.querySelector(
+      '[data-editor-action="shift-down"]',
+    );
+    const shiftLeftBtn = this.querySelector(
+      '[data-editor-action="shift-left"]',
+    );
+    const shiftRightBtn = this.querySelector(
+      '[data-editor-action="shift-right"]',
+    );
+
+    if (shiftUpBtn) {
+      shiftUpBtn.addEventListener('click', () => this.shiftPixels(0, -1));
+    }
+    if (shiftDownBtn) {
+      shiftDownBtn.addEventListener('click', () => this.shiftPixels(0, 1));
+    }
+    if (shiftLeftBtn) {
+      shiftLeftBtn.addEventListener('click', () => this.shiftPixels(-1, 0));
+    }
+    if (shiftRightBtn) {
+      shiftRightBtn.addEventListener('click', () => this.shiftPixels(1, 0));
+    }
+  }
+
+  shiftPixels(dx, dy) {
+    if (!this.ctx || !this.canvas) return;
+
+    const width = this.canvas.width;
+    const height = this.canvas.height;
+
+    // Save state for undo
+    this.saveState(this.getSnapshot());
+
+    // Get current data
+    const currentData = this.ctx.getImageData(0, 0, width, height);
+    // Create new blank data
+    const newData = this.ctx.createImageData(width, height);
+
+    // Loop through pixels
+    for (let y = 0; y < height; y++) {
+      for (let x = 0; x < width; x++) {
+        // Calculate source coordinates
+        const srcX = x - dx;
+        const srcY = y - dy;
+
+        // Check if source is within bounds
+        if (srcX >= 0 && srcX < width && srcY >= 0 && srcY < height) {
+          const srcIndex = (srcY * width + srcX) * 4;
+          const destIndex = (y * width + x) * 4;
+
+          // Copy pixel data
+          newData.data[destIndex] = currentData.data[srcIndex];
+          newData.data[destIndex + 1] = currentData.data[srcIndex + 1];
+          newData.data[destIndex + 2] = currentData.data[srcIndex + 2];
+          newData.data[destIndex + 3] = currentData.data[srcIndex + 3];
+        }
+      }
+    }
+
+    // Apply new data
+    this.ctx.putImageData(newData, 0, 0);
+    this.updatePixelDivsFromCanvas();
+
+    this._markDirty();
+    this._queueThumbnailUpdate();
+  }
+
   updateToolUI() {
     const tools = {
-      'pen': this._findControl('pen'),
-      'eraser': this._findControl('eraser'),
-      'dropper': this._findControl('dropper')
+      pen: this._findControl('pen'),
+      eraser: this._findControl('eraser'),
+      dropper: this._findControl('dropper'),
     };
 
     // Reset all
-    Object.values(tools).forEach(btn => {
+    Object.values(tools).forEach((btn) => {
       if (btn) {
         btn.classList.remove('bg-slate-600', 'border-slate-400', 'text-white');
         btn.classList.add('bg-slate-800', 'border-slate-600', 'text-gray-300');
@@ -731,7 +839,11 @@ class PixelEditor extends PixelGridBase {
     // Highlight active
     const activeBtn = tools[this.currentTool];
     if (activeBtn) {
-      activeBtn.classList.remove('bg-slate-800', 'border-slate-600', 'text-gray-300');
+      activeBtn.classList.remove(
+        'bg-slate-800',
+        'border-slate-600',
+        'text-gray-300',
+      );
       activeBtn.classList.add('bg-slate-600', 'border-slate-400', 'text-white');
     }
   }
@@ -744,7 +856,7 @@ class PixelEditor extends PixelGridBase {
     this.ctx.clearRect(0, 0, width, height);
 
     // Clear divs via CSS custom property
-    this.pixelDivs.forEach(div => {
+    this.pixelDivs.forEach((div) => {
       div.style.setProperty('--bg-color', 'transparent');
     });
 
@@ -788,20 +900,20 @@ class PixelEditor extends PixelGridBase {
 
   undo() {
     if (this.undoStack.length === 0) return;
-    
+
     const current = this.getSnapshot();
     this.redoStack.push(current);
-    
+
     const previous = this.undoStack.pop();
     this.applySnapshot(previous);
   }
 
   redo() {
     if (this.redoStack.length === 0) return;
-    
+
     const current = this.getSnapshot();
     this.undoStack.push(current);
-    
+
     const next = this.redoStack.pop();
     this.applySnapshot(next);
   }
@@ -831,14 +943,14 @@ class PixelEditor extends PixelGridBase {
       e.preventDefault();
       if (this.isDrawing) {
         this.isDrawing = false;
-        
+
         // Save state if changed
         const currentSnapshot = this.getSnapshot();
         // Simple check: if start snapshot exists and something might have changed
         // For robustness, we assume if isDrawing was true, we might have drawn.
         // We could compare data buffers, but pushing valid history is safer.
         if (this.dragStartSnapshot) {
-           this.saveState(this.dragStartSnapshot);
+          this.saveState(this.dragStartSnapshot);
         }
         this.dragStartSnapshot = null;
       }
@@ -908,40 +1020,48 @@ class PixelEditor extends PixelGridBase {
         // Pick color
         // Read from canvas data to get accurate color
         const p = this.ctx.getImageData(x, y, 1, 1).data;
-        if (p[3] > 0) { // If not transparent
-           // Convert to hex
-           let hex = '#' + [p[0], p[1], p[2]].map(x => {
-             const hex = x.toString(16);
-             return hex.length === 1 ? '0' + hex : hex;
-           }).join('');
-           
-           // Check for near-duplicates in recent colors to fix precision issues/rounding errors
-           // This prevents the "nearly identical" colors problem
-           for (const recent of this.recentColors) {
-             // Parse recent hex to rgb
-             const r = parseInt(recent.substring(1, 3), 16);
-             const g = parseInt(recent.substring(3, 5), 16);
-             const b = parseInt(recent.substring(5, 7), 16);
-             
-             // Calculate squared Euclidean distance
-             const distSq = Math.pow(p[0] - r, 2) + Math.pow(p[1] - g, 2) + Math.pow(p[2] - b, 2);
-             
-             // Tolerance: allow small deviations (e.g. +/- 2 or 3 on channels)
-             if (distSq <= 25) { 
-               hex = recent; // Snap to existing color
-               break;
-             }
-           }
-           
-           this.setColor(hex);
+        if (p[3] > 0) {
+          // If not transparent
+          // Convert to hex
+          let hex =
+            '#' +
+            [p[0], p[1], p[2]]
+              .map((x) => {
+                const hex = x.toString(16);
+                return hex.length === 1 ? '0' + hex : hex;
+              })
+              .join('');
 
-           // Update color picker UI
-           const picker = this._findControl('color-picker');
-           if (picker) picker.value = hex;
+          // Check for near-duplicates in recent colors to fix precision issues/rounding errors
+          // This prevents the "nearly identical" colors problem
+          for (const recent of this.recentColors) {
+            // Parse recent hex to rgb
+            const r = parseInt(recent.substring(1, 3), 16);
+            const g = parseInt(recent.substring(3, 5), 16);
+            const b = parseInt(recent.substring(5, 7), 16);
 
-           // Switch back to pen
-           this.setTool('pen');
-           this.updateToolUI();
+            // Calculate squared Euclidean distance
+            const distSq =
+              Math.pow(p[0] - r, 2) +
+              Math.pow(p[1] - g, 2) +
+              Math.pow(p[2] - b, 2);
+
+            // Tolerance: allow small deviations (e.g. +/- 2 or 3 on channels)
+            if (distSq <= 25) {
+              hex = recent; // Snap to existing color
+              break;
+            }
+          }
+
+          this.setColor(hex);
+
+          // Update color picker UI
+          const picker = this._findControl('color-picker');
+          if (picker) picker.value = hex;
+
+          // Switch back to pen
+          this.setTool('pen');
+          this.updateToolUI();
         }
       }
     }
@@ -954,21 +1074,21 @@ class PixelEditor extends PixelGridBase {
   addToRecents(color) {
     // Normalize to lowercase for consistent comparison
     color = color.toLowerCase();
-    
+
     // Only update if it's not already the most recent one
     if (this.recentColors[0] === color) return;
 
     // Remove if exists elsewhere to move it to top
-    this.recentColors = this.recentColors.filter(c => c !== color);
-    
+    this.recentColors = this.recentColors.filter((c) => c !== color);
+
     // Add to front
     this.recentColors.unshift(color);
-    
+
     // Limit to 10
     if (this.recentColors.length > 10) {
       this.recentColors.length = 10;
     }
-    
+
     this.renderRecentColors();
   }
 
@@ -978,7 +1098,7 @@ class PixelEditor extends PixelGridBase {
 
     container.replaceChildren(); // Clear
 
-    this.recentColors.forEach(color => {
+    this.recentColors.forEach((color) => {
       const div = document.createElement('div');
       // Use CSS class for styling, set background color via dataset for CSS access
       div.className = 'color-swatch';
@@ -1014,34 +1134,74 @@ class PixelEditor extends PixelGridBase {
         const width = parseInt(this.getAttribute('width'), 10) || 32;
         const height = parseInt(this.getAttribute('height'), 10) || 32;
 
-        // Validate dimensions
-        if (img.width !== width || img.height !== height) {
-          reject(new Error(`Image dimensions must be ${width}x${height}`));
+        // Use the spritesheet analyzer to check dimensions
+        // This handles single frames AND spritesheets (for animations)
+        const analysis = this._analyzeSpritesheetDimensions(
+          img.width,
+          img.height,
+          width,
+          height,
+        );
+
+        if (analysis.error) {
+          console.warn(
+            `Dimension mismatch: Image is ${img.width}x${img.height}, Editor is ${width}x${height}`,
+          );
+          reject(
+            new Error(
+              `Image dimensions (${img.width}x${img.height}) do not match editor (${width}x${height})`,
+            ),
+          );
           return;
         }
 
         // Draw image to canvas
         this.ctx.clearRect(0, 0, width, height);
-        this.ctx.drawImage(img, 0, 0);
 
-        // Update grid UI
-        const imageData = this.ctx.getImageData(0, 0, width, height);
-        const data = imageData.data;
-
-        for (let i = 0; i < data.length; i += 4) {
-          const pixelIndex = i / 4;
-          const alpha = data[i + 3];
-          const div = this.pixelDivs[pixelIndex];
-
-          if (alpha > 10) {
-            const r = data[i];
-            const g = data[i + 1];
-            const b = data[i + 2];
-            div.style.setProperty('--bg-color', `rgb(${r}, ${g}, ${b})`);
-          } else {
-            div.style.setProperty('--bg-color', 'transparent');
-          }
+        // If it's a spritesheet, we just draw the first frame to the main canvas initially
+        // The frames array will need to be populated if it's an animation
+        if (analysis.orientation === 'horizontal') {
+          this.ctx.drawImage(img, 0, 0, width, height, 0, 0, width, height);
+        } else if (analysis.orientation === 'vertical') {
+          this.ctx.drawImage(img, 0, 0, width, height, 0, 0, width, height);
+        } else {
+          this.ctx.drawImage(img, 0, 0);
         }
+
+        // Update grid UI for the current frame
+        this.updatePixelDivsFromCanvas();
+
+        // If animation is allowed and we have multiple frames, load them all
+        if (this.allowAnimation && analysis.frameCount > 1) {
+          // Create temp canvas to extract frames
+          const tempCanvas = document.createElement('canvas');
+          tempCanvas.width = img.width;
+          tempCanvas.height = img.height;
+          const tempCtx = tempCanvas.getContext('2d', {
+            willReadFrequently: true,
+          });
+          tempCtx.drawImage(img, 0, 0);
+
+          // Rebuild frames array
+          this.frames = [];
+          for (let i = 0; i < analysis.frameCount; i++) {
+            this.frames.push(
+              this._extractFrame(tempCtx, i, analysis, width, height),
+            );
+          }
+          this.currentFrameIndex = 0;
+          this.renderFrameThumbnails();
+
+          // Notify that frames have changed
+          this._emitFrameChange('load');
+        } else {
+          // Ensure frames array has at least the current state
+          this.frames = [this.ctx.getImageData(0, 0, width, height)];
+          this.currentFrameIndex = 0;
+        }
+
+        // Notify that content has changed (enables finish button)
+        this._emitChange();
 
         if (typeof blob !== 'string') {
           URL.revokeObjectURL(url);
@@ -1074,7 +1234,12 @@ class PixelEditor extends PixelGridBase {
         const editorH = parseInt(this.getAttribute('height'), 10) || 32;
 
         // Analyze the image dimensions
-        const analysis = this._analyzeSpritesheetDimensions(img.width, img.height, editorW, editorH);
+        const analysis = this._analyzeSpritesheetDimensions(
+          img.width,
+          img.height,
+          editorW,
+          editorH,
+        );
 
         if (analysis.error) {
           alert(analysis.error);
@@ -1089,7 +1254,8 @@ class PixelEditor extends PixelGridBase {
           this._showImportDialog(url, img, analysis);
         } else {
           // Import directly (replace all for spritesheets, single frame for single images)
-          const action = analysis.frameCount > 1 ? 'replace-all' : 'replace-frame';
+          const action =
+            analysis.frameCount > 1 ? 'replace-all' : 'replace-frame';
           await this._performImport(url, img, analysis, action);
           URL.revokeObjectURL(url);
         }
@@ -1132,7 +1298,7 @@ class PixelEditor extends PixelGridBase {
 
     // Invalid dimensions
     return {
-      error: `Image dimensions (${imgW}x${imgH}) don't match editor size (${editorW}x${editorH}).\n\nExpected:\n• Single frame: ${editorW}x${editorH}\n• Horizontal spritesheet: ${editorW * 2}x${editorH}, ${editorW * 3}x${editorH}, etc.\n• Vertical spritesheet: ${editorW}x${editorH * 2}, ${editorW}x${editorH * 3}, etc.`
+      error: `Image dimensions (${imgW}x${imgH}) don't match editor size (${editorW}x${editorH}).\n\nExpected:\n• Single frame: ${editorW}x${editorH}\n• Horizontal spritesheet: ${editorW * 2}x${editorH}, ${editorW * 3}x${editorH}, etc.\n• Vertical spritesheet: ${editorW}x${editorH * 2}, ${editorW}x${editorH * 3}, etc.`,
     };
   }
 
@@ -1145,25 +1311,30 @@ class PixelEditor extends PixelGridBase {
   _showImportDialog(url, img, analysis) {
     // Create modal overlay
     const overlay = document.createElement('div');
-    overlay.className = 'fixed inset-0 bg-black/80 flex items-center justify-center z-50';
+    overlay.className =
+      'fixed inset-0 bg-black/80 flex items-center justify-center z-50';
     overlay.classList.add('modal-overlay-blur');
 
     // Create dialog
     const dialog = document.createElement('div');
-    dialog.className = 'bg-slate-900 border-2 border-slate-700 rounded-lg p-6 max-w-md mx-4 shadow-2xl';
+    dialog.className =
+      'bg-slate-900 border-2 border-slate-700 rounded-lg p-6 max-w-md mx-4 shadow-2xl';
 
     // Header
     const header = document.createElement('h3');
     header.className = "font-['Press_Start_2P'] text-[12px] text-white mb-4";
-    header.textContent = analysis.frameCount > 1
-      ? `Import ${analysis.frameCount} Frames`
-      : 'Import Image';
+    header.textContent =
+      analysis.frameCount > 1
+        ? `Import ${analysis.frameCount} Frames`
+        : 'Import Image';
     dialog.appendChild(header);
 
     // Description
     const desc = document.createElement('p');
-    desc.className = "font-['Press_Start_2P'] text-[8px] text-slate-400 mb-6 leading-relaxed";
-    desc.textContent = 'Editor has existing content. How would you like to import?';
+    desc.className =
+      "font-['Press_Start_2P'] text-[8px] text-slate-400 mb-6 leading-relaxed";
+    desc.textContent =
+      'Editor has existing content. How would you like to import?';
     dialog.appendChild(desc);
 
     // Button container
@@ -1172,7 +1343,8 @@ class PixelEditor extends PixelGridBase {
 
     // Replace Current Frame button
     const replaceFrameBtn = document.createElement('button');
-    replaceFrameBtn.className = "font-['Press_Start_2P'] text-[8px] bg-slate-800 border-2 border-slate-600 px-4 py-3 text-white hover:bg-slate-700 hover:border-slate-400 transition-all rounded";
+    replaceFrameBtn.className =
+      "font-['Press_Start_2P'] text-[8px] bg-slate-800 border-2 border-slate-600 px-4 py-3 text-white hover:bg-slate-700 hover:border-slate-400 transition-all rounded";
     replaceFrameBtn.textContent = 'Replace Current Frame Only';
     replaceFrameBtn.addEventListener('click', async () => {
       await this._performImport(url, img, analysis, 'replace-frame');
@@ -1183,10 +1355,12 @@ class PixelEditor extends PixelGridBase {
 
     // Replace All button
     const replaceAllBtn = document.createElement('button');
-    replaceAllBtn.className = "font-['Press_Start_2P'] text-[8px] bg-pico-blue border-2 border-pico-blue px-4 py-3 text-black hover:bg-pico-blue/80 transition-all rounded";
-    replaceAllBtn.textContent = analysis.frameCount > 1
-      ? `Replace Entire Project (${analysis.frameCount} Frames)`
-      : 'Replace Entire Project';
+    replaceAllBtn.className =
+      "font-['Press_Start_2P'] text-[8px] bg-pico-blue border-2 border-pico-blue px-4 py-3 text-black hover:bg-pico-blue/80 transition-all rounded";
+    replaceAllBtn.textContent =
+      analysis.frameCount > 1
+        ? `Replace Entire Project (${analysis.frameCount} Frames)`
+        : 'Replace Entire Project';
     replaceAllBtn.addEventListener('click', async () => {
       await this._performImport(url, img, analysis, 'replace-all');
       URL.revokeObjectURL(url);
@@ -1196,7 +1370,8 @@ class PixelEditor extends PixelGridBase {
 
     // Cancel button
     const cancelBtn = document.createElement('button');
-    cancelBtn.className = "font-['Press_Start_2P'] text-[8px] bg-transparent border-2 border-slate-600 px-4 py-3 text-slate-400 hover:border-slate-400 hover:text-white transition-all rounded";
+    cancelBtn.className =
+      "font-['Press_Start_2P'] text-[8px] bg-transparent border-2 border-slate-600 px-4 py-3 text-slate-400 hover:border-slate-400 hover:text-white transition-all rounded";
     cancelBtn.textContent = 'Cancel';
     cancelBtn.addEventListener('click', () => {
       URL.revokeObjectURL(url);
@@ -1243,12 +1418,18 @@ class PixelEditor extends PixelGridBase {
     const tempCanvas = document.createElement('canvas');
     tempCanvas.width = img.width;
     tempCanvas.height = img.height;
-    const tempCtx = tempCanvas.getContext('2d');
+    const tempCtx = tempCanvas.getContext('2d', { willReadFrequently: true });
     tempCtx.drawImage(img, 0, 0);
 
     if (action === 'replace-frame' || analysis.frameCount === 1) {
       // Extract first frame only and load into current frame
-      const frameData = this._extractFrame(tempCtx, 0, analysis, editorW, editorH);
+      const frameData = this._extractFrame(
+        tempCtx,
+        0,
+        analysis,
+        editorW,
+        editorH,
+      );
 
       // Save state for undo
       this.saveState(this.getSnapshot());
@@ -1263,7 +1444,9 @@ class PixelEditor extends PixelGridBase {
       // Extract all frames and replace frames array
       const newFrames = [];
       for (let i = 0; i < analysis.frameCount; i++) {
-        newFrames.push(this._extractFrame(tempCtx, i, analysis, editorW, editorH));
+        newFrames.push(
+          this._extractFrame(tempCtx, i, analysis, editorW, editorH),
+        );
       }
 
       // Replace frames array
@@ -1277,7 +1460,13 @@ class PixelEditor extends PixelGridBase {
       this.renderFrameThumbnails();
     } else if (action === 'replace-all' && !this.allowAnimation) {
       // No animation support, just load first frame
-      const frameData = this._extractFrame(tempCtx, 0, analysis, editorW, editorH);
+      const frameData = this._extractFrame(
+        tempCtx,
+        0,
+        analysis,
+        editorW,
+        editorH,
+      );
 
       this.saveState(this.getSnapshot());
       this.ctx.putImageData(frameData, 0, 0);
@@ -1297,7 +1486,8 @@ class PixelEditor extends PixelGridBase {
    * @returns {ImageData}
    */
   _extractFrame(ctx, index, analysis, w, h) {
-    let x = 0, y = 0;
+    let x = 0,
+      y = 0;
 
     if (analysis.orientation === 'horizontal') {
       x = index * w;
@@ -1412,15 +1602,17 @@ class PixelEditor extends PixelGridBase {
     }
 
     this._debounceTimer = setTimeout(() => {
-      this.dispatchEvent(new CustomEvent('editor-changed', {
-        bubbles: true,
-        detail: {
-          hasContent: this.hasContent(),
-          frameCount: this.allowAnimation ? this.frames.length : 1,
-          currentFrame: this.currentFrameIndex,
-          frameDelay: this.frameDelay
-        }
-      }));
+      this.dispatchEvent(
+        new CustomEvent('editor-changed', {
+          bubbles: true,
+          detail: {
+            hasContent: this.hasContent(),
+            frameCount: this.allowAnimation ? this.frames.length : 1,
+            currentFrame: this.currentFrameIndex,
+            frameDelay: this.frameDelay,
+          },
+        }),
+      );
     }, this._debounceMs);
   }
 
@@ -1430,15 +1622,17 @@ class PixelEditor extends PixelGridBase {
    * @param {string} action - 'add' | 'remove' | 'switch' | 'duplicate'
    */
   _emitFrameChange(action) {
-    this.dispatchEvent(new CustomEvent('editor-frame-changed', {
-      bubbles: true,
-      detail: {
-        action,
-        frameIndex: this.currentFrameIndex,
-        frameCount: this.frames.length,
-        maxFrames: this.maxFrames
-      }
-    }));
+    this.dispatchEvent(
+      new CustomEvent('editor-frame-changed', {
+        bubbles: true,
+        detail: {
+          action,
+          frameIndex: this.currentFrameIndex,
+          frameCount: this.frames.length,
+          maxFrames: this.maxFrames,
+        },
+      }),
+    );
   }
 
   /**
@@ -1449,7 +1643,12 @@ class PixelEditor extends PixelGridBase {
     if (!this.allowAnimation || !this.ctx) return;
     const width = parseInt(this.getAttribute('width'), 10) || 32;
     const height = parseInt(this.getAttribute('height'), 10) || 32;
-    this.frames[this.currentFrameIndex] = this.ctx.getImageData(0, 0, width, height);
+    this.frames[this.currentFrameIndex] = this.ctx.getImageData(
+      0,
+      0,
+      width,
+      height,
+    );
   }
 
   /**
@@ -1511,7 +1710,7 @@ class PixelEditor extends PixelGridBase {
     const clonedFrame = new ImageData(
       new Uint8ClampedArray(sourceFrame.data),
       sourceFrame.width,
-      sourceFrame.height
+      sourceFrame.height,
     );
 
     // Insert after the source frame
@@ -1631,10 +1830,16 @@ class PixelEditor extends PixelGridBase {
     if (this.currentFrameIndex === fromIndex) {
       // We moved the current frame
       this.currentFrameIndex = toIndex;
-    } else if (fromIndex < this.currentFrameIndex && toIndex >= this.currentFrameIndex) {
+    } else if (
+      fromIndex < this.currentFrameIndex &&
+      toIndex >= this.currentFrameIndex
+    ) {
       // Frame moved from before current to after/at current
       this.currentFrameIndex--;
-    } else if (fromIndex > this.currentFrameIndex && toIndex <= this.currentFrameIndex) {
+    } else if (
+      fromIndex > this.currentFrameIndex &&
+      toIndex <= this.currentFrameIndex
+    ) {
       // Frame moved from after current to before/at current
       this.currentFrameIndex++;
     }
@@ -1707,7 +1912,10 @@ class PixelEditor extends PixelGridBase {
       wrapper.classList.remove('border-pico-green');
     }
 
-    if (this._draggedFrameIndex !== undefined && this._draggedFrameIndex !== targetIndex) {
+    if (
+      this._draggedFrameIndex !== undefined &&
+      this._draggedFrameIndex !== targetIndex
+    ) {
       if (this.reorderFrame(this._draggedFrameIndex, targetIndex)) {
         this.renderFrameThumbnails();
       }
@@ -1722,9 +1930,11 @@ class PixelEditor extends PixelGridBase {
    */
   _handleFrameDragEnd(e) {
     // Reset opacity on all thumbnails
-    const container = this.querySelector('[data-editor-section="frame-thumbnails"]');
+    const container = this.querySelector(
+      '[data-editor-section="frame-thumbnails"]',
+    );
     if (container) {
-      container.querySelectorAll('.frame-thumbnail-wrapper').forEach(w => {
+      container.querySelectorAll('.frame-thumbnail-wrapper').forEach((w) => {
         w.classList.remove('frame-dragging', 'border-pico-green');
       });
     }
@@ -1827,7 +2037,9 @@ class PixelEditor extends PixelGridBase {
       const spritesheetCanvas = document.createElement('canvas');
       spritesheetCanvas.width = width * this.frames.length;
       spritesheetCanvas.height = height;
-      const ssCtx = spritesheetCanvas.getContext('2d');
+      const ssCtx = spritesheetCanvas.getContext('2d', {
+        willReadFrequently: true,
+      });
 
       // Draw each frame side by side
       this.frames.forEach((frameData, i) => {
@@ -1835,7 +2047,9 @@ class PixelEditor extends PixelGridBase {
         const tempCanvas = document.createElement('canvas');
         tempCanvas.width = width;
         tempCanvas.height = height;
-        const tempCtx = tempCanvas.getContext('2d');
+        const tempCtx = tempCanvas.getContext('2d', {
+          willReadFrequently: true,
+        });
         tempCtx.putImageData(frameData, 0, 0);
 
         // Draw to spritesheet at correct position
@@ -1883,9 +2097,15 @@ class PixelEditor extends PixelGridBase {
   setupFrameControls() {
     // Find buttons within the editor's DOM subtree
     const addFrameBtn = this.querySelector('[data-editor-action="add-frame"]');
-    const duplicateFrameBtn = this.querySelector('[data-editor-action="duplicate-frame"]');
-    const deleteFrameBtn = this.querySelector('[data-editor-action="delete-frame"]');
-    const delayInput = this.querySelector('[data-editor-control="frame-delay"]');
+    const duplicateFrameBtn = this.querySelector(
+      '[data-editor-action="duplicate-frame"]',
+    );
+    const deleteFrameBtn = this.querySelector(
+      '[data-editor-action="delete-frame"]',
+    );
+    const delayInput = this.querySelector(
+      '[data-editor-control="frame-delay"]',
+    );
 
     if (addFrameBtn) {
       addFrameBtn.addEventListener('click', () => {
@@ -1913,10 +2133,15 @@ class PixelEditor extends PixelGridBase {
       });
     }
 
-    const deleteAllFramesBtn = this.querySelector('[data-editor-action="delete-all-frames"]');
+    const deleteAllFramesBtn = this.querySelector(
+      '[data-editor-action="delete-all-frames"]',
+    );
     if (deleteAllFramesBtn) {
       deleteAllFramesBtn.addEventListener('click', () => {
-        if (this.frames.length > 1 && confirm('Delete all frames and start fresh?')) {
+        if (
+          this.frames.length > 1 &&
+          confirm('Delete all frames and start fresh?')
+        ) {
           this.deleteAllFrames();
           this.renderFrameThumbnails();
         }
@@ -1938,7 +2163,9 @@ class PixelEditor extends PixelGridBase {
     }
 
     // Reverse frames button
-    const reverseFramesBtn = this.querySelector('[data-editor-action="reverse-frames"]');
+    const reverseFramesBtn = this.querySelector(
+      '[data-editor-action="reverse-frames"]',
+    );
     if (reverseFramesBtn) {
       reverseFramesBtn.addEventListener('click', () => {
         if (this.reverseFrames()) {
@@ -1954,7 +2181,9 @@ class PixelEditor extends PixelGridBase {
   renderFrameThumbnails() {
     if (!this.allowAnimation) return;
 
-    const container = this.querySelector('[data-editor-section="frame-thumbnails"]');
+    const container = this.querySelector(
+      '[data-editor-section="frame-thumbnails"]',
+    );
     if (!container) return;
 
     // Save current frame before rendering thumbnails
@@ -1982,7 +2211,10 @@ class PixelEditor extends PixelGridBase {
       thumbGrid.className = 'frame-thumbnail';
       // Use CSS custom property for grid columns
       thumbGrid.style.setProperty('--thumb-cols', width);
-      thumbGrid.style.setProperty('grid-template-columns', `repeat(${width}, 1px)`);
+      thumbGrid.style.setProperty(
+        'grid-template-columns',
+        `repeat(${width}, 1px)`,
+      );
 
       // Render each pixel from the frame data
       const data = frameData.data;
@@ -2009,7 +2241,8 @@ class PixelEditor extends PixelGridBase {
 
       // Add frame number label
       const label = document.createElement('span');
-      label.className = "absolute -bottom-1 -right-1 bg-slate-800 text-[6px] font-['Press_Start_2P'] text-slate-400 px-1 rounded";
+      label.className =
+        "absolute -bottom-1 -right-1 bg-slate-800 text-[6px] font-['Press_Start_2P'] text-slate-400 px-1 rounded";
       label.textContent = index + 1;
       wrapper.appendChild(label);
 
@@ -2024,10 +2257,16 @@ class PixelEditor extends PixelGridBase {
 
       // Drag-and-drop reordering
       wrapper.draggable = true;
-      wrapper.addEventListener('dragstart', (e) => this._handleFrameDragStart(e, index));
+      wrapper.addEventListener('dragstart', (e) =>
+        this._handleFrameDragStart(e, index),
+      );
       wrapper.addEventListener('dragover', (e) => this._handleFrameDragOver(e));
-      wrapper.addEventListener('dragenter', (e) => this._handleFrameDragEnter(e, wrapper));
-      wrapper.addEventListener('dragleave', (e) => this._handleFrameDragLeave(e, wrapper));
+      wrapper.addEventListener('dragenter', (e) =>
+        this._handleFrameDragEnter(e, wrapper),
+      );
+      wrapper.addEventListener('dragleave', (e) =>
+        this._handleFrameDragLeave(e, wrapper),
+      );
       wrapper.addEventListener('drop', (e) => this._handleFrameDrop(e, index));
       wrapper.addEventListener('dragend', (e) => this._handleFrameDragEnd(e));
 
@@ -2037,7 +2276,8 @@ class PixelEditor extends PixelGridBase {
     // Add "add frame" button at the end if under max
     if (this.frames.length < this.maxFrames) {
       const addBtn = document.createElement('div');
-      addBtn.className = "frame-thumbnail-add border-slate-600 hover:border-pico-green hover:bg-pico-green/10";
+      addBtn.className =
+        'frame-thumbnail-add border-slate-600 hover:border-pico-green hover:bg-pico-green/10';
       addBtn.innerHTML = `<span class="font-['Press_Start_2P'] text-[10px] text-slate-500">+</span>`;
       addBtn.title = 'Add new frame';
 
@@ -2082,10 +2322,14 @@ class PixelEditor extends PixelGridBase {
   updateCurrentFrameThumbnail() {
     if (!this.allowAnimation) return;
 
-    const container = this.querySelector('[data-editor-section="frame-thumbnails"]');
+    const container = this.querySelector(
+      '[data-editor-section="frame-thumbnails"]',
+    );
     if (!container) return;
 
-    const wrapper = container.querySelector(`[data-frame-index="${this.currentFrameIndex}"]`);
+    const wrapper = container.querySelector(
+      `[data-frame-index="${this.currentFrameIndex}"]`,
+    );
     if (!wrapper) return;
 
     const thumbGrid = wrapper.querySelector('.frame-thumbnail');
@@ -2142,3 +2386,100 @@ class PixelEditor extends PixelGridBase {
 }
 
 customElements.define('pixel-editor', PixelEditor);
+
+document.addEventListener('click', (event) => {
+  const button = event.target.closest('[data-pixel-download]');
+  if (!button) return;
+
+  const card =
+    button.closest('[data-pixel-card]') || button.closest('.group') || button;
+
+  const pixelElement = card.querySelector('pixel-art, pixel-animation');
+  if (!pixelElement || typeof pixelElement.download !== 'function') return;
+
+  const filename = button.getAttribute('data-download-filename') || 'pixel-art.png';
+  pixelElement.download(filename);
+});
+
+document.addEventListener('editor-changed', (event) => {
+  const editor = event.target;
+  if (!editor || editor.tagName !== 'PIXEL-EDITOR') return;
+
+  const container = editor.closest('[data-avatar-editor]');
+  if (!container) return;
+
+  const hasContent = event.detail && event.detail.hasContent;
+  const saveButtons = container.querySelectorAll('[data-editor-action="save"]');
+
+  saveButtons.forEach((btn) => {
+    if (hasContent) {
+      btn.disabled = false;
+      btn.classList.remove('opacity-50', 'cursor-not-allowed');
+    } else {
+      btn.disabled = true;
+      btn.classList.add('opacity-50', 'cursor-not-allowed');
+    }
+  });
+});
+
+document.addEventListener('click', async (event) => {
+  const saveBtn = event.target.closest('[data-editor-action="save"]');
+  if (!saveBtn) return;
+
+  const container = saveBtn.closest('[data-avatar-editor]');
+  if (!container) return;
+
+  event.preventDefault();
+
+  const editor = container.querySelector('pixel-editor');
+  if (!editor) return;
+
+  if (!editor.hasContent()) {
+    alert('Cannot save empty avatar');
+    return;
+  }
+
+  const form = saveBtn.closest('form');
+  if (!form) return;
+
+  const hiddenInput = form.querySelector('[name="pixel_data"]');
+  if (hiddenInput) {
+    const blob = await editor.getSerializedData();
+    const reader = new FileReader();
+    reader.onloadend = function () {
+      hiddenInput.value = reader.result.split(',')[1];
+      if (window.htmx) {
+        window.htmx.trigger(form, 'submit');
+      } else {
+        form.requestSubmit();
+      }
+    };
+    reader.readAsDataURL(blob);
+  } else if (window.htmx) {
+    window.htmx.trigger(form, 'submit');
+  } else {
+    form.requestSubmit();
+  }
+});
+
+const attachAvatarAfterRequestHandler = () => {
+  document.body.addEventListener('htmx:afterRequest', (event) => {
+    const form = event.detail.elt;
+    if (!form || form.id !== 'editor-form') return;
+    if (!event.detail.successful) return;
+
+    const successUrl = form.getAttribute('data-avatar-success-url');
+    if (successUrl) {
+      alert('Avatar saved successfully!');
+      window.location.href = successUrl;
+    }
+  });
+};
+
+if (document.body) {
+  attachAvatarAfterRequestHandler();
+} else {
+  document.addEventListener('DOMContentLoaded', attachAvatarAfterRequestHandler, {
+    once: true,
+  });
+}
