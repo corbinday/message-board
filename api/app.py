@@ -87,13 +87,20 @@ class CSPNonceMiddleware(BaseHTTPMiddleware):
 
         # Apply CSP header
         nonce = request.state.nonce
+        # Allow fonts from same host on both http and https (handles reverse proxy scheme mismatch)
+        host = (request.headers.get("host") or request.url.hostname or "").split(":")[0]
+        font_src = (
+            f"font-src 'self' https://{host} http://{host}; "
+            if host
+            else "font-src 'self'; "
+        )
         csp_policy = (
             "default-src 'self'; "
             f"script-src 'self' 'nonce-{nonce}' https://cdn.ably.com; "
             f"style-src 'self' 'nonce-{nonce}'; "
             "img-src 'self' blob: data: ;"
             "connect-src 'self' https://*.ably.io wss://*.ably.io https://rest.ably.io https://realtime.ably.io; "
-            "font-src 'self'; "
+            f"{font_src}"
             "object-src 'none'; "
             "base-uri 'self'; "
             "form-action 'self'; "
