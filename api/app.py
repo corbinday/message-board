@@ -134,7 +134,11 @@ def get_template_context(request: Request, **kwargs):
     def shimmed_url_for(name: str, **path_params):
         if name == "static" and "filename" in path_params:
             path_params["path"] = path_params.pop("filename")
-        return request.url_for(name, **path_params)
+        url = str(request.url_for(name, **path_params))
+        # Force HTTPS when behind a reverse proxy that terminates TLS (fixes mixed content)
+        if request.headers.get("x-forwarded-proto") == "https" and url.startswith("http://"):
+            url = "https://" + url[7:]
+        return url
 
     context = {
         "request": request,
