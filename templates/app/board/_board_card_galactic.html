@@ -1,6 +1,7 @@
 <!-- Galactic: Wide layout -->
 <a
   href="{{ url_for('app.board_details', board_id=board.id) }}"
+  data-board-id="{{ board.id }}"
   class="group bg-slate-900/40 border border-slate-800 rounded-lg p-2 hover:border-pico-blue/50 transition-all shadow-inner flex flex-col justify-between w-fit gap-2"
 >
   <div class="flex justify-between items-start gap-3">
@@ -14,9 +15,13 @@
         {{ board.boardType }}
       </p>
     </div>
-    <span
-      class="h-2 w-2 rounded-full shrink-0 mt-1 {% if board.is_active %}bg-pico-green animate-ping{% else %}bg-slate-700{% endif %}"
-    ></span>
+    <div class="flex items-center gap-1">
+      <span
+        data-presence-indicator
+        class="h-2 w-2 rounded-full shrink-0 bg-slate-600"
+      ></span>
+      <span data-presence-label class="text-[7px] text-slate-600 uppercase">offline</span>
+    </div>
   </div>
 
   <div

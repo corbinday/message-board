@@ -7,7 +7,6 @@ import logging
 from dotenv import load_dotenv
 from fastapi import APIRouter, Request, Depends, HTTPException
 from fastapi.responses import RedirectResponse, HTMLResponse
-from urllib.parse import urljoin
 
 from api.dependencies import get_client, Client
 from api.user import create_new_user
@@ -18,13 +17,28 @@ logger = logging.getLogger(__name__)
 
 # Load environment variables
 load_dotenv()
-GEL_AUTH_BASE_URL = os.getenv("GEL_AUTH_BASE_URL").rstrip("/") + "/"
+GEL_AUTH_BASE_URL = os.getenv("GEL_AUTH_BASE_URL", "").rstrip("/")
+USE_CLOUDFLARE_REWRITE = os.getenv("USE_CLOUDFLARE_REWRITE", "false").lower() == "true"
+ENVIRONMENT = os.getenv("ENVIRONMENT", "development")
+
 COOKIE_OPTS = {
     "httponly": True,
-    "secure": False,
+    "secure": ENVIRONMENT == "production",
     "samesite": "lax",
     "path": "/",
 }
+
+
+def build_auth_url(path: str) -> str:
+    """Build a full auth URL based on the environment.
+
+    If USE_CLOUDFLARE_REWRITE is true, Cloudflare transparently adds the
+    /db/main/ext/auth prefix, so we only need base + path.
+    Otherwise (local/staging), we include the full Gel auth path.
+    """
+    if USE_CLOUDFLARE_REWRITE:
+        return f"{GEL_AUTH_BASE_URL}{path}"
+    return f"{GEL_AUTH_BASE_URL}/db/main/ext/auth{path}"
 
 
 def generate_pkce():
@@ -55,7 +69,7 @@ async def retrieve_auth_token(request: Request):
         )
 
     # 3. Build the code exchange URL
-    code_exchange_url = urljoin(GEL_AUTH_BASE_URL, "token")
+    code_exchange_url = build_auth_url("/token")
     params = {"code": code, "verifier": verifier}
 
     # 4. Exchange code + verifier for auth_token (async HTTP)
@@ -83,9 +97,8 @@ def create_login_response(auth_token: str, redirect_url: str) -> RedirectRespons
 @router.get("/ui/signup", name="auth.signup")
 async def signup():
     verifier, challenge = generate_pkce()
-    # Construct redirect URL: GEL_AUTH_BASE_URL + "ui/signup?challenge=..."
-    redirect_url = urljoin(GEL_AUTH_BASE_URL, "ui/signup")
-    redirect_url = f"{redirect_url}?challenge={challenge}"
+    # Construct redirect URL for Gel auth UI signup
+    redirect_url = f"{build_auth_url('/ui/signup')}?challenge={challenge}"
 
     response = RedirectResponse(url=redirect_url, status_code=302)
 
@@ -127,9 +140,8 @@ async def callback_signup(request: Request, client: Client):
 async def signin():
     verifier, challenge = generate_pkce()
 
-    # Build redirect URL
-    redirect_url = urljoin(GEL_AUTH_BASE_URL, "ui/signin")
-    redirect_url = f"{redirect_url}?challenge={challenge}"
+    # Build redirect URL for Gel auth UI signin
+    redirect_url = f"{build_auth_url('/ui/signin')}?challenge={challenge}"
 
     response = RedirectResponse(url=redirect_url, status_code=302)
 

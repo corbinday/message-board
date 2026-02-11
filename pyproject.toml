@@ -17,4 +17,5 @@ dependencies = [
     "requests>=2.32.5",
     "resend>=2.19.0",
     "werkzeug>=3.0.0",
+    "ably>=2.0.0",
 ]

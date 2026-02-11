@@ -3,9 +3,10 @@ import struct
 import secrets
 import logging
 import json
+import os
 from datetime import datetime, timedelta, timezone
 from uuid import UUID
-from fastapi import APIRouter, Request, Depends, HTTPException, Form, Query
+from fastapi import APIRouter, Request, Depends, HTTPException, Form, Query, Header
 from fastapi.responses import HTMLResponse, Response, JSONResponse
 from werkzeug.security import generate_password_hash
 
@@ -195,6 +196,16 @@ async def download_config(
     wifi_password: str = Form(""),
 ):
     templates = get_templates(request)
+
+    # Look up board and user info for SpaceOS config
+    board = await q.selectGlobalUserBoard(client, board_id=board_id)
+    user = await q.selectGlobalUser(client)
+
+    # Determine board dimensions
+    board_type_str = str(board.boardType.value) if board and hasattr(board.boardType, "value") else "Cosmic"
+    size_map = {"Stellar": (16, 16), "Galactic": (53, 11), "Cosmic": (32, 32)}
+    board_width, board_height = size_map.get(board_type_str, (32, 32))
+
     # Collect data from the form
     context = {
         "board_id": board_id,
@@ -202,7 +213,11 @@ async def download_config(
         "ssid": wifi_ssid,
         "password": wifi_password,
         # request.base_url includes the protocol and domain
-        "api_url": str(request.base_url).rstrip("/") + "/api/log",
+        "api_url": str(request.base_url).rstrip("/"),
+        "user_id": str(user.id) if user else "",
+        "board_type": board_type_str,
+        "board_width": board_width,
+        "board_height": board_height,
     }
 
     # Render the Python config file using the .j2 template
@@ -752,11 +767,40 @@ async def send_message(
             )
 
         if hasattr(q, "insertMessageWithBoard"):
-            await q.insertMessageWithBoard(
+            message_result = await q.insertMessageWithBoard(
                 client,
                 graphic_id=graphic_id,
                 recipient_id=UUID(recipient_id),
             )
+
+            # Publish Ably command to notify recipient's boards
+            try:
+                ably_key = os.getenv("ABLY_API_KEY", "")
+                if ably_key and message_result:
+                    from ably import AblyRest
+
+                    ably = AblyRest(ably_key)
+
+                    # Determine dimensions from draft size
+                    size_str = str(draft.size.value) if hasattr(draft.size, "value") else str(draft.size)
+                    if size_str == "Stellar":
+                        width, height = 16, 16
+                    elif size_str == "Galactic":
+                        width, height = 53, 11
+                    else:
+                        width, height = 32, 32
+
+                    command_channel = ably.channels.get(f"commands:{recipient_id}")
+                    await command_channel.publish("new_message", {
+                        "messageId": str(message_result.id),
+                        "width": width,
+                        "height": height,
+                        "frames": draft.frames,
+                        "fps": round(1000 / draft.frame_delay_ms) if draft.frame_delay_ms > 0 else 10,
+                    })
+                    logger.info(f"Ably command published for message {message_result.id}")
+            except Exception as ably_err:
+                logger.warning(f"Ably command publish failed (non-fatal): {ably_err}")
 
         if request.headers.get("HX-Request"):
             response = HTMLResponse('<span class="text-pico-green">Message sent!</span>')
@@ -856,3 +900,103 @@ async def delete_graphic(
         return HTMLResponse(
             f'<span class="text-red-500">Error: {str(e)}</span>', status_code=500
         )
+
+
+# =============================================================================
+# Space Pack API (Board-facing)
+# =============================================================================
+
+
+@router.get("/space-pack/{message_id}", name="app.space_pack")
+async def space_pack(
+    request: Request,
+    message_id: str,
+    x_board_id: str = Header(None, alias="X-Board-Id"),
+    x_board_secret: str = Header(None, alias="X-Board-Secret"),
+):
+    """
+    Serve the Space Pack binary for a message.
+    Authenticated via board secret key headers.
+
+    SP binary format:
+    | Offset | Field      | Size | Type   |
+    | 0      | Magic "SP" | 2B   | Char   |
+    | 2      | Message ID | 16B  | UUID   |
+    | 18     | Meta Len   | 2B   | uint16 |
+    | 20     | Pixel Len  | 4B   | uint32 |
+    | 24     | Metadata   | Var  | JSON   |
+    | End    | Pixel Data | Var  | RGB    |
+    """
+    # Authenticate the board
+    if not x_board_id or not x_board_secret:
+        raise HTTPException(status_code=401, detail="Missing board credentials")
+
+    base_client = request.app.state.get_base_client()
+
+    try:
+        board = await q.selectBoardBySecretKey(base_client, board_id=UUID(x_board_id))
+    except Exception:
+        board = None
+
+    if not board or not board.secret_key_hash:
+        raise HTTPException(status_code=403, detail="Invalid board")
+
+    from werkzeug.security import check_password_hash
+
+    if not check_password_hash(board.secret_key_hash, x_board_secret):
+        raise HTTPException(status_code=403, detail="Invalid secret key")
+
+    # Fetch message data
+    try:
+        msg = await q.selectMessageForSpacePack(base_client, message_id=UUID(message_id))
+    except Exception as e:
+        logger.error(f"Space Pack query error: {e}")
+        raise HTTPException(status_code=500, detail="Internal error")
+
+    if not msg:
+        raise HTTPException(status_code=404, detail="Message not found")
+
+    # Build SP binary
+    # Metadata JSON
+    frames = msg.graphic_frames
+    fps = round(1000 / msg.graphic_frame_delay_ms) if msg.graphic_frame_delay_ms > 0 else 10
+    meta = json.dumps({
+        "sender": msg.sender_username or "Unknown",
+        "fps": fps,
+        "is_anim": frames > 1,
+    }).encode("utf-8")
+
+    # Raw pixel data from PNG -> extract RGB888
+    # The graphic binary is stored as PNG, we need to decode it to raw RGB
+    from PIL import Image
+    import io
+
+    img = Image.open(io.BytesIO(msg.graphic_binary))
+    img = img.convert("RGB")
+
+    # For animations (spritesheets), the full spritesheet is in the binary
+    pixel_bytes = img.tobytes()
+
+    # UUID as 16 raw bytes
+    raw_uuid = UUID(message_id).bytes
+
+    # Build the binary package
+    meta_len = len(meta)
+    pixel_len = len(pixel_bytes)
+
+    sp_data = bytearray()
+    sp_data.extend(b"SP")                              # Magic (2B)
+    sp_data.extend(raw_uuid)                           # Message ID (16B)
+    sp_data.extend(struct.pack(">H", meta_len))        # Meta length (2B, uint16 BE)
+    sp_data.extend(struct.pack(">I", pixel_len))        # Pixel length (4B, uint32 BE)
+    sp_data.extend(meta)                               # Metadata (variable)
+    sp_data.extend(pixel_bytes)                        # Pixel data (variable)
+
+    return Response(
+        content=bytes(sp_data),
+        media_type="application/octet-stream",
+        headers={
+            "Content-Disposition": f"attachment; filename=sp-{message_id}.bin",
+            "Cache-Control": "no-cache",
+        },
+    )

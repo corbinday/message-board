@@ -1,0 +1,169 @@
+# storage.py - LittleFS inbox/art management with FIFO cap
+import os
+import json
+import gc
+
+import config
+
+
+def _ensure_dir(path):
+    """Create directory if it doesn't exist."""
+    try:
+        os.stat(path)
+    except OSError:
+        os.mkdir(path)
+        print(f"[STORE] Created {path}")
+
+
+def init():
+    """Initialize storage directories."""
+    _ensure_dir(config.INBOX_DIR)
+    _ensure_dir(config.ART_DIR)
+    _enforce_fifo(config.INBOX_DIR)
+    print("[STORE] Storage initialized.")
+
+
+def save_message(message_id, pixel_data, metadata):
+    """
+    Save a message to the inbox.
+
+    Args:
+        message_id: UUID string
+        pixel_data: Raw RGB bytes
+        metadata: Dict with sender, fps, is_anim
+    """
+    _ensure_dir(config.INBOX_DIR)
+
+    # Save pixel data
+    bin_path = f"{config.INBOX_DIR}/{message_id}.bin"
+    with open(bin_path, "wb") as f:
+        f.write(pixel_data)
+
+    # Save metadata
+    json_path = f"{config.INBOX_DIR}/{message_id}.json"
+    with open(json_path, "w") as f:
+        json.dump(metadata, f)
+
+    print(f"[STORE] Saved message {message_id}")
+
+    # Enforce FIFO cap
+    _enforce_fifo(config.INBOX_DIR)
+    gc.collect()
+
+
+def _enforce_fifo(directory):
+    """Delete oldest files when over FIFO cap."""
+    try:
+        files = os.listdir(directory)
+    except OSError:
+        return
+
+    # Group by UUID (each message has .bin and .json)
+    uuids = set()
+    for f in files:
+        if f.endswith(".bin") or f.endswith(".json"):
+            uuids.add(f.rsplit(".", 1)[0])
+
+    if len(uuids) <= config.FIFO_CAP:
+        return
+
+    # Sort by file modification time (oldest first)
+    # Note: MicroPython os.stat returns tuple, st_mtime is index 8
+    uuid_times = []
+    for uid in uuids:
+        bin_path = f"{directory}/{uid}.bin"
+        try:
+            stat = os.stat(bin_path)
+            uuid_times.append((uid, stat[8]))  # st_mtime
+        except OSError:
+            uuid_times.append((uid, 0))
+
+    uuid_times.sort(key=lambda x: x[1])
+
+    # Delete oldest until at cap
+    to_delete = len(uuids) - config.FIFO_CAP
+    for i in range(to_delete):
+        uid = uuid_times[i][0]
+        for ext in (".bin", ".json"):
+            path = f"{directory}/{uid}{ext}"
+            try:
+                os.remove(path)
+                print(f"[STORE] FIFO deleted {path}")
+            except OSError:
+                pass
+
+    gc.collect()
+
+
+def list_messages(directory=None):
+    """List message UUIDs in a directory, sorted newest first."""
+    if directory is None:
+        directory = config.INBOX_DIR
+
+    try:
+        files = os.listdir(directory)
+    except OSError:
+        return []
+
+    uuids = set()
+    for f in files:
+        if f.endswith(".bin"):
+            uuids.add(f[:-4])
+
+    # Sort by mtime, newest first
+    uuid_times = []
+    for uid in uuids:
+        bin_path = f"{directory}/{uid}.bin"
+        try:
+            stat = os.stat(bin_path)
+            uuid_times.append((uid, stat[8]))
+        except OSError:
+            uuid_times.append((uid, 0))
+
+    uuid_times.sort(key=lambda x: x[1], reverse=True)
+    return [uid for uid, _ in uuid_times]
+
+
+def load_message(message_id, directory=None):
+    """
+    Load a message's pixel data and metadata.
+
+    Returns:
+        (pixel_data_bytes, metadata_dict) or (None, None) if not found
+    """
+    if directory is None:
+        directory = config.INBOX_DIR
+
+    bin_path = f"{directory}/{message_id}.bin"
+    json_path = f"{directory}/{message_id}.json"
+
+    try:
+        with open(bin_path, "rb") as f:
+            pixel_data = f.read()
+    except OSError:
+        return None, None
+
+    metadata = {}
+    try:
+        with open(json_path, "r") as f:
+            metadata = json.load(f)
+    except (OSError, ValueError):
+        pass
+
+    return pixel_data, metadata
+
+
+def delete_message(message_id, directory=None):
+    """Delete a message by UUID."""
+    if directory is None:
+        directory = config.INBOX_DIR
+
+    for ext in (".bin", ".json"):
+        path = f"{directory}/{message_id}{ext}"
+        try:
+            os.remove(path)
+        except OSError:
+            pass
+
+    print(f"[STORE] Deleted {message_id}")
+    gc.collect()

@@ -12,8 +12,9 @@ import resend
 import os
 import secrets
 
-from api.routers import auth, user, message, app as app_routes
+from api.routers import auth, user, message, app as app_routes, ably as ably_routes
 from api.dependencies import get_current_user, get_client, OptionalUser
+from api.presence_proxy import start_proxy, stop_proxy
 
 load_dotenv()
 
@@ -32,7 +33,21 @@ async def lifespan(app: FastAPI):
     """Manage application lifespan - create and close Gel client."""
     global base_client
     base_client = gel.create_async_client()
+
+    # Start Ably presence proxy background task
+    import asyncio
+
+    proxy_task = asyncio.create_task(start_proxy(lambda: base_client))
+
     yield
+
+    # Shutdown
+    stop_proxy()
+    proxy_task.cancel()
+    try:
+        await proxy_task
+    except asyncio.CancelledError:
+        pass
     await base_client.aclose()
 
 
@@ -74,10 +89,10 @@ class CSPNonceMiddleware(BaseHTTPMiddleware):
         nonce = request.state.nonce
         csp_policy = (
             "default-src 'self'; "
-            f"script-src 'self' 'nonce-{nonce}' ; "
+            f"script-src 'self' 'nonce-{nonce}' https://cdn.ably.com; "
             f"style-src 'self' 'nonce-{nonce}'; "
             "img-src 'self' blob: data: ;"
-            "connect-src 'self'; "
+            "connect-src 'self' https://*.ably.io wss://*.ably.io https://rest.ably.io https://realtime.ably.io; "
             "font-src 'self'; "
             "object-src 'none'; "
             "base-uri 'self'; "
@@ -96,6 +111,7 @@ app.include_router(auth.router, prefix="/auth", tags=["auth"])
 app.include_router(user.router, prefix="/user", tags=["user"])
 app.include_router(message.router, prefix="/message", tags=["message"])
 app.include_router(app_routes.router, prefix="/app", tags=["app"])
+app.include_router(ably_routes.router, prefix="/ably", tags=["ably"])
 
 
 def get_base_client() -> gel.AsyncIOClient:

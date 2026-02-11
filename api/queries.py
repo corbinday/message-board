@@ -1148,6 +1148,85 @@ async def upsertDraft(
     )
 
 
+@dataclasses.dataclass
+class selectBoardBySecretKeyResult(NoPydanticValidation):
+    id: uuid.UUID
+    boardType: BoardType02
+    name: str | None
+    secret_key_hash: str | None
+    owner_id: uuid.UUID
+
+
+async def selectBoardBySecretKey(
+    executor: gel.AsyncIOExecutor,
+    *,
+    board_id: uuid.UUID,
+) -> selectBoardBySecretKeyResult | None:
+    return await executor.query_single(
+        """\
+        select Board {
+          id,
+          boardType,
+          name,
+          secret_key_hash,
+          owner_id := .owner.id
+        }
+        filter .id = <uuid>$board_id
+        limit 1\
+        """,
+        board_id=board_id,
+    )
+
+
+@dataclasses.dataclass
+class selectMessageForSpacePackResult(NoPydanticValidation):
+    id: uuid.UUID
+    graphic_binary: bytes
+    graphic_size: BoardType02
+    graphic_frames: int
+    graphic_frame_delay_ms: int
+    sender_username: str | None
+    sender_id: uuid.UUID
+
+
+async def selectMessageForSpacePack(
+    executor: gel.AsyncIOExecutor,
+    *,
+    message_id: uuid.UUID,
+) -> selectMessageForSpacePackResult | None:
+    return await executor.query_single(
+        """\
+        select Message {
+          id,
+          graphic_binary := .graphic.binary,
+          graphic_size := .graphic.size,
+          graphic_frames := .graphic[is PixelAnimation].frames ?? <int16>1,
+          graphic_frame_delay_ms := .graphic[is PixelAnimation].frame_delay_ms ?? <int16>100,
+          sender_username := .sender.username,
+          sender_id := .sender.id
+        }
+        filter .id = <uuid>$message_id
+        limit 1\
+        """,
+        message_id=message_id,
+    )
+
+
+async def markMessageRead(
+    executor: gel.AsyncIOExecutor,
+    *,
+    message_id: uuid.UUID,
+) -> None:
+    await executor.execute(
+        """\
+        update Message
+        filter .id = <uuid>$message_id
+        set { is_read := true }\
+        """,
+        message_id=message_id,
+    )
+
+
 async def usernameExists(
     executor: gel.AsyncIOExecutor,
     *,

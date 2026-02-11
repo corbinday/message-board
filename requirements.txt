@@ -9,3 +9,4 @@ python-dotenv
 resend
 Pillow
 werkzeug
+ably

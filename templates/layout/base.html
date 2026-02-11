@@ -45,6 +45,11 @@
 
   <!-- Pixel effects -->
   <script src="{{ url_for('static', filename='js/pixel.js') }}" integrity="sha384-" crossorigin="anonymous"></script>
+
+  <!-- Ably Realtime SDK (loaded from CDN with nonce for CSP) -->
+  <script src="https://cdn.ably.com/lib/ably.min-1.js" nonce="{{ nonce }}"></script>
+  <!-- SpaceOS Ably client -->
+  <script src="{{ url_for('static', filename='js/ably.js') }}" nonce="{{ nonce }}"></script>
 </head>
 
 <body class="font-['JetBrains_Mono'] text-sm md:text-lg text-white bg-black min-h-screen flex flex-col items-center">

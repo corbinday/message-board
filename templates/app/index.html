@@ -1,4 +1,7 @@
 {% extends 'layout/primary.html' %} {% block content %}
+<!-- Ably user context -->
+<div data-current-user-id="{{ user.id }}" class="hidden"></div>
+
 <header class="flex justify-between items-center pb-2 border-b border-slate-800 mb-12">
   <div class="flex items-center gap-4">
     <!-- User Avatar with its own pixel-context for smaller sizing -->
@@ -217,18 +220,21 @@
 
     <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-6">
       {% for friend_rel in friends %} {% set friend = friend_rel.friend %}
-      <div class="bg-slate-900/40 border border-slate-800 rounded-lg p-4 flex items-center justify-between">
+      <div data-friend-id="{{ friend.id }}" class="bg-slate-900/40 border border-slate-800 rounded-lg p-4 flex items-center justify-between">
         <div class="flex items-center gap-4">
 
-          <div
-            class="w-fit rounded-md bg-slate-800 p-1 border border-slate-700 shadow-xl overflow-hidden flex items-center justify-center">
-            {% if friend.avatar %}
-            <pixel-art src="{{ url_for('user.serve_avatar', user_id=friend.id) }}"
-              class="max-w-full h-auto"></pixel-art>
-            {% else %}
-            <pixel-art src="{{ url_for('static', filename='img/question_mark.png') }}"
-              class="max-w-full h-auto"></pixel-art>
-            {% endif %}
+          <div class="relative">
+            <div
+              class="w-fit rounded-md bg-slate-800 p-1 border border-slate-700 shadow-xl overflow-hidden flex items-center justify-center">
+              {% if friend.avatar %}
+              <pixel-art src="{{ url_for('user.serve_avatar', user_id=friend.id) }}"
+                class="max-w-full h-auto"></pixel-art>
+              {% else %}
+              <pixel-art src="{{ url_for('static', filename='img/question_mark.png') }}"
+                class="max-w-full h-auto"></pixel-art>
+              {% endif %}
+            </div>
+            <span data-presence-indicator class="absolute -bottom-0.5 -right-0.5 h-2.5 w-2.5 rounded-full border border-slate-900 bg-slate-600"></span>
           </div>
 
           <div>
@@ -236,7 +242,7 @@
               {{ friend.username }}
             </p>
             <p class="text-[9px] text-slate-500 uppercase mt-1">
-              Friends since {{ friend_rel.created_at.strftime('%Y-%m-%d') }}
+              <span data-presence-label class="text-slate-600">offline</span>
             </p>
           </div>
         </div>
@@ -383,18 +389,26 @@
 
   <!-- Recent Logs Section -->
   <section class="pixel-context pixel-xs max-w-6xl space-y-8 min-h-48">
-    <div class="border-l-4 border-slate-600 pl-4">
-      <h2 class="font-['Press_Start_2P'] text-lg text-white">Recent Logs</h2>
-      <p class="text-slate-500 text-[10px] uppercase tracking-tighter mt-1 font-bold">
-        System Activity
-      </p>
+    <div class="flex flex-col sm:flex-row sm:justify-between sm:items-end gap-3 sm:gap-0 border-l-4 border-slate-600 pl-4">
+      <div>
+        <h2 class="font-['Press_Start_2P'] text-lg text-white">Recent Logs</h2>
+        <p class="text-slate-500 text-[10px] uppercase tracking-tighter mt-1 font-bold">
+          System Activity <span id="log-count" class="text-slate-600"></span>
+        </p>
+      </div>
+      <div class="flex gap-3">
+        <button type="button" id="view-all-logs-btn"
+          class="font-['Press_Start_2P'] text-[10px] bg-slate-800 border-2 border-slate-700 p-3 text-white hover:bg-slate-700 transition-all w-fit">
+          View All
+        </button>
+        <button type="button" id="clear-logs-btn"
+          class="font-['Press_Start_2P'] text-[10px] bg-slate-800 border-2 border-slate-700 p-3 text-white hover:bg-pico-red hover:text-black hover:border-pico-red transition-all w-fit">
+          Clear Logs
+        </button>
+      </div>
     </div>
-    <div class="bg-black/20 border border-slate-800 rounded-lg p-4 font-mono text-xs text-slate-400 space-y-2">
-      <p><span class="text-pico-blue">[INFO]</span> Dashboard initialized.</p>
-      <p>
-        <span class="text-pico-green">[SUCCESS]</span> Board "Sparky" checked in
-        2m ago.
-      </p>
+    <div id="log-entries" class="bg-black/20 border border-slate-800 rounded-lg p-4 font-mono text-xs text-slate-400 space-y-2">
+      <p class="text-slate-600 text-xs">Loading logs...</p>
     </div>
   </section>
 </div>
