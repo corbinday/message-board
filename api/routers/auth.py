@@ -5,12 +5,11 @@ import httpx
 import secrets
 import logging
 from dotenv import load_dotenv
-from fastapi import APIRouter, Request, Depends, HTTPException
-from fastapi.responses import RedirectResponse, HTMLResponse
+from fastapi import APIRouter, Request, HTTPException
+from fastapi.responses import RedirectResponse
 
-from api.dependencies import get_client, Client
+from api.dependencies import Client
 from api.user import create_new_user
-import api.queries as q
 
 router = APIRouter()
 logger = logging.getLogger(__name__)
@@ -18,12 +17,27 @@ logger = logging.getLogger(__name__)
 # Load environment variables
 load_dotenv()
 GEL_AUTH_BASE_URL = os.getenv("GEL_AUTH_BASE_URL", "").rstrip("/")
-USE_CLOUDFLARE_REWRITE = os.getenv("USE_CLOUDFLARE_REWRITE", "false").lower() == "true"
-ENVIRONMENT = os.getenv("ENVIRONMENT", "development")
+ENVIRONMENT = os.getenv("ENVIRONMENT", "development").strip().lower()
+
+
+def _parse_bool(value: str) -> bool:
+    return value.strip().lower() in {"1", "true", "yes", "on"}
+
+
+def should_use_cloudflare_rewrite() -> bool:
+    """Decide whether auth URLs should use Cloudflare rewrite paths.
+
+    - production/staging default to rewrite enabled.
+    - USE_CLOUDFLARE_REWRITE can explicitly override in any environment.
+    """
+    explicit = os.getenv("USE_CLOUDFLARE_REWRITE")
+    if explicit is not None:
+        return _parse_bool(explicit)
+    return ENVIRONMENT in {"production", "staging"}
 
 COOKIE_OPTS = {
     "httponly": True,
-    "secure": ENVIRONMENT == "production",
+    "secure": ENVIRONMENT in {"production", "staging"},
     "samesite": "lax",
     "path": "/",
 }
@@ -32,12 +46,17 @@ COOKIE_OPTS = {
 def build_auth_url(path: str) -> str:
     """Build a full auth URL based on the environment.
 
-    If USE_CLOUDFLARE_REWRITE is true, Cloudflare transparently adds the
-    /db/main/ext/auth prefix, so we only need base + path.
-    Otherwise (local/staging), we include the full Gel auth path.
+    In production/staging we typically rely on Cloudflare path rewrite, so
+    the target path is simply /signin, /signup, /token, etc.
+    In local development, we use the full Gel extension path.
     """
-    if USE_CLOUDFLARE_REWRITE:
+    if should_use_cloudflare_rewrite():
         return f"{GEL_AUTH_BASE_URL}{path}"
+
+    # Local Gel auth UI routes include the /ui/ segment.
+    if path in {"/signin", "/signup"}:
+        return f"{GEL_AUTH_BASE_URL}/db/main/ext/auth/ui{path}"
+
     return f"{GEL_AUTH_BASE_URL}/db/main/ext/auth{path}"
 
 
@@ -98,7 +117,7 @@ def create_login_response(auth_token: str, redirect_url: str) -> RedirectRespons
 async def signup():
     verifier, challenge = generate_pkce()
     # Construct redirect URL for Gel auth UI signup
-    redirect_url = f"{build_auth_url('/ui/signup')}?challenge={challenge}"
+    redirect_url = f"{build_auth_url('/signup')}?challenge={challenge}"
 
     response = RedirectResponse(url=redirect_url, status_code=302)
 
@@ -141,7 +160,7 @@ async def signin():
     verifier, challenge = generate_pkce()
 
     # Build redirect URL for Gel auth UI signin
-    redirect_url = f"{build_auth_url('/ui/signin')}?challenge={challenge}"
+    redirect_url = f"{build_auth_url('/signin')}?challenge={challenge}"
 
     response = RedirectResponse(url=redirect_url, status_code=302)
 
