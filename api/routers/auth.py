@@ -10,6 +10,7 @@ from fastapi.responses import RedirectResponse
 
 from api.dependencies import Client
 from api.user import create_new_user
+import api.queries as q
 
 router = APIRouter()
 logger = logging.getLogger(__name__)
@@ -192,5 +193,27 @@ async def callback_signin(request: Request, client: Client):
     data = await retrieve_auth_token(request)
     logger.info(data)
     auth_token = data.get("auth_token")
+
+    # Check if a User record exists for this identity.
+    # On first OAuth login, Gel creates the Identity automatically but
+    # our app-level User row only gets created in the signup callback.
+    # Handle the case where someone signs in before signing up.
+    if auth_token:
+        scoped_client = client.with_globals(
+            {"ext::auth::client_token": auth_token}
+        )
+        existing_user = await q.selectGlobalUser(scoped_client)
+        if not existing_user:
+            logger.info("No User record found for identity — creating one")
+            try:
+                await create_new_user(scoped_client, data)
+            except Exception as e:
+                error_message = str(e)
+                templates = request.app.state.templates
+                get_context = request.app.state.get_template_context
+                context = get_context(request, message=error_message)
+                return templates.TemplateResponse(
+                    "error.html", context, status_code=401
+                )
 
     return create_login_response(auth_token, "/app/")
