@@ -17,6 +17,7 @@ logger = logging.getLogger(__name__)
 # Load environment variables
 load_dotenv()
 GEL_AUTH_BASE_URL = os.getenv("GEL_AUTH_BASE_URL", "").rstrip("/")
+GEL_AUTH_INTERNAL_URL = os.getenv("GEL_AUTH_INTERNAL_URL", "").rstrip("/") or None
 ENVIRONMENT = os.getenv("ENVIRONMENT", "development").strip().lower()
 
 
@@ -44,10 +45,10 @@ COOKIE_OPTS = {
 
 
 def build_auth_url(path: str) -> str:
-    """Build a full auth URL based on the environment.
+    """Build a browser-facing auth URL.
 
-    In production/staging we typically rely on Cloudflare path rewrite, so
-    the target path is simply /signin, /signup, /token, etc.
+    In production/staging we rely on Cloudflare path rewrite, so
+    the target path is simply /signin, /signup, etc.
     In local development, we use the full Gel extension path.
     """
     if should_use_cloudflare_rewrite():
@@ -58,6 +59,18 @@ def build_auth_url(path: str) -> str:
         return f"{GEL_AUTH_BASE_URL}/db/main/ext/auth/ui{path}"
 
     return f"{GEL_AUTH_BASE_URL}/db/main/ext/auth{path}"
+
+
+def build_internal_auth_url(path: str) -> str:
+    """Build a server-to-server auth URL that bypasses Cloudflare.
+
+    Uses the internal Railway network URL when available (production/staging),
+    falling back to the same logic as build_auth_url for local development.
+    """
+    if GEL_AUTH_INTERNAL_URL:
+        return f"{GEL_AUTH_INTERNAL_URL}/db/main/ext/auth{path}"
+
+    return build_auth_url(path)
 
 
 def generate_pkce():
@@ -87,8 +100,8 @@ async def retrieve_auth_token(request: Request):
             "Is this the same user agent/browser that started the authorization flow?",
         )
 
-    # 3. Build the code exchange URL
-    code_exchange_url = build_auth_url("/token")
+    # 3. Build the code exchange URL (server-to-server, bypass Cloudflare)
+    code_exchange_url = build_internal_auth_url("/token")
     params = {"code": code, "verifier": verifier}
 
     # 4. Exchange code + verifier for auth_token (async HTTP)
