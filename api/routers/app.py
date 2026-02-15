@@ -959,22 +959,56 @@ async def space_pack(
     if not check_password_hash(board.secret_key_hash, x_board_secret):
         raise HTTPException(status_code=403, detail="Invalid secret key")
 
-    # Fetch message data
+    # Try fetching as a Message first, then fall back to PixelGraphic directly.
+    # The sync endpoint returns PixelGraphic IDs, while Ably commands return Message IDs.
+    msg = None
+    graphic_row = None
+
     try:
         msg = await q.selectMessageForSpacePack(base_client, message_id=UUID(message_id))
-    except Exception as e:
-        logger.error(f"Space Pack query error: {e}")
-        raise HTTPException(status_code=500, detail="Internal error")
+    except Exception:
+        pass
 
-    if not msg:
-        raise HTTPException(status_code=404, detail="Message not found")
+    if msg:
+        graphic_binary = msg.graphic_binary
+        frames = msg.graphic_frames
+        frame_delay_ms = msg.graphic_frame_delay_ms
+        sender = msg.sender_username or "Unknown"
+    else:
+        # Fall back to PixelGraphic lookup (for artwork synced at boot)
+        try:
+            graphic_row = await base_client.query_single(
+                """\
+                select PixelGraphic {
+                  id,
+                  binary,
+                  size,
+                  frames := [is PixelAnimation].frames ?? <int16>1,
+                  frame_delay_ms := [is PixelAnimation].frame_delay_ms ?? <int16>100,
+                  creator_name := .creator.username ?? "Unknown"
+                }
+                filter .id = <uuid>$graphic_id
+                limit 1\
+                """,
+                graphic_id=UUID(message_id),
+            )
+        except Exception as e:
+            logger.error(f"Space Pack query error: {e}")
+            raise HTTPException(status_code=500, detail="Internal error")
+
+        if not graphic_row:
+            raise HTTPException(status_code=404, detail="Graphic not found")
+
+        graphic_binary = graphic_row.binary
+        frames = graphic_row.frames
+        frame_delay_ms = graphic_row.frame_delay_ms
+        sender = graphic_row.creator_name
 
     # Build SP binary
     # Metadata JSON
-    frames = msg.graphic_frames
-    fps = round(1000 / msg.graphic_frame_delay_ms) if msg.graphic_frame_delay_ms > 0 else 10
+    fps = round(1000 / frame_delay_ms) if frame_delay_ms > 0 else 10
     meta = json.dumps({
-        "sender": msg.sender_username or "Unknown",
+        "sender": sender,
         "fps": fps,
         "is_anim": frames > 1,
     }).encode("utf-8")
@@ -984,7 +1018,7 @@ async def space_pack(
     from PIL import Image
     import io
 
-    img = Image.open(io.BytesIO(msg.graphic_binary))
+    img = Image.open(io.BytesIO(graphic_binary))
     img = img.convert("RGB")
 
     # For animations (spritesheets), the full spritesheet is in the binary
@@ -1051,7 +1085,42 @@ async def board_sync(
     size_map = {"Stellar": (16, 16), "Galactic": (53, 11), "Cosmic": (32, 32)}
     board_width, board_height = size_map.get(board_size, (32, 32))
 
-    # Query recent messages for this owner with matching graphic size
+    def _to_item(row, width, height):
+        fps = round(1000 / row.frame_delay_ms) if row.frame_delay_ms > 0 else 10
+        return {
+            "messageId": str(row.id),
+            "width": width,
+            "height": height,
+            "frames": row.frames,
+            "fps": fps,
+        }
+
+    # 1. Owner's own artwork (StaticImage + PixelAnimation, excluding drafts/avatars)
+    try:
+        graphics = await base_client.query(
+            """\
+            select PixelGraphic {
+              id,
+              size,
+              created_at,
+              frames := [is PixelAnimation].frames ?? <int16>1,
+              frame_delay_ms := [is PixelAnimation].frame_delay_ms ?? <int16>100,
+            }
+            filter .creator.id = <uuid>$owner_id
+               and .size = <BoardType>$board_size
+               and not .id in (select DraftGraphic.id)
+               and not .id in (select Avatar.id)
+            order by .created_at desc
+            limit 5\
+            """,
+            owner_id=owner_id,
+            board_size=board_size,
+        )
+    except Exception as e:
+        logger.error(f"Board sync art query error: {e}")
+        graphics = []
+
+    # 2. Messages sent TO this user with matching graphic size
     try:
         messages = await base_client.query(
             """\
@@ -1072,18 +1141,19 @@ async def board_sync(
             board_size=board_size,
         )
     except Exception as e:
-        logger.error(f"Board sync query error: {e}")
-        raise HTTPException(status_code=500, detail="Internal error")
+        logger.error(f"Board sync inbox query error: {e}")
+        messages = []
 
-    result = []
-    for msg in messages:
-        fps = round(1000 / msg.graphic.frame_delay_ms) if msg.graphic.frame_delay_ms > 0 else 10
-        result.append({
-            "messageId": str(msg.id),
+    art_list = [_to_item(g, board_width, board_height) for g in graphics]
+    inbox_list = []
+    for m in messages:
+        fps = round(1000 / m.graphic.frame_delay_ms) if m.graphic.frame_delay_ms > 0 else 10
+        inbox_list.append({
+            "messageId": str(m.id),
             "width": board_width,
             "height": board_height,
-            "frames": msg.graphic.frames,
+            "frames": m.graphic.frames,
             "fps": fps,
         })
 
-    return JSONResponse({"messages": result})
+    return JSONResponse({"art": art_list, "inbox": inbox_list})

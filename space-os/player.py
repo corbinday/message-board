@@ -28,14 +28,20 @@ def render_frame(pixel_data, width, height, frame_index=0):
         frame_index: Which frame to render (0-based)
     """
     if not _graphics or not _unicorn:
+        print("[PLAYER] No graphics/unicorn reference!")
         return
 
     frame_size = width * height * 3
     offset = frame_index * frame_size
 
+    if offset + frame_size > len(pixel_data):
+        print(f"[PLAYER] Frame {frame_index} overflows data: need {offset + frame_size}, have {len(pixel_data)}")
+        return
+
     _graphics.set_pen(_graphics.create_pen(0, 0, 0))
     _graphics.clear()
 
+    drawn = 0
     ptr = offset
     for y in range(height):
         for x in range(width):
@@ -49,10 +55,13 @@ def render_frame(pixel_data, width, height, frame_index=0):
                 pen = _graphics.create_pen(r, g, b)
                 _graphics.set_pen(pen)
                 _graphics.pixel(x, y)
+                drawn += 1
 
             ptr += 3
 
     _unicorn.update(_graphics)
+    if frame_index == 0:
+        print(f"[PLAYER] Frame 0 rendered: {drawn} lit pixels out of {width * height}")
     gc.collect()
 
 

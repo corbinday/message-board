@@ -23,31 +23,34 @@ def init():
     print("[STORE] Storage initialized.")
 
 
-def save_message(message_id, pixel_data, metadata):
+def save_message(message_id, pixel_data, metadata, directory=None):
     """
-    Save a message to the inbox.
+    Save a message to a directory.
 
     Args:
         message_id: UUID string
         pixel_data: Raw RGB bytes
         metadata: Dict with sender, fps, is_anim
+        directory: Target directory (defaults to INBOX_DIR)
     """
-    _ensure_dir(config.INBOX_DIR)
+    if directory is None:
+        directory = config.INBOX_DIR
+    _ensure_dir(directory)
 
     # Save pixel data
-    bin_path = f"{config.INBOX_DIR}/{message_id}.bin"
+    bin_path = f"{directory}/{message_id}.bin"
     with open(bin_path, "wb") as f:
         f.write(pixel_data)
 
     # Save metadata
-    json_path = f"{config.INBOX_DIR}/{message_id}.json"
+    json_path = f"{directory}/{message_id}.json"
     with open(json_path, "w") as f:
         json.dump(metadata, f)
 
-    print(f"[STORE] Saved message {message_id}")
+    print(f"[STORE] Saved {message_id} to {directory}")
 
     # Enforce FIFO cap
-    _enforce_fifo(config.INBOX_DIR)
+    _enforce_fifo(directory)
     gc.collect()
 
 

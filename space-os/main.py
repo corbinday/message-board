@@ -210,16 +210,20 @@ def _render_current():
         _message_list = storage.list_messages(_current_dir)
 
     if not _message_list:
+        print(f"[RENDER] No messages in {_current_dir}")
         player.clear_display()
         return
 
     if _current_index >= len(_message_list):
+        print(f"[RENDER] Index {_current_index} out of range (list has {len(_message_list)})")
         return
 
     msg_id = _message_list[_current_index]
+    print(f"[RENDER] Loading {msg_id[:12]}... [{_current_index}/{len(_message_list)}] from {_current_dir}")
     pixel_data, metadata = storage.load_message(msg_id, _current_dir)
 
     if pixel_data is None:
+        print(f"[RENDER] pixel_data is None for {msg_id[:12]}...")
         return
 
     width = metadata.get("width", config.BOARD_WIDTH)
@@ -227,6 +231,7 @@ def _render_current():
     frames = metadata.get("frames", 1)
     fps = metadata.get("fps", config.DEFAULT_FPS)
 
+    print(f"[RENDER] Drawing {width}x{height} {frames}f {len(pixel_data)}B")
     if frames > 1 and not _paused:
         player.play_animation(pixel_data, width, height, frames, fps)
     else:
