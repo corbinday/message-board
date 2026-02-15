@@ -31,6 +31,19 @@ def get_context(request: Request, **kwargs):
     return request.app.state.get_template_context(request, **kwargs)
 
 
+def _get_public_api_url(request: Request) -> str:
+    """Return the public-facing API base URL.
+
+    In production on Railway, RAILWAY_PUBLIC_DOMAIN is set automatically
+    (e.g. 'picomessageboard.com'). We use that with HTTPS.
+    In development, fall back to request.base_url.
+    """
+    public_domain = os.getenv("RAILWAY_PUBLIC_DOMAIN")
+    if public_domain:
+        return f"https://{public_domain}"
+    return str(request.base_url).rstrip("/")
+
+
 # =============================================================================
 # Home Routes
 # =============================================================================
@@ -212,8 +225,8 @@ async def download_config(
         "secret_key": secret_key,
         "ssid": wifi_ssid,
         "password": wifi_password,
-        # request.base_url includes the protocol and domain
-        "api_url": str(request.base_url).rstrip("/"),
+        # Use the public domain in production (Railway), fall back to request.base_url
+        "api_url": _get_public_api_url(request),
         "user_id": str(user.id) if user else "",
         "board_type": board_type_str,
         "board_width": board_width,
