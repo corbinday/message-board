@@ -9,6 +9,17 @@ import config
 _unicorn = None
 _graphics = None
 
+# Active animation state (non-blocking playback)
+_anim_data = None       # pixel_data bytes
+_anim_width = 0
+_anim_height = 0
+_anim_frames = 0        # total frames
+_anim_frame_index = 0   # current frame
+_anim_delay_ms = 100    # ms between frames
+_anim_last_frame = 0    # ticks_ms of last frame render
+_anim_loops = 0         # number of completed loops
+_anim_active = False     # whether an animation is playing
+
 
 def init(unicorn, graphics):
     """Initialize with hardware references."""
@@ -60,14 +71,15 @@ def render_frame(pixel_data, width, height, frame_index=0):
             ptr += 3
 
     _unicorn.update(_graphics)
-    if frame_index == 0:
+    if frame_index == 0 and _anim_loops == 0:
         print(f"[PLAYER] Frame 0 rendered: {drawn} lit pixels out of {width * height}")
     gc.collect()
 
 
-def play_animation(pixel_data, width, height, total_frames, fps, on_loop_complete=None):
+def start_animation(pixel_data, width, height, total_frames, fps):
     """
-    Play an animation loop. Blocks until interrupted or one full loop completes.
+    Begin non-blocking animation playback. Call tick() in the main loop
+    to advance frames.
 
     Args:
         pixel_data: Raw RGB bytes for all frames concatenated
@@ -75,32 +87,106 @@ def play_animation(pixel_data, width, height, total_frames, fps, on_loop_complet
         height: Frame height
         total_frames: Number of frames
         fps: Frames per second
-        on_loop_complete: Callback called after first complete loop (for read receipts)
+    """
+    global _anim_data, _anim_width, _anim_height, _anim_frames
+    global _anim_frame_index, _anim_delay_ms, _anim_last_frame
+    global _anim_loops, _anim_active
+
+    _anim_data = pixel_data
+    _anim_width = width
+    _anim_height = height
+    _anim_frames = total_frames
+    _anim_frame_index = 0
+    _anim_delay_ms = (1000 // fps) if fps > 0 else 100
+    _anim_loops = 0
+    _anim_active = True
+
+    # Render frame 0 immediately
+    render_frame(pixel_data, width, height, 0)
+    _anim_last_frame = time.ticks_ms()
+
+
+def tick():
+    """
+    Advance animation by one frame if enough time has elapsed.
+    Call this every main loop iteration.
 
     Returns:
-        True if completed a loop, False if interrupted
+        True if a loop just completed, False otherwise.
+    """
+    global _anim_frame_index, _anim_last_frame, _anim_loops
+
+    if not _anim_active:
+        return False
+
+    now = time.ticks_ms()
+    if time.ticks_diff(now, _anim_last_frame) < _anim_delay_ms:
+        return False
+
+    # Advance to next frame
+    _anim_frame_index += 1
+    loop_completed = False
+
+    if _anim_frame_index >= _anim_frames:
+        _anim_frame_index = 0
+        _anim_loops += 1
+        loop_completed = True
+
+    render_frame(_anim_data, _anim_width, _anim_height, _anim_frame_index)
+    _anim_last_frame = now
+
+    return loop_completed
+
+
+def stop_animation():
+    """Stop the current animation."""
+    global _anim_active, _anim_data
+    _anim_active = False
+    _anim_data = None
+    gc.collect()
+
+
+def is_animating():
+    """Check if an animation is currently playing."""
+    return _anim_active
+
+
+def loop_count():
+    """Return how many full loops the current animation has completed."""
+    return _anim_loops
+
+
+def play_animation(pixel_data, width, height, total_frames, fps, on_loop_complete=None):
+    """
+    Play one full animation loop (blocking). Used for incoming message display.
+
+    Args:
+        pixel_data: Raw RGB bytes for all frames concatenated
+        width: Frame width
+        height: Frame height
+        total_frames: Number of frames
+        fps: Frames per second
+        on_loop_complete: Callback after first complete loop
+
+    Returns:
+        True when loop completes
     """
     delay = 1.0 / fps if fps > 0 else 0.1
-    frame_index = 0
-    first_loop_done = False
 
-    while True:
+    for frame_index in range(total_frames):
         render_frame(pixel_data, width, height, frame_index)
         time.sleep(delay)
 
-        frame_index += 1
+    if on_loop_complete:
+        on_loop_complete()
 
-        if frame_index >= total_frames:
-            if not first_loop_done:
-                first_loop_done = True
-                if on_loop_complete:
-                    on_loop_complete()
-            frame_index = 0
-            return True  # Return after one loop for main loop to check buttons
+    return True
 
 
 def render_static(pixel_data, width, height):
     """Render a single static image."""
+    global _anim_active
+    _anim_active = False
     render_frame(pixel_data, width, height, 0)
 
 
@@ -146,6 +232,8 @@ def show_warp_animation(width, height, duration_ms=2000):
 
 def clear_display():
     """Turn off all pixels."""
+    global _anim_active
+    _anim_active = False
     if not _graphics or not _unicorn:
         return
     _graphics.set_pen(_graphics.create_pen(0, 0, 0))

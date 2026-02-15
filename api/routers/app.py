@@ -915,6 +915,27 @@ async def delete_graphic(
         )
 
 
+@router.delete(
+    "/message/{message_id}", response_class=HTMLResponse, name="app.delete_message"
+)
+async def delete_message(
+    request: Request, message_id: str, client: AuthenticatedClient
+):
+    """Delete a received message (recipient-side only). Leaves the sender's original graphic intact."""
+    try:
+        await q.deleteRecipientMessage(client, message_id=UUID(message_id))
+        if request.headers.get("HX-Request"):
+            return Response(content="", status_code=200)
+        response = Response(content="", status_code=204)
+        response.headers["HX-Location"] = "/app/messages"
+        return response
+    except Exception as e:
+        logger.error(f"Error deleting message: {e}")
+        return HTMLResponse(
+            f'<span class="text-red-500">Error: {str(e)}</span>', status_code=500
+        )
+
+
 # =============================================================================
 # Space Pack API (Board-facing)
 # =============================================================================

@@ -2,7 +2,6 @@
 import time
 import gc
 import urequests
-import json
 
 import config
 import wifi
@@ -276,7 +275,8 @@ def _render_current():
 
     print(f"[RENDER] Drawing {width}x{height} {frames}f {len(pixel_data)}B")
     if frames > 1 and not _paused:
-        player.play_animation(pixel_data, width, height, frames, fps)
+        # Start non-blocking animation loop — tick() in main loop advances frames
+        player.start_animation(pixel_data, width, height, frames, fps)
     else:
         player.render_static(pixel_data, width, height)
 
@@ -376,6 +376,7 @@ def main():
     # 7. Main loop
     auto_rotate_timer = time.ticks_ms()
     AUTO_ROTATE_INTERVAL = 10000  # 10 seconds
+    _rotate_pending = False  # True when timer expired but animation still playing
 
     while True:
         # Check MQTT messages
@@ -390,16 +391,36 @@ def main():
         actions = buttons.poll()
         if actions:
             _handle_actions(actions)
+            auto_rotate_timer = time.ticks_ms()
+            _rotate_pending = False
 
-        # Auto-rotate
-        if _auto_rotate and not _paused and _message_list:
+        # Advance animation frames (non-blocking)
+        loop_done = player.tick()
+
+        # If auto-rotate is pending and animation just finished a loop, transition now
+        if _rotate_pending and loop_done:
+            _rotate_pending = False
+            _current_index = (_current_index + 1) % len(_message_list)
+            _render_current()
+            auto_rotate_timer = time.ticks_ms()
+
+        # Auto-rotate timer check
+        if _auto_rotate and not _paused and _message_list and not _rotate_pending:
             if time.ticks_diff(time.ticks_ms(), auto_rotate_timer) > AUTO_ROTATE_INTERVAL:
-                _current_index = (_current_index + 1) % len(_message_list)
-                _render_current()
-                auto_rotate_timer = time.ticks_ms()
+                if player.is_animating() and player.loop_count() < 1:
+                    # Animation hasn't completed first loop yet — wait for it
+                    _rotate_pending = True
+                elif player.is_animating():
+                    # Animation has looped at least once, wait for current loop to finish
+                    _rotate_pending = True
+                else:
+                    # Static image or no animation — rotate immediately
+                    _current_index = (_current_index + 1) % len(_message_list)
+                    _render_current()
+                    auto_rotate_timer = time.ticks_ms()
 
         # Small delay to prevent tight loop
-        time.sleep(0.05)
+        time.sleep(0.02)
         gc.collect()
 
 

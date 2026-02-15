@@ -18,7 +18,7 @@
     <div class="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-6">
       {% for message in messages %}
       <div data-pixel-card
-        class="bg-slate-900/40 border border-slate-800 rounded-lg p-4 inline-flex flex-col gap-3 w-fit">
+        class="group bg-slate-900/40 border border-slate-800 rounded-lg p-4 inline-flex flex-col gap-3 w-fit">
         <div class="flex items-center gap-3">
           <div class="pixel-context pixel-4xs w-fit">
             <div
@@ -27,7 +27,7 @@
                 class="max-w-full h-auto"></pixel-art>
             </div>
           </div>
-          <div class="space-y-1">
+          <div class="flex-1 space-y-1">
             <p class="font-['Press_Start_2P'] text-[10px] text-white">
               {{ message.sender.username }}
             </p>
@@ -64,6 +64,13 @@
             class="flex-1 font-['Press_Start_2P'] text-[8px] bg-slate-800 border border-slate-700 p-2 text-white hover:bg-pico-green hover:text-black transition-all rounded"
             title="Download PNG">
             {% include 'icon/download.html' %}
+          </button>
+          <button hx-delete="{{ url_for('app.delete_message', message_id=message.id) }}"
+            hx-target="closest .group" hx-swap="outerHTML"
+            hx-confirm="Delete this message? The sender's original artwork will not be affected."
+            class="flex-1 font-['Press_Start_2P'] text-[8px] bg-slate-800 border border-slate-700 p-2 text-white hover:bg-pico-red hover:text-black hover:border-pico-red transition-all rounded"
+            title="Delete Message">
+            Delete
           </button>
         </div>
       </div>
