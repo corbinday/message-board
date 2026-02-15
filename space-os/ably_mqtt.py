@@ -66,7 +66,8 @@ def connect(ably_token, on_command=None):
     # Set message callback
     _client.set_callback(_on_message)
 
-    print(f"[MQTT] Connecting as {client_id}...")
+    print(f"[MQTT] Connecting to {config.ABLY_MQTT_HOST}:{config.ABLY_MQTT_PORT} as {client_id}")
+    print(f"[MQTT] Token: {ably_token[:20]}...")
     _client.connect()
     print("[MQTT] Connected to Ably MQTT.")
 

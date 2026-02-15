@@ -51,25 +51,94 @@ def _detect_board():
 
 def _get_ably_token():
     """Request an Ably token from the server."""
-    url = f"{config.API_URL}/boards/{config.BOARD_ID}/ably-token"
+    url = f"{config.API_URL}/ably/boards/{config.BOARD_ID}/token"
     headers = {
         "X-Board-Secret": config.BOARD_SECRET_KEY,
         "Content-Type": "application/json",
     }
 
+    print(f"[HTTP] POST {url}")
     try:
         response = urequests.post(url, headers=headers)
+        print(f"[HTTP] <- {response.status_code} ({len(response.content)} bytes)")
         if response.status_code == 200:
             data = response.json()
+            token = data.get("token")
+            print(f"[HTTP] Token received: {token[:20]}..." if token else "[HTTP] No token in response")
             response.close()
-            return data.get("token")
+            return token
         else:
-            print(f"[BOOT] Token request failed: HTTP {response.status_code}")
+            print(f"[HTTP] Body: {response.text[:200]}")
             response.close()
             return None
     except Exception as e:
-        print(f"[BOOT] Token request error: {e}")
+        print(f"[HTTP] POST {url} EXCEPTION: {e}")
         return None
+
+
+def _boot_sync():
+    """Fetch recent messages from server and download any we don't have locally."""
+    url = f"{config.API_URL}/app/boards/{config.BOARD_ID}/sync"
+    headers = {
+        "X-Board-Secret": config.BOARD_SECRET_KEY,
+    }
+
+    print(f"[HTTP] GET {url}")
+    try:
+        response = urequests.get(url, headers=headers)
+        print(f"[HTTP] <- {response.status_code} ({len(response.content)} bytes)")
+        if response.status_code != 200:
+            print(f"[HTTP] Body: {response.text[:200]}")
+            response.close()
+            return
+        data = response.json()
+        response.close()
+    except Exception as e:
+        print(f"[HTTP] GET {url} EXCEPTION: {e}")
+        return
+
+    messages = data.get("messages", [])
+    if not messages:
+        print("[SYNC] No messages to sync.")
+        return
+
+    # Get local message IDs already on disk
+    local_ids = set(storage.list_messages(config.INBOX_DIR))
+    print(f"[SYNC] Server has {len(messages)} recent, local has {len(local_ids)}")
+    for i, msg in enumerate(messages):
+        status = "LOCAL" if msg.get("messageId", "") in local_ids else "NEW"
+        print(f"[SYNC]   [{i}] {msg.get('messageId', '?')[:12]}... {status}")
+
+    synced = 0
+    for msg in messages:
+        msg_id = msg.get("messageId", "")
+        if msg_id in local_ids:
+            continue
+
+        width = msg.get("width", config.BOARD_WIDTH)
+        height = msg.get("height", config.BOARD_HEIGHT)
+        frames = msg.get("frames", 1)
+        fps = msg.get("fps", config.DEFAULT_FPS)
+
+        print(f"[SYNC] Downloading {msg_id}")
+        sp = space_pack.download(msg_id)
+        if sp is None:
+            print(f"[SYNC] Failed to download {msg_id}")
+            continue
+
+        metadata = {
+            "sender": sp["sender"],
+            "fps": sp["fps"],
+            "is_anim": sp["is_anim"],
+            "width": width,
+            "height": height,
+            "frames": frames,
+        }
+        storage.save_message(sp["message_id"], sp["pixel_data"], metadata)
+        synced += 1
+        gc.collect()
+
+    print(f"[SYNC] Synced {synced} new messages.")
 
 
 def _on_command(payload):
@@ -233,7 +302,11 @@ def main():
     if ip_config is None:
         print("[BOOT] WiFi failed. Running in offline mode.")
     else:
-        # 4. Get Ably token and connect MQTT
+        # 4. Sync recent messages from server
+        print("[BOOT] Syncing messages...")
+        _boot_sync()
+
+        # 5. Get Ably token and connect MQTT
         token = _get_ably_token()
         if token:
             try:
@@ -243,7 +316,7 @@ def main():
         else:
             print("[BOOT] No Ably token. Running without real-time updates.")
 
-    # 5. Load initial message list
+    # 6. Load initial message list
     _message_list = storage.list_messages(_current_dir)
     if _message_list:
         _render_current()
@@ -252,7 +325,7 @@ def main():
 
     print("[BOOT] SpaceOS ready.")
 
-    # 6. Main loop
+    # 7. Main loop
     auto_rotate_timer = time.ticks_ms()
     AUTO_ROTATE_INTERVAL = 10000  # 10 seconds
 

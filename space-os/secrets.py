@@ -1,13 +1,13 @@
 # secrets.py - SpaceOS Board Configuration
-# Generated for Board ID: da254dc8-ef5d-11f0-9c4e-837de120aa83
+# Generated for Board ID: e34cad3e-0a0f-11f1-bf1e-ef1f20907adc
 
 secrets = {
-    "ssid": "InsideRE-4th",
-    "password": "1997-98Ut@hJ@zz",
-    "pmb_secret_key": "LFdmTDMZFJDmcbuftB7w2qfELgz9eemln0Uub2PyPaw",
-    "api_url": "http://localhost:3000",
-    "board_id": "da254dc8-ef5d-11f0-9c4e-837de120aa83",
-    "user_id": "9f0da446-e856-11f0-8a90-13bfcc107936",
+    "ssid": "getawaytwenty",
+    "password": "moabrox20",
+    "pmb_secret_key": "KZMrLk8fUhL-_jTIGx0gGdjF5jTt8AcXtpR6mzlh6Qk",
+    "api_url": "https://picomessageboard.com",
+    "board_id": "e34cad3e-0a0f-11f1-bf1e-ef1f20907adc",
+    "user_id": "b673991a-0976-11f1-89fe-1fd60fcbbfd2",
     "board_type": "Cosmic",
     "board_width": "32",
     "board_height": "32",

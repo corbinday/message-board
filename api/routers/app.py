@@ -1013,3 +1013,77 @@ async def space_pack(
             "Cache-Control": "no-cache",
         },
     )
+
+
+@router.get("/boards/{board_id}/sync", name="app.board_sync")
+async def board_sync(
+    request: Request,
+    board_id: str,
+    x_board_secret: str = Header(None, alias="X-Board-Secret"),
+):
+    """
+    Return recent messages for a board's owner, filtered to the board's size.
+    Used by SpaceOS at boot to sync missed messages.
+    Authenticated via board secret key header.
+    """
+    if not x_board_secret:
+        raise HTTPException(status_code=401, detail="Missing board secret")
+
+    base_client = request.app.state.get_base_client()
+
+    try:
+        board = await q.selectBoardBySecretKey(base_client, board_id=UUID(board_id))
+    except Exception:
+        board = None
+
+    if not board or not board.secret_key_hash:
+        raise HTTPException(status_code=403, detail="Invalid board")
+
+    from werkzeug.security import check_password_hash
+
+    if not check_password_hash(board.secret_key_hash, x_board_secret):
+        raise HTTPException(status_code=403, detail="Invalid secret key")
+
+    owner_id = board.owner_id
+    board_size = str(board.boardType.value) if hasattr(board.boardType, "value") else str(board.boardType)
+
+    # Determine board dimensions
+    size_map = {"Stellar": (16, 16), "Galactic": (53, 11), "Cosmic": (32, 32)}
+    board_width, board_height = size_map.get(board_size, (32, 32))
+
+    # Query recent messages for this owner with matching graphic size
+    try:
+        messages = await base_client.query(
+            """\
+            select Message {
+              id,
+              graphic: {
+                size,
+                frames := [is PixelAnimation].frames ?? <int16>1,
+                frame_delay_ms := [is PixelAnimation].frame_delay_ms ?? <int16>100
+              }
+            }
+            filter .recipient.id = <uuid>$owner_id
+               and .graphic.size = <BoardType>$board_size
+            order by .sent_at desc
+            limit 5\
+            """,
+            owner_id=owner_id,
+            board_size=board_size,
+        )
+    except Exception as e:
+        logger.error(f"Board sync query error: {e}")
+        raise HTTPException(status_code=500, detail="Internal error")
+
+    result = []
+    for msg in messages:
+        fps = round(1000 / msg.graphic.frame_delay_ms) if msg.graphic.frame_delay_ms > 0 else 10
+        result.append({
+            "messageId": str(msg.id),
+            "width": board_width,
+            "height": board_height,
+            "frames": msg.graphic.frames,
+            "fps": fps,
+        })
+
+    return JSONResponse({"messages": result})

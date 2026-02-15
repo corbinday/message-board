@@ -101,11 +101,11 @@ async def board_token(
     }
 
     try:
-        token_request = await ably.auth.create_token_request({
+        token_details = await ably.auth.request_token({
             "client_id": board_id,
             "capability": capability,
         })
-        return JSONResponse({"token": token_request.to_dict()})
+        return JSONResponse({"token": token_details.token})
     except Exception as e:
         logger.error(f"Board Ably token error: {e}")
         raise HTTPException(status_code=500, detail="Token generation failed")

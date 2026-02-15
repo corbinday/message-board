@@ -24,30 +24,34 @@ def download(message_id):
         dict with keys: message_id, sender, fps, is_anim, pixel_data
         or None on failure
     """
-    url = f"{config.API_URL}/space-pack/{message_id}"
+    url = f"{config.API_URL}/app/space-pack/{message_id}"
     headers = {
         "X-Board-Id": config.BOARD_ID,
         "X-Board-Secret": config.BOARD_SECRET_KEY,
     }
 
-    print(f"[SP] Downloading from {url}")
+    print(f"[HTTP] GET {url}")
 
     try:
         response = urequests.get(url, headers=headers)
+        data = response.content
+        print(f"[HTTP] <- {response.status_code} ({len(data)} bytes)")
 
         if response.status_code != 200:
-            print(f"[SP] Server error: HTTP {response.status_code}")
+            print(f"[HTTP] Body: {response.text[:200]}")
             response.close()
             return None
 
-        data = response.content
         response.close()
         gc.collect()
 
-        return parse(data)
+        result = parse(data)
+        if result:
+            print(f"[SP] Parsed OK: id={result['message_id'][:12]}... sender={result['sender']} anim={result['is_anim']} fps={result['fps']}")
+        return result
 
     except Exception as e:
-        print(f"[SP] Download error: {e}")
+        print(f"[HTTP] GET {url} EXCEPTION: {e}")
         return None
 
 
