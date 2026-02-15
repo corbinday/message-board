@@ -97,48 +97,91 @@ def _boot_sync():
         print(f"[HTTP] GET {url} EXCEPTION: {e}")
         return
 
-    messages = data.get("messages", [])
-    if not messages:
-        print("[SYNC] No messages to sync.")
+    art_items = data.get("art", [])
+    inbox_items = data.get("inbox", [])
+    total = len(art_items) + len(inbox_items)
+
+    if total == 0:
+        print("[SYNC] No items to sync.")
         return
 
-    # Get local message IDs already on disk
-    local_ids = set(storage.list_messages(config.INBOX_DIR))
-    print(f"[SYNC] Server has {len(messages)} recent, local has {len(local_ids)}")
-    for i, msg in enumerate(messages):
-        status = "LOCAL" if msg.get("messageId", "") in local_ids else "NEW"
-        print(f"[SYNC]   [{i}] {msg.get('messageId', '?')[:12]}... {status}")
+    print(f"[SYNC] Server has {len(art_items)} art, {len(inbox_items)} inbox")
 
     synced = 0
-    for msg in messages:
-        msg_id = msg.get("messageId", "")
-        if msg_id in local_ids:
-            continue
 
-        width = msg.get("width", config.BOARD_WIDTH)
-        height = msg.get("height", config.BOARD_HEIGHT)
-        frames = msg.get("frames", 1)
-        fps = msg.get("fps", config.DEFAULT_FPS)
+    # Sync art items to /art directory
+    if art_items:
+        local_art_ids = set(storage.list_messages(config.ART_DIR))
+        print(f"[SYNC] Local art: {len(local_art_ids)}")
+        for i, item in enumerate(art_items):
+            item_id = item.get("messageId", "")
+            status = "LOCAL" if item_id in local_art_ids else "NEW"
+            print(f"[SYNC]   art[{i}] {item_id[:12]}... {status}")
 
-        print(f"[SYNC] Downloading {msg_id}")
-        sp = space_pack.download(msg_id)
-        if sp is None:
-            print(f"[SYNC] Failed to download {msg_id}")
-            continue
+        for item in art_items:
+            item_id = item.get("messageId", "")
+            if item_id in local_art_ids:
+                continue
 
-        metadata = {
-            "sender": sp["sender"],
-            "fps": sp["fps"],
-            "is_anim": sp["is_anim"],
-            "width": width,
-            "height": height,
-            "frames": frames,
-        }
-        storage.save_message(sp["message_id"], sp["pixel_data"], metadata)
-        synced += 1
-        gc.collect()
+            print(f"[SYNC] Downloading art {item_id[:12]}...")
+            sp = space_pack.download(item_id)
+            if sp is None:
+                print(f"[SYNC] Failed to download art {item_id[:12]}...")
+                continue
 
-    print(f"[SYNC] Synced {synced} new messages.")
+            width = item.get("width", config.BOARD_WIDTH)
+            height = item.get("height", config.BOARD_HEIGHT)
+            frames = item.get("frames", 1)
+
+            metadata = {
+                "sender": sp["sender"],
+                "fps": sp["fps"],
+                "is_anim": sp["is_anim"],
+                "width": width,
+                "height": height,
+                "frames": frames,
+            }
+            storage.save_message(sp["message_id"], sp["pixel_data"], metadata, directory=config.ART_DIR)
+            synced += 1
+            gc.collect()
+
+    # Sync inbox items to /inbox directory
+    if inbox_items:
+        local_inbox_ids = set(storage.list_messages(config.INBOX_DIR))
+        print(f"[SYNC] Local inbox: {len(local_inbox_ids)}")
+        for i, item in enumerate(inbox_items):
+            item_id = item.get("messageId", "")
+            status = "LOCAL" if item_id in local_inbox_ids else "NEW"
+            print(f"[SYNC]   inbox[{i}] {item_id[:12]}... {status}")
+
+        for item in inbox_items:
+            item_id = item.get("messageId", "")
+            if item_id in local_inbox_ids:
+                continue
+
+            print(f"[SYNC] Downloading inbox {item_id[:12]}...")
+            sp = space_pack.download(item_id)
+            if sp is None:
+                print(f"[SYNC] Failed to download inbox {item_id[:12]}...")
+                continue
+
+            width = item.get("width", config.BOARD_WIDTH)
+            height = item.get("height", config.BOARD_HEIGHT)
+            frames = item.get("frames", 1)
+
+            metadata = {
+                "sender": sp["sender"],
+                "fps": sp["fps"],
+                "is_anim": sp["is_anim"],
+                "width": width,
+                "height": height,
+                "frames": frames,
+            }
+            storage.save_message(sp["message_id"], sp["pixel_data"], metadata, directory=config.INBOX_DIR)
+            synced += 1
+            gc.collect()
+
+    print(f"[SYNC] Synced {synced} new items (art + inbox).")
 
 
 def _on_command(payload):
@@ -285,7 +328,7 @@ def _handle_actions(actions):
 
 def main():
     """SpaceOS boot sequence and main loop."""
-    global _message_list
+    global _message_list, _current_index, _auto_rotate, _paused
 
     print("=" * 40)
     print("  SpaceOS v1.1")

@@ -1021,8 +1021,20 @@ async def space_pack(
     img = Image.open(io.BytesIO(graphic_binary))
     img = img.convert("RGB")
 
-    # For animations (spritesheets), the full spritesheet is in the binary
-    pixel_bytes = img.tobytes()
+    # Animations are stored as HORIZONTAL spritesheets (frames side-by-side).
+    # The board expects frames as sequential blocks of (frame_width * frame_height * 3) bytes.
+    # We need to crop each frame from the spritesheet and concatenate their RGB data.
+    if frames > 1:
+        frame_width = img.width // frames
+        frame_height = img.height
+        pixel_bytes = bytearray()
+        for i in range(frames):
+            left = i * frame_width
+            frame_img = img.crop((left, 0, left + frame_width, frame_height))
+            pixel_bytes.extend(frame_img.tobytes())
+        pixel_bytes = bytes(pixel_bytes)
+    else:
+        pixel_bytes = img.tobytes()
 
     # UUID as 16 raw bytes
     raw_uuid = UUID(message_id).bytes

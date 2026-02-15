@@ -9,6 +9,11 @@ import config
 
 _client = None
 _on_command = None  # callback for incoming commands
+_connected = False
+_last_ping = 0
+_error_count = 0
+_PING_INTERVAL_MS = 30000  # Ping every 30s (keepalive is 60s)
+_MAX_ERRORS = 5  # Disconnect after this many consecutive errors
 
 
 def _build_lwt_payload():
@@ -40,7 +45,7 @@ def connect(ably_token, on_command=None):
         ably_token: Ably token string for authentication
         on_command: Callback function for command messages
     """
-    global _client, _on_command
+    global _client, _on_command, _connected, _last_ping, _error_count
     _on_command = on_command
 
     client_id = f"spaceos-{config.BOARD_ID}"
@@ -69,6 +74,9 @@ def connect(ably_token, on_command=None):
     print(f"[MQTT] Connecting to {config.ABLY_MQTT_HOST}:{config.ABLY_MQTT_PORT} as {client_id}")
     print(f"[MQTT] Token: {ably_token[:20]}...")
     _client.connect()
+    _connected = True
+    _last_ping = time.ticks_ms()
+    _error_count = 0
     print("[MQTT] Connected to Ably MQTT.")
 
     # Publish online presence
@@ -83,12 +91,33 @@ def connect(ably_token, on_command=None):
 
 
 def check_messages():
-    """Non-blocking check for incoming MQTT messages."""
-    if _client:
+    """Non-blocking check for incoming MQTT messages. Also handles keepalive pings."""
+    global _last_ping, _error_count, _connected
+
+    if not _client or not _connected:
+        return
+
+    # Send periodic ping to keep connection alive
+    now = time.ticks_ms()
+    if time.ticks_diff(now, _last_ping) > _PING_INTERVAL_MS:
         try:
-            _client.check_msg()
+            _client.ping()
+            _last_ping = now
         except Exception as e:
+            print(f"[MQTT] Ping failed: {e}")
+            _connected = False
+            return
+
+    try:
+        _client.check_msg()
+        _error_count = 0  # Reset on success
+    except Exception as e:
+        _error_count += 1
+        if _error_count <= 3:
             print(f"[MQTT] check_msg error: {e}")
+        elif _error_count == _MAX_ERRORS:
+            print(f"[MQTT] Too many errors ({_MAX_ERRORS}), marking disconnected.")
+            _connected = False
 
 
 def publish_read_receipt(message_id):
@@ -111,7 +140,7 @@ def publish_read_receipt(message_id):
 
 def disconnect():
     """Gracefully disconnect from MQTT."""
-    global _client
+    global _client, _connected
     if _client:
         try:
             # Publish offline before disconnecting
@@ -122,9 +151,10 @@ def disconnect():
         except Exception:
             pass
         _client = None
+        _connected = False
         print("[MQTT] Disconnected.")
 
 
 def is_connected():
-    """Check if MQTT client exists (basic connectivity check)."""
-    return _client is not None
+    """Check if MQTT client is connected."""
+    return _client is not None and _connected
