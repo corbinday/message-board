@@ -132,25 +132,8 @@
     padding: calc(var(--pixel-gap) / 2);
   }
 
-  pixel-editor > div {
-    width: var(--pixel-size);
-    height: var(--pixel-size);
-    background-color: transparent;
-    cursor: crosshair;
-    transition: background-color 0.05s ease;
-    border: 1px solid transparent;
-    /* Subtle border to show gridlines */
-    box-shadow: inset 0 0 0 0.5px rgba(255, 255, 255, 0.15);
-  }
-
-  pixel-editor > div:hover {
-    border-color: white;
-    box-shadow:
-      inset 0 0 0 0.5px rgba(255, 255, 255, 0.15),
-      0 0 0 1px white;
-    z-index: 10;
-    position: relative;
-  }
+  /* Note: pixel-editor > div targets the #grid wrapper, not individual pixels.
+     Individual pixel styling is handled by .editor-pixel below. */
 
   /* -------------------------------------------------
    * PIXEL EDITOR GRID (container for pixels)
