@@ -7,7 +7,9 @@
     "scripts": {
         "dev:api": "uv run -- uvicorn api.app:app --reload --port 3000 --host 0.0.0.0",
         "dev:css": "npx @tailwindcss/cli -i static/css/style.css -o static/css/app.css --watch",
-        "dev": "concurrently --raw \"npm run dev:api\" \"npm run dev:css\"",
+        "dev:assets": "uv run -- python scripts/generate_asset_hashes.py --watch",
+        "dev": "concurrently --raw \"npm run dev:api\" \"npm run dev:css\" \"npm run dev:assets\"",
+        "assets:generate": "uv run -- python scripts/generate_asset_hashes.py --once",
         "generate:queries": "uv run gel-py --target async --file api/queries.py"
     },
     "devDependencies": {

@@ -29,6 +29,14 @@ Space Unicorn Variants:
 - A web viewer for your messages
 - Pulling new messages from the server to your board
 
+### Static JS Hashing (SRI + Cache Busting)
+- Generate hashes once: `npm run assets:generate`
+- Watch and regenerate during development: `npm run dev:assets`
+- `npm run dev` now includes the asset hash watcher automatically.
+- Generated output is written to `asset-manifest.json` and used by templates for:
+  - `integrity="sha384-..."`
+  - versioned URLs like `.../static/js/pixel.js?v=<hash>`
+
 #### Web UI Basics
 
 #### Web UI Dashboard

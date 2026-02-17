@@ -15,6 +15,7 @@ import secrets
 from api.routers import auth, user, message, app as app_routes, ably as ably_routes
 from api.dependencies import get_current_user, get_client, OptionalUser
 from api.presence_proxy import start_proxy, stop_proxy
+from api.assets import asset_resolver
 
 load_dotenv()
 
@@ -142,11 +143,24 @@ def get_template_context(request: Request, **kwargs):
             url = "https://" + url[7:]
         return url
 
+    def asset_url(filename: str) -> str:
+        url = shimmed_url_for("static", filename=filename)
+        version = asset_resolver.get_version(filename)
+        if not version:
+            return url
+        separator = "&" if "?" in url else "?"
+        return f"{url}{separator}v={version}"
+
+    def asset_integrity(filename: str) -> str:
+        return asset_resolver.get_integrity(filename)
+
     context = {
         "request": request,
         "nonce": getattr(request.state, "nonce", ""),
         "current_year": datetime.now().year,
         "url_for": shimmed_url_for,
+        "asset_url": asset_url,
+        "asset_integrity": asset_integrity,
     }
     context.update(kwargs)
     return context

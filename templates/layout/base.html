@@ -9,9 +9,9 @@
   <!-- htmx tags -->
   <meta name="htmx-config" content='{"inlineStyleNonce":"{{ nonce }}"}' />
   <meta name="htmx-config" content='{"includeIndicatorStyles": false}' />
-  <script src="{{ url_for('static', filename='js/htmx.min.js') }}"
-    integrity="sha384-Ri8up/SiblE6wBETLc3+o4905XRyjy/tp0qz7g/qDmkyre0ncpVywAdvFSwAKYdV"
-    crossorigin="anonymous"></script>
+  {% set htmx_integrity = asset_integrity('js/htmx.min.js') %}
+  <script src="{{ asset_url('js/htmx.min.js') }}"
+    {% if htmx_integrity %}integrity="{{ htmx_integrity }}" crossorigin="anonymous"{% endif %}></script>
 
   <!-- TailwindCSS -->
   <link rel="stylesheet" href="{{ url_for('static', filename='css/app.css') }}" />
@@ -44,12 +44,16 @@
   </style>
 
   <!-- Pixel effects -->
-  <script src="{{ url_for('static', filename='js/pixel.js') }}" integrity="sha384-" crossorigin="anonymous"></script>
+  {% set pixel_integrity = asset_integrity('js/pixel.js') %}
+  <script src="{{ asset_url('js/pixel.js') }}"
+    {% if pixel_integrity %}integrity="{{ pixel_integrity }}" crossorigin="anonymous"{% endif %}></script>
 
   <!-- Ably Realtime SDK (loaded from CDN with nonce for CSP) -->
   <script src="https://cdn.ably.com/lib/ably.min-1.js" nonce="{{ nonce }}"></script>
   <!-- SpaceOS Ably client -->
-  <script src="{{ url_for('static', filename='js/ably.js') }}" nonce="{{ nonce }}"></script>
+  {% set ably_integrity = asset_integrity('js/ably.js') %}
+  <script src="{{ asset_url('js/ably.js') }}" nonce="{{ nonce }}"
+    {% if ably_integrity %}integrity="{{ ably_integrity }}" crossorigin="anonymous"{% endif %}></script>
 </head>
 
 <body class="font-['JetBrains_Mono'] text-sm md:text-lg text-white bg-black min-h-screen flex flex-col items-center">
