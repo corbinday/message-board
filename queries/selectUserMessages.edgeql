@@ -18,3 +18,5 @@ select Message {
 }
 filter .recipient = user
 order by .sent_at desc
+offset <int64>$offset
+limit <int64>$limit
