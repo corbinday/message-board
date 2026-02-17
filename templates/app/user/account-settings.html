@@ -86,10 +86,12 @@
       <!-- Upload Alternative -->
       <div class="bg-slate-900/40 border border-slate-800 rounded-lg p-6 space-y-4">
         <h3 class="font-['Press_Start_2P'] text-xs text-white">Or Upload a PNG</h3>
+        <p class="font-['Press_Start_2P'] text-[8px] text-slate-500">Must be exactly 16x16 pixels</p>
         <form
           hx-post="{{ url_for('user.avatar_post') }}"
           hx-encoding="multipart/form-data"
-          hx-target="body"
+          hx-target="#upload-message"
+          hx-swap="innerHTML"
           class="space-y-4"
         >
           <input type="hidden" name="mode" value="upload" />
@@ -107,6 +109,7 @@
             Upload Avatar
           </button>
         </form>
+        <div id="upload-message"></div>
       </div>
     </section>
   </div>

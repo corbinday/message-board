@@ -91,24 +91,46 @@ async def avatar_post(
                 return JSONResponse({"error": "Avatar must be exactly 16x16 pixels"}, status_code=400)
 
         elif mode == "upload":
+            is_htmx = request.headers.get("HX-Request")
+
             # Upload mode: receive PNG file
             if not avatar_file:
-                return JSONResponse({"error": "No file uploaded"}, status_code=400)
+                error_msg = "No file uploaded"
+                if is_htmx:
+                    return HTMLResponse(
+                        f"<div class=\"font-['Press_Start_2P'] text-xs text-pico-red\">{error_msg}</div>",
+                    )
+                return JSONResponse({"error": error_msg}, status_code=400)
 
             if avatar_file.filename == "":
-                return JSONResponse({"error": "No file selected"}, status_code=400)
+                error_msg = "No file selected"
+                if is_htmx:
+                    return HTMLResponse(
+                        f"<div class=\"font-['Press_Start_2P'] text-xs text-pico-red\">{error_msg}</div>",
+                    )
+                return JSONResponse({"error": error_msg}, status_code=400)
 
             # Read PNG data
             png_data = await avatar_file.read()
 
             # Validate PNG format
             if not png_data.startswith(b"\x89PNG\r\n\x1a\n"):
-                return JSONResponse({"error": "Invalid PNG format"}, status_code=400)
+                error_msg = "Invalid PNG format. Please upload a valid PNG file."
+                if is_htmx:
+                    return HTMLResponse(
+                        f"<div class=\"font-['Press_Start_2P'] text-xs text-pico-red\">{error_msg}</div>",
+                    )
+                return JSONResponse({"error": error_msg}, status_code=400)
 
             # Read width and height from IHDR (bytes 16-23)
             width, height = struct.unpack(">II", png_data[16:24])
             if width != 16 or height != 16:
-                return JSONResponse({"error": "Avatar must be exactly 16x16 pixels"}, status_code=400)
+                error_msg = f"Avatar must be exactly 16x16 pixels (uploaded image is {width}x{height})"
+                if is_htmx:
+                    return HTMLResponse(
+                        f"<div class=\"font-['Press_Start_2P'] text-xs text-pico-red\">{error_msg}</div>",
+                    )
+                return JSONResponse({"error": error_msg}, status_code=400)
         else:
             return JSONResponse({"error": "Invalid mode"}, status_code=400)
 
@@ -124,12 +146,23 @@ async def avatar_post(
             # Set as active avatar
             await q.updateGlobalUser(client, avatar_id=avatar_result.id)
 
+            if request.headers.get("HX-Request"):
+                response = HTMLResponse(
+                    "<div class=\"font-['Press_Start_2P'] text-xs text-pico-green\">Avatar saved! Reloading...</div>",
+                )
+                response.headers["HX-Location"] = "/user/account/settings"
+                return response
+
             response = Response(content="", status_code=204)
-            response.headers["HX-Location"] = "/user/avatar"
+            response.headers["HX-Location"] = "/user/account/settings"
             return response
 
         except Exception as e:
             logger.error(f"Error creating avatar: {e}")
+            if request.headers.get("HX-Request"):
+                return HTMLResponse(
+                    f"<div class=\"font-['Press_Start_2P'] text-xs text-pico-red\">Error: {str(e)}</div>",
+                )
             return JSONResponse({"error": str(e)}, status_code=500)
 
     except Exception as e:

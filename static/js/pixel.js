@@ -386,9 +386,13 @@ class PixelEditor extends PixelGridBase {
     // Drag-and-drop frame reordering
     this._draggedFrameIndex = undefined;
 
+    // Track last hovered pixel for cleanup
+    this._lastHoveredPixel = null;
+
     // Bind resize handler to instance
     this._handleWindowResize = this._handleWindowResize.bind(this);
     this._handleKeyDown = this._handleKeyDown.bind(this);
+    this._handleDocumentMouseUp = null;
     this._resizeDebounce = null;
   }
 
@@ -597,9 +601,13 @@ class PixelEditor extends PixelGridBase {
       // Use CSS class for base styling (avoids inline styles for CSP)
       div.className = 'editor-pixel';
 
-      // Add hover effect via classList toggle
+      // Add hover effect via classList toggle, tracking last hovered pixel
       div.addEventListener('mouseenter', () => {
+        if (this._lastHoveredPixel && this._lastHoveredPixel !== div) {
+          this._lastHoveredPixel.classList.remove('hovered');
+        }
         div.classList.add('hovered');
+        this._lastHoveredPixel = div;
       });
       div.addEventListener('mouseleave', () => {
         div.classList.remove('hovered');
@@ -688,6 +696,30 @@ class PixelEditor extends PixelGridBase {
     return document.querySelector(`[data-editor-control="${controlName}"]`);
   }
 
+  /**
+   * Find an action element by data-editor-action attribute
+   * Supports both internal (within pixel-editor) and external (within editor context)
+   * @private
+   * @param {string} actionName - The action name (e.g., 'load-file', 'shift-up')
+   * @returns {HTMLElement|null}
+   */
+  _findAction(actionName) {
+    // First try within the pixel-editor element itself
+    const internal = this.querySelector(`[data-editor-action="${actionName}"]`);
+    if (internal) return internal;
+
+    // Then try within the editor context (for controls placed outside pixel-editor)
+    const context = this.closest('[data-editor-context]');
+    if (context) {
+      const scoped = context.querySelector(
+        `[data-editor-action="${actionName}"]`,
+      );
+      if (scoped) return scoped;
+    }
+
+    return null;
+  }
+
   setupControls() {
     // Find controls using both ID-based and data-attribute patterns
     const colorPicker = this._findControl('color-picker');
@@ -737,9 +769,7 @@ class PixelEditor extends PixelGridBase {
     }
 
     // PNG file upload handler
-    const loadFileInput = this.querySelector(
-      '[data-editor-action="load-file"]',
-    );
+    const loadFileInput = this._findAction('load-file');
     if (loadFileInput) {
       loadFileInput.addEventListener('change', async (e) => {
         const file = e.target.files[0];
@@ -753,16 +783,10 @@ class PixelEditor extends PixelGridBase {
   }
 
   setupTransformControls() {
-    const shiftUpBtn = this.querySelector('[data-editor-action="shift-up"]');
-    const shiftDownBtn = this.querySelector(
-      '[data-editor-action="shift-down"]',
-    );
-    const shiftLeftBtn = this.querySelector(
-      '[data-editor-action="shift-left"]',
-    );
-    const shiftRightBtn = this.querySelector(
-      '[data-editor-action="shift-right"]',
-    );
+    const shiftUpBtn = this._findAction('shift-up');
+    const shiftDownBtn = this._findAction('shift-down');
+    const shiftLeftBtn = this._findAction('shift-left');
+    const shiftRightBtn = this._findAction('shift-right');
 
     if (shiftUpBtn) {
       shiftUpBtn.addEventListener('click', () => this.shiftPixels(0, -1));
@@ -940,7 +964,9 @@ class PixelEditor extends PixelGridBase {
     };
 
     const handleEnd = (e) => {
-      e.preventDefault();
+      if (e && e.cancelable) {
+        e.preventDefault();
+      }
       if (this.isDrawing) {
         this.isDrawing = false;
 
@@ -956,11 +982,13 @@ class PixelEditor extends PixelGridBase {
       }
     };
 
-    // Mouse events - attach to grid div
+    // Mouse events - attach to grid div for start/move
     this.grid.addEventListener('mousedown', handleStart);
     this.grid.addEventListener('mousemove', handleMove);
-    this.grid.addEventListener('mouseup', handleEnd);
-    this.grid.addEventListener('mouseleave', handleEnd);
+
+    // Listen for mouseup on document so drawing continues if mouse leaves and returns
+    this._handleDocumentMouseUp = handleEnd;
+    document.addEventListener('mouseup', handleEnd);
 
     // Touch events - attach to grid div
     this.grid.addEventListener('touchstart', handleStart, { passive: false });
@@ -2367,6 +2395,9 @@ class PixelEditor extends PixelGridBase {
 
     window.removeEventListener('resize', this._handleWindowResize);
     window.removeEventListener('keydown', this._handleKeyDown);
+    if (this._handleDocumentMouseUp) {
+      document.removeEventListener('mouseup', this._handleDocumentMouseUp);
+    }
     if (this._resizeDebounce) {
       clearTimeout(this._resizeDebounce);
     }
