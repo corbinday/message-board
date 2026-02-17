@@ -22,7 +22,7 @@
   </div>
   <div class="flex gap-3">
     <a href="{{ url_for('user.account_settings') }}"
-      class="font-['Press_Start_2P'] text-[10px] bg-slate-800 border-2 border-slate-700 p-3 text-white hover:bg-pico-blue hover:text-black hover:border-pico-blue transition-all w-fit">⚙️
+      class="font-['Press_Start_2P'] text-[7px] sm:text-[10px] bg-slate-800 border-2 border-slate-700 p-2 sm:p-3 text-white hover:bg-pico-blue hover:text-black hover:border-pico-blue transition-all w-fit">⚙️
       Settings</a>
   </div>
 </header>
@@ -328,6 +328,13 @@
             class="flex-1 font-['Press_Start_2P'] text-[8px] bg-slate-800 border border-slate-700 p-2 text-white hover:bg-pico-green hover:text-black transition-all rounded"
             title="Download PNG">
             {% include 'icon/download.html' %}
+          </button>
+          <button hx-delete="{{ url_for('app.delete_message', message_id=message.id) }}"
+            hx-target="closest [data-pixel-card]" hx-swap="outerHTML"
+            hx-confirm="Delete this message? The sender's original artwork will not be affected."
+            class="flex-1 font-['Press_Start_2P'] text-[8px] bg-slate-800 border border-slate-700 p-2 text-white hover:bg-pico-red hover:text-black hover:border-pico-red transition-all rounded"
+            title="Delete Message">
+            Delete
           </button>
         </div>
       </div>

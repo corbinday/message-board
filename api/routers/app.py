@@ -89,17 +89,27 @@ async def home(request: Request, client: AuthenticatedClient):
 
 
 @router.get("/messages", response_class=HTMLResponse, name="app.messages_list")
-async def messages_list(request: Request, client: AuthenticatedClient):
+async def messages_list(
+    request: Request,
+    client: AuthenticatedClient,
+    offset: int = Query(0),
+    limit: int = Query(20),
+):
     templates = get_templates(request)
-    user = await q.selectGlobalUser(client)
     messages = []
     try:
-        if user and hasattr(q, "selectUserMessages"):
-            messages = await q.selectUserMessages(client)
+        messages = await q.selectUserMessages(client, offset=offset, limit=limit)
     except Exception as e:
         logger.error(f"Error loading messages: {e}")
 
-    context = get_context(request, messages=messages or [])
+    # For htmx requests, return only the message cards partial
+    if request.headers.get("HX-Request"):
+        context = get_context(
+            request, messages=messages or [], offset=offset, limit=limit
+        )
+        return templates.TemplateResponse("app/messages/_message_cards.html", context)
+
+    context = get_context(request, messages=messages or [], offset=offset, limit=limit)
     return templates.TemplateResponse("app/messages/list.html", context)
 
 
@@ -861,7 +871,7 @@ async def delete_draft_route(
 ):
     """Delete a draft by ID."""
     try:
-        await q.deleteDraft(client, draft_id=draft_id)
+        await q.deleteDraft(client, draft_id=UUID(draft_id))
 
         # Always redirect to dashboard using HX-Location
         response = Response(content="", status_code=200)

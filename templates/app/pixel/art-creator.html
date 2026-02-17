@@ -49,11 +49,14 @@
         disabled>
         Finish & Save
       </button>
+      {% if draft_id %}
       <button type="button" hx-delete="{{ url_for('app.delete_draft_route', draft_id=draft_id) }}"
+        hx-swap="none"
         hx-confirm="Delete this draft? This cannot be undone."
         class="font-['Press_Start_2P'] text-[10px] bg-slate-800 border-2 border-red-900/40 px-6 py-3 text-red-200 hover:bg-red-900/40 hover:border-red-500 transition-all">
         Delete Draft
       </button>
+      {% endif %}
     </div>
   </section>
 </div>
