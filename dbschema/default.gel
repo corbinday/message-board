@@ -33,8 +33,16 @@ module default {
 
     type DraftGraphic extending PixelGraphic {
 
-        required frames: int16 { default := 1 };
-        required frame_delay_ms: int16 { default := 100 };
+        required frames: int16 {
+            default := 1;
+            constraint min_value(1);
+            constraint max_value(96);
+        };
+        required fps: int16 {
+            default := 10;
+            constraint min_value(1);
+            constraint max_value(24);
+        };
         active_board: Board;
     }
 
@@ -49,12 +57,12 @@ module default {
     type PixelAnimation extending PixelGraphic {
         required frames: int16 {
             constraint min_value(2);
-            constraint max_value(24);
+            constraint max_value(96);
         }
-        required frame_delay_ms: int16 {
-            default := 100;
-            constraint min_value(10);
-            constraint max_value(2000);
+        required fps: int16 {
+            default := 10;
+            constraint min_value(1);
+            constraint max_value(24);
         }
     }
 

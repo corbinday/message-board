@@ -28,7 +28,7 @@
       <pixel-animation src="{{ url_for('app.serve_graphic', graphic_id=message.graphic.id) }}"
         frame-width="{{ 16 if message.graphic.size.value == 'Stellar' else (53 if message.graphic.size.value == 'Galactic' else 32) }}"
         frame-height="{{ 16 if message.graphic.size.value == 'Stellar' else (11 if message.graphic.size.value == 'Galactic' else 32) }}"
-        class="max-w-full h-auto" speed="{{ message.graphic.frame_delay_ms }}"></pixel-animation>
+        class="max-w-full h-auto" speed="{{ (1000 / message.graphic.fps)|int }}"></pixel-animation>
       {% else %}
       <pixel-art src="{{ url_for('app.serve_graphic', graphic_id=message.graphic.id) }}"
         class="max-w-full h-auto"></pixel-art>

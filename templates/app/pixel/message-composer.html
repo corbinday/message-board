@@ -78,12 +78,12 @@
         hx-post="{{ url_for('app.save_draft') }}"
         hx-trigger="editor-changed from:body"
         hx-swap="none"
-        hx-include="#draft-data,#draft-frames,#draft-delay,#draft-size,#draft-id,#board-id"
+        hx-include="#draft-data,#draft-frames,#draft-fps,#draft-size,#draft-id,#board-id"
         class="hidden">
       </div>
       <input type="hidden" id="draft-data" name="pixel_data" />
       <input type="hidden" id="draft-frames" name="frames" value="1" />
-      <input type="hidden" id="draft-delay" name="frame_delay_ms" value="100" />
+      <input type="hidden" id="draft-fps" name="fps" value="10" />
       <input type="hidden" id="draft-size" name="size" value="Galactic" />
       <input type="hidden" id="draft-id" name="draft_id" value="" />
       <input type="hidden" id="recipient-id" name="recipient_id" />
@@ -217,7 +217,7 @@ document.addEventListener('DOMContentLoaded', function() {
   const editor = document.getElementById('pixel-editor-instance');
   const draftData = document.getElementById('draft-data');
   const draftFrames = document.getElementById('draft-frames');
-  const draftDelay = document.getElementById('draft-delay');
+  const draftFps = document.getElementById('draft-fps');
   const draftSize = document.getElementById('draft-size');
   const autosaveStatus = document.getElementById('autosave-status');
 
@@ -228,12 +228,12 @@ document.addEventListener('DOMContentLoaded', function() {
     const editor = e.target;
     if (editor.tagName !== 'PIXEL-EDITOR') return;
 
-    const { hasContent, frameCount, frameDelay } = e.detail;
+    const { hasContent, frameCount, fps } = e.detail;
     lastHasContent = hasContent;
 
     // Update hidden form data
     draftFrames.value = frameCount;
-    draftDelay.value = frameDelay || 100;
+    draftFps.value = fps || 10;
 
     // Get the image data as base64
     try {

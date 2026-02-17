@@ -29,11 +29,11 @@
 
     <!-- Auto-save listener (invisible) -->
     <div id="autosave-trigger" hx-post="{{ url_for('app.save_draft') }}" hx-trigger="editor-changed from:body"
-      hx-swap="none" hx-include="#draft-data, #draft-frames, #draft-delay, #draft-size, #draft-id" class="hidden">
+      hx-swap="none" hx-include="#draft-data, #draft-frames, #draft-fps, #draft-size, #draft-id" class="hidden">
     </div>
     <input type="hidden" id="draft-data" name="pixel_data" />
     <input type="hidden" id="draft-frames" name="frames" value="1" />
-    <input type="hidden" id="draft-delay" name="frame_delay_ms" value="{{ frame_delay|default(100) }}" />
+    <input type="hidden" id="draft-fps" name="fps" value="{{ fps|default(10) }}" />
     <!-- Initialize draft-size with the value passed from backend or default to Cosmic/Galactic based on width -->
     <input type="hidden" id="draft-size" name="size" value="{{ draft_size|default('Cosmic') }}" />
     <input type="hidden" id="draft-id" name="draft_id" value="{{ draft_id or '' }}" />
@@ -66,7 +66,7 @@
     const editor = document.getElementById('pixel-editor-instance');
     const draftData = document.getElementById('draft-data');
     const draftFrames = document.getElementById('draft-frames');
-    const draftDelay = document.getElementById('draft-delay');
+    const draftFps = document.getElementById('draft-fps');
     const draftSize = document.getElementById('draft-size');
     const finishBtn = document.getElementById('finish-btn');
     const saveStatus = document.getElementById('save-status');
@@ -79,11 +79,11 @@
       const editor = e.target;
       if (editor.tagName !== 'PIXEL-EDITOR') return;
 
-      const { hasContent, frameCount, frameDelay } = e.detail;
+      const { hasContent, frameCount, fps } = e.detail;
 
       // Update hidden form data
       if (draftFrames) draftFrames.value = frameCount;
-      if (draftDelay) draftDelay.value = frameDelay || 100;
+      if (draftFps) draftFps.value = fps || 10;
 
       // Get the image data as base64
       try {
@@ -161,7 +161,7 @@
           hasContent: hasContent,
           frameCount: frameCount,
           currentFrame: typeof editor.getCurrentFrame === 'function' ? editor.getCurrentFrame() : 0,
-          frameDelay: typeof editor.getFrameDelay === 'function' ? editor.getFrameDelay() : 100
+          fps: typeof editor.getFps === 'function' ? editor.getFps() : 10
         };
 
         // Manually trigger the handler logic

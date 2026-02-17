@@ -7,7 +7,7 @@ select DraftGraphic {
   id,
   binary,
   frames,
-  frame_delay_ms,
+  fps,
   size,
   created_at,
   updated_at,

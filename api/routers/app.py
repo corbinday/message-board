@@ -583,7 +583,7 @@ async def art_create(
                     editor_height = 11
                 # Cosmic is default 32x32
 
-                frame_delay = draft.frame_delay_ms
+                draft_fps = draft.fps
         except Exception as e:
             logger.error(f"Error loading draft {draft_id}: {e}")
             pass
@@ -596,7 +596,7 @@ async def art_create(
         editor_height=editor_height,
         # Pass the draft size string explicitly so the template can select the right button
         draft_size=size_str if "size_str" in locals() else "Cosmic",
-        frame_delay=frame_delay if "frame_delay" in locals() else 100,
+        fps=draft_fps if "draft_fps" in locals() else 10,
     )
     return templates.TemplateResponse("app/pixel/art-creator.html", context)
 
@@ -630,7 +630,8 @@ async def save_draft(
     client: AuthenticatedClient,
     pixel_data: str = Form(None),
     frames: str = Form("1"),
-    frame_delay_ms: str = Form("100"),
+    fps: str = Form(None),
+    frame_delay_ms: str = Form(None),  # backward compat: accept old key during transition
     size: str = Form("Galactic"),
     board_id: str = Form(None),
     draft_id: str = Form(None),
@@ -647,12 +648,20 @@ async def save_draft(
         if not image_data.startswith(b"\x89PNG\r\n\x1a\n"):
             return JSONResponse({"error": "Invalid PNG format"}, status_code=400)
 
-        # Parse frame count and delay
+        # Parse frame count and fps
         frame_count = int(frames)
-        delay_ms = int(frame_delay_ms)
 
-        # Clamp delay to valid range (10-2000ms per schema)
-        delay_ms = max(10, min(2000, delay_ms))
+        # Resolve fps: prefer new fps param, fall back to converting old delay
+        if fps is not None:
+            fps_val = int(fps)
+        elif frame_delay_ms is not None:
+            delay_ms = int(frame_delay_ms)
+            fps_val = max(1, min(24, round(1000 / delay_ms))) if delay_ms > 0 else 10
+        else:
+            fps_val = 10
+
+        # Clamp fps to valid range (1-24)
+        fps_val = max(1, min(24, fps_val))
 
         # Map size string to BoardType enum
         size_map = {"Stellar": "Stellar", "Galactic": "Galactic", "Cosmic": "Cosmic"}
@@ -663,7 +672,7 @@ async def save_draft(
             client,
             data=image_data,
             frames=frame_count,
-            frame_delay_ms=delay_ms,
+            fps=fps_val,
             size=BoardType(board_type),
             board_id=board_id if board_id else None,
             draft_id=UUID(draft_id) if draft_id else None,
@@ -819,7 +828,7 @@ async def send_message(
                         "width": width,
                         "height": height,
                         "frames": draft.frames,
-                        "fps": round(1000 / draft.frame_delay_ms) if draft.frame_delay_ms > 0 else 10,
+                        "fps": draft.fps,
                     })
                     logger.info(f"Ably command published for message {message_result.id}")
             except Exception as ably_err:
@@ -1003,7 +1012,7 @@ async def space_pack(
     if msg:
         graphic_binary = msg.graphic_binary
         frames = msg.graphic_frames
-        frame_delay_ms = msg.graphic_frame_delay_ms
+        fps = msg.graphic_fps
         sender = msg.sender_username or "Unknown"
     else:
         # Fall back to PixelGraphic lookup (for artwork synced at boot)
@@ -1015,7 +1024,7 @@ async def space_pack(
                   binary,
                   size,
                   frames := [is PixelAnimation].frames ?? <int16>1,
-                  frame_delay_ms := [is PixelAnimation].frame_delay_ms ?? <int16>100,
+                  fps := [is PixelAnimation].fps ?? <int16>10,
                   creator_name := .creator.username ?? "Unknown"
                 }
                 filter .id = <uuid>$graphic_id
@@ -1032,12 +1041,11 @@ async def space_pack(
 
         graphic_binary = graphic_row.binary
         frames = graphic_row.frames
-        frame_delay_ms = graphic_row.frame_delay_ms
+        fps = graphic_row.fps
         sender = graphic_row.creator_name
 
     # Build SP binary
     # Metadata JSON
-    fps = round(1000 / frame_delay_ms) if frame_delay_ms > 0 else 10
     meta = json.dumps({
         "sender": sender,
         "fps": fps,
@@ -1129,13 +1137,12 @@ async def board_sync(
     board_width, board_height = size_map.get(board_size, (32, 32))
 
     def _to_item(row, width, height):
-        fps = round(1000 / row.frame_delay_ms) if row.frame_delay_ms > 0 else 10
         return {
             "messageId": str(row.id),
             "width": width,
             "height": height,
             "frames": row.frames,
-            "fps": fps,
+            "fps": row.fps,
         }
 
     # 1. Owner's own artwork (StaticImage + PixelAnimation, excluding drafts/avatars)
@@ -1147,7 +1154,7 @@ async def board_sync(
               size,
               created_at,
               frames := [is PixelAnimation].frames ?? <int16>1,
-              frame_delay_ms := [is PixelAnimation].frame_delay_ms ?? <int16>100,
+              fps := [is PixelAnimation].fps ?? <int16>10,
             }
             filter .creator.id = <uuid>$owner_id
                and .size = <BoardType>$board_size
@@ -1172,7 +1179,7 @@ async def board_sync(
               graphic: {
                 size,
                 frames := [is PixelAnimation].frames ?? <int16>1,
-                frame_delay_ms := [is PixelAnimation].frame_delay_ms ?? <int16>100
+                fps := [is PixelAnimation].fps ?? <int16>10
               }
             }
             filter .recipient.id = <uuid>$owner_id
@@ -1190,13 +1197,12 @@ async def board_sync(
     art_list = [_to_item(g, board_width, board_height) for g in graphics]
     inbox_list = []
     for m in messages:
-        fps = round(1000 / m.graphic.frame_delay_ms) if m.graphic.frame_delay_ms > 0 else 10
         inbox_list.append({
             "messageId": str(m.id),
             "width": board_width,
             "height": board_height,
             "frames": m.graphic.frames,
-            "fps": fps,
+            "fps": m.graphic.fps,
         })
 
     return JSONResponse({"art": art_list, "inbox": inbox_list})

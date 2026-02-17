@@ -12,7 +12,7 @@ select Message {
     id,
     size,
     frames := [is PixelAnimation].frames ?? <int16>1,
-    frame_delay_ms := [is PixelAnimation].frame_delay_ms ?? <int16>100
+    fps := [is PixelAnimation].fps ?? <int16>10
   }
 }
 filter .recipient = user

@@ -373,8 +373,8 @@ class PixelEditor extends PixelGridBase {
     this.frames = []; // Array of ImageData objects
     this.currentFrameIndex = 0;
     this.allowAnimation = false;
-    this.maxFrames = 24;
-    this.frameDelay = 100; // Default frame delay in ms
+    this.maxFrames = 96;
+    this.fps = 10; // Default fps (1-24)
 
     // Change tracking
     this._dirty = false;
@@ -542,7 +542,7 @@ class PixelEditor extends PixelGridBase {
 
     // Parse new configuration attributes
     this.allowAnimation = this.hasAttribute('allow-animation');
-    this.maxFrames = parseInt(this.getAttribute('max-frames'), 10) || 24;
+    this.maxFrames = parseInt(this.getAttribute('max-frames'), 10) || 96;
     this._emitChanges = this.hasAttribute('emit-changes');
     this._debounceMs = parseInt(this.getAttribute('debounce-ms'), 10) || 500;
 
@@ -1637,7 +1637,7 @@ class PixelEditor extends PixelGridBase {
             hasContent: this.hasContent(),
             frameCount: this.allowAnimation ? this.frames.length : 1,
             currentFrame: this.currentFrameIndex,
-            frameDelay: this.frameDelay,
+            fps: this.fps,
           },
         }),
       );
@@ -2131,8 +2131,8 @@ class PixelEditor extends PixelGridBase {
     const deleteFrameBtn = this.querySelector(
       '[data-editor-action="delete-frame"]',
     );
-    const delayInput = this.querySelector(
-      '[data-editor-control="frame-delay"]',
+    const fpsInput = this.querySelector(
+      '[data-editor-control="fps"]',
     );
 
     if (addFrameBtn) {
@@ -2176,16 +2176,16 @@ class PixelEditor extends PixelGridBase {
       });
     }
 
-    if (delayInput) {
+    if (fpsInput) {
       // Initialize with current value
-      this.frameDelay = parseInt(delayInput.value, 10) || 100;
+      this.fps = parseInt(fpsInput.value, 10) || 10;
 
-      delayInput.addEventListener('change', (e) => {
+      fpsInput.addEventListener('change', (e) => {
         let value = parseInt(e.target.value, 10);
-        // Clamp to valid range (100-2000ms)
-        value = Math.max(100, Math.min(2000, value));
+        // Clamp to valid range (1-24 fps)
+        value = Math.max(1, Math.min(24, value));
         e.target.value = value;
-        this.frameDelay = value;
+        this.fps = value;
         this._markDirty();
       });
     }
@@ -2320,11 +2320,11 @@ class PixelEditor extends PixelGridBase {
   }
 
   /**
-   * Get the current frame delay in ms
+   * Get the current fps value
    * @returns {number}
    */
-  getFrameDelay() {
-    return this.frameDelay || 100;
+  getFps() {
+    return this.fps || 10;
   }
 
   /**

@@ -12,7 +12,7 @@ with
     insert PixelAnimation {
       binary := source.binary,
       frames := source[is PixelAnimation].frames ?? <int16>1,
-      frame_delay_ms := source[is PixelAnimation].frame_delay_ms ?? <int16>100,
+      fps := source[is PixelAnimation].fps ?? <int16>10,
       size := source.size,
       creator := user
     }

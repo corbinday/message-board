@@ -1,42 +1,218 @@
-I completely scrapped all the junk other models generated. Let's take this slower and more thoughtfully. I want to design a black box pixel-editor element. In needs to have some 
+## Browser-Based Board Flashing — Implementation Plan
 
-Is there a way with htmx to run js to get the payload for an hx-post? I want to call the pixel-editor api to grab the binary data via htmx so that my submit and save buttons can live outside of the editor.
+### How It Works
 
-Now that the editor is working well, I need to make sure that it has an API so that I can insert it into different contexts well. I have three scenarios in mind where I would use it: 
- 1. The first is for creating the user's avatar. The pixel editor would be 16x16 and it would not allow for adding frames. Avatars are static.
- 2. The second scenario is sending a message. The user would be able to do either a static animation or an animation. The editor would be generated based on the board of the friend to whom the user wants to send a message. So the friend needs to be selected first, and then the friend's boards from the available options. Then, a pixel editor element with the height and width of the friend's board needs to be created. In this scenario, animations would be allowed.
- 3. The third scenario is where the user just makes art. They would select from any size they wish, however, if they want to enable live preview where the art they are working on is sent in near real time (facilitate by ably) to a board they own, they have to pick a size that matches a board they own. So in this scenario, the logic outside of the editor would check to see if the user has a board that works for live preview and then offer it/them as an option for live preview. Then, it would listen to events emitted to the editor for data changed (similar to autosave) and then send a message through ably which the user's board would be subscribed to so it could pull the new image/animation data.
+The Web Serial API lets the browser open a serial connection to the Pico's MicroPython REPL. To write a file, the browser enters **raw REPL mode** (sends `\x01`), then executes Python code like `f = open('main.py', 'wb'); f.write(b'...'); f.close()`. To wipe the board first, it runs `os.listdir()` and `os.remove()` recursively. No drivers, no native app — just JavaScript talking to the REPL over USB.
 
+### New Files
 
-Let's fix the PNG upload button. It doesn't do anything after you select a file to upload. What I would like it to do is ask the user if they want to replace just the current frame or the entire project (but only ask if the editor/draft has data) and then let them edit the upload there in the editor before "finishing". If it's blank, just load the PNG. It will need to make sure that the dimensions match up with the board size. Also, I want it to try to detect whether the user is trying to import a spritesheet where the PNG is really tall or really short but matches one of the dimensions. That way the user could import an animation they created somewhere else and then modify it. I think this means we will want button to reverse frame order. Also, let's make it so the user can drag and drop frames to change the order as well. Also, the UI still let's me set the delay to less than 100ms. Let's make sure to put a cap on that. Go into planning mode before you implement this stuff so you don't miss anything.
+**`static/js/flasher.js`** — The Web Serial flashing engine. Handles:
+- Browser compatibility detection (`navigator.serial` exists = Chromium)
+- Serial port connection (`navigator.serial.requestPort()`, open at 115200 baud)
+- Raw REPL protocol: send `\x01` to enter raw mode, `\x04` to execute, read `OK` acknowledgment
+- Raw paste mode for faster transfers (`\x05A\x01`, check for `R\x01` response)
+- `wipeBoard()` — enters raw REPL, runs Python to recursively delete all files and directories (except the MicroPython internals), so `os.listdir('/')` → remove each file, recurse into subdirectories, `os.rmdir()` empty dirs
+- `writeFile(path, content)` — enters raw REPL, sends Python to open/write/close a file. For binary content, base64-encodes the data in JS and sends `import binascii; f = open(path, 'wb'); f.write(binascii.a2b_base64('...')); f.close()`. Text files (`.py`) can be written directly with proper escaping
+- `reboot()` — sends `\x04` (Ctrl-D) in normal REPL mode to trigger a soft reset
+- Progress callback support so the UI can update a progress bar
+- Chunked writes for large files (the raw paste flow control window is 256 bytes, so content is sent in chunks with flow control)
 
+**`templates/app/board/flash_ui.html`** — A new partial template rendered inside `#setup-area` alongside (or replacing) the existing key-details content. Contains:
+- Chromium detection banner: if `navigator.serial` is undefined, show a warning: "USB flashing requires Chrome, Edge, or another Chromium-based browser. You can still download secrets.py manually below."
+- "Connect Board via USB" button — calls `navigator.serial.requestPort()`, shows the browser's port picker
+- Once connected: progress UI showing steps (Connecting → Wiping board → Writing files → Rebooting)
+- Status text and progress bar for each file being written
+- Success/error state at the end
 
-Let's enter planning mode and solve the following issues:
-* In-line styling: I am getting errors in the browser because the pixel editor is still trying to use in-line styling when it swaps out the grid when a user clicks one of the size buttons on /app/art/create. Let's do an audit again of all in-line styling and switch to TailwindCSS (preferred) or styles in style.css if tailwind won't work. While you are at it, let's audit the style.css file to see where we can leverage tailwind as well following a pattern like this: 
-```css
-.myclass {
-  @apply bg-white;
+### Modified Files
+
+**`templates/app/board/key-details.html`** — Add the flash UI below the existing "Download secrets.py" button. The flow becomes:
+1. User generates access key (existing flow, unchanged)
+2. User enters WiFi credentials (existing flow, unchanged)
+3. User chooses: **"Flash to Board via USB"** (new, primary action) or **"Download secrets.py"** (existing, secondary/fallback)
+4. If they click Flash, the JS reads `secret_key`, `wifi_ssid`, `wifi_password` from the form inputs already on the page, generates `secrets.py` content client-side using the same template structure as `secrets.py.j2`, then runs the full wipe → write → reboot cycle
+
+**`templates/app/board/details.html`** — Add `{% block extra_scripts %}` override to include `flasher.js` with the nonce. Also add Chromium detection: a small inline script (with nonce) that checks `navigator.serial` and toggles a CSS class or data attribute on the body, so the template can conditionally show/hide the USB flash option.
+
+**`api/routers/app.py`** — Add a new endpoint `GET /api/spaceos/files` that returns a JSON manifest of all the OS files and their contents. The flasher JS calls this to get the current versions of all files to write. Response shape:
+```json
+{
+  "files": [
+    {"path": "main.py", "content": "..."},
+    {"path": "app.py", "content": "..."},
+    {"path": "config.py", "content": "..."},
+    ...
+  ]
 }
 ```
-I want to use as much tailwindcss as possible.
+This endpoint reads from the `space-os/` directory on the server, excluding `secrets.py` (which is generated client-side from form values). This keeps the source of truth in version control — same files the OTA system will serve.
 
-* PNG upload button issues: I am getting errors in the browser that PNG upload fails. My testing scenario was to try to load img/check.png into the 16x16 editor. This was the error: 
-  ```
-  create:1 Loading the image 'blob:http://localhost:3000/29571f1e-6bb0-4cff-8337-cb9c9611f9ce' violates the following Content Security Policy directive: "img-src 'self' https://gj6vlq8nqjtpg33c.public.blob.vercel-storage.com/". The action has been blocked.
-  ```
-* "Finish and Save" button: The Finish and Save button does not work. I have discovered two errors. The first is when you first load the editor page. I get a 500 error with this log:
+**`templates/auth/secrets.py.j2`** — Remove `board_type`, `board_width`, and `board_height` from the template. With self-detection, the board derives its type and dimensions from hardware at runtime. The generated `secrets.py` is reduced to pure identity and connectivity:
+```python
+secrets = {
+    "ssid": "{{ ssid }}",
+    "password": "{{ password }}",
+    "pmb_secret_key": "{{ secret_key }}",
+    "api_url": "{{ api_url }}",
+    "board_id": "{{ board_id }}",
+    "user_id": "{{ user_id }}",
+}
 ```
-ERROR in app: Error finishing draft: cannot reference correlated set 'draft.frames' here
-   ┌─ query:19:16
-   │ 
-19 │             ) if draft.frames > 1 else (
-   │                  ^^^^^^^^^^^^ error
+
+**`api/routers/app.py` (`download_config`)** — Remove the `size_map` lookup and `board_type`/`board_width`/`board_height` from the template context, since `secrets.py` no longer includes them.
+
+### The Full User Flow
+
+1. User creates a board on the web UI (existing: picks Stellar/Galactic/Cosmic)
+2. User clicks "Generate Access Key" on the board details page (existing)
+3. User enters WiFi SSID and password (existing form)
+4. **New:** If on a Chromium browser, a "Flash to Board via USB" button appears as the primary action
+5. User plugs in their Pico via USB and clicks the button
+6. Browser shows the serial port picker — user selects their Pico
+7. JS connects, wipes the board's filesystem clean
+8. JS fetches all OS files from `/api/spaceos/files`
+9. JS generates `secrets.py` client-side from the form values (secret key, WiFi credentials, board ID, API URL, user ID)
+10. JS writes each file to the Pico via raw REPL, updating the progress bar
+11. JS sends a soft reboot command
+12. Board boots into SpaceOS, self-detects its hardware type and dimensions, connects to WiFi, registers with the server
+13. UI shows success — board status indicator should flip to online within seconds
+
+**Non-Chromium fallback:** The existing "Download secrets.py" button remains. Users on Firefox/Safari download the file and manually copy all OS files to the board via Thonny or mpremote — the current workflow.
+
+### Prerequisite the User Must Handle
+
+MicroPython firmware must already be installed on the Pico. This is a one-time drag-and-drop of a `.uf2` file (hold BOOTSEL → plug in → copy file to the USB drive that appears). The browser can't do this step — UF2 uses USB mass storage, which the Web Serial API can't access. But it's a 30-second process with clear instructions that can be documented on the page with a download link to the correct Pimoroni MicroPython `.uf2`.
+
+### Considerations
+
+- **CSP compliance:** `flasher.js` loaded as an external script via `{% block extra_scripts %}` with `nonce="{{ nonce }}"`. No inline script needed beyond the Chromium detection one-liner.
+- **The `/api/spaceos/files` endpoint** should be authenticated (require the user to be logged in) so OS source code isn't publicly exposed. It can reuse the existing session auth.
+- **Error handling:** If the serial connection drops mid-write, the board will have partial files. On next USB flash attempt, the wipe step clears everything first. If the user just reboots the board without re-flashing, it'll likely crash — but that's expected for an interrupted flash. The OTA `.updating` flag doesn't apply here since this is initial provisioning, not an OTA update.
+
+
+## SpaceOS OTA Update Plan
+
+**Source of truth:** The `space-os/` directory in version control. No upload endpoint, no database state. Commit and redeploy = new release.
+
+**Versioning:** SHA-256 hash of the update bundle, computed by the server at startup. No semantic versioning to manually bump. The board stores the hash of its last successful update in an `os_hash` file.
+
+**Signing workflow:** The Ed25519 private key is stored in your password manager and never leaves your machine. When you're ready to release, you run a local signing script that bundles the updatable `space-os/` files, signs the bundle, and outputs a signed artifact (e.g., `spaceos-update.bin`). This signed artifact is committed to the repo. The server reads and serves it as-is at startup — no signing logic on the server, no access to the private key. The server's only job is to compute the SHA-256 hash of the pre-signed bundle for the version check endpoint.
+
+**Boot sequence:**
+
+MicroPython runs `main.py` on startup — this is the only entry point. `main.py` is immutable and acts as the bootstrapper:
+
+1. Check: does `.updating` flag exist on flash?
+   - Yes → previous update was interrupted. Clean up any `.new` partial files, retry the full update from scratch.
+   - No → continue.
+2. Connect to WiFi.
+3. `GET /api/spaceos/check?hash=<os_hash>` to check for updates.
+   - `204` → up to date, continue to step 4.
+   - `200` → bundle received. Verify Ed25519 signature, write `.updating` flag, write new files with `.new` suffix, remove old files, rename `.new` → original, write new hash to `os_hash`, remove `.updating` flag, call `machine.reset()`.
+4. `import app; app.run()` — hands off to the updatable OS entry point.
+
+Everything that currently lives in `main.py` — hardware init, boot sync, Ably connection, the main loop — moves to `app.py`, which is OTA-updatable. `main.py` stays frozen and only knows how to: connect WiFi, make one HTTP request, verify a signature, write files, and hand off to `app`.
+
+**Update notification — two paths:**
+
+1. **Boards that are online:** All boards subscribe to a global `spaceos:system` Ably channel. When the server starts up (i.e., after a redeploy), it publishes `{"type": "os_update"}` to this channel. Boards that receive it immediately begin the update process.
+2. **Boards that are offline:** They miss the Ably message. On boot, `main.py` checks for updates via HTTP before handing off to `app.py`. This catches any updates that went live while the board was off.
+
+In both cases, the board hits `GET /api/spaceos/check?hash=<current_hash>`. Server compares against its cached hash — returns `204` if current, or `200` with the signed bundle if stale. Updates are mandatory and take priority over normal operation.
+
+**Security:** Ed25519 code signing. The keypair is generated offline. The private key stays in your password manager and is only used by the local signing script. The public key is embedded in `update_key.py` on each board, which is immutable and never included in updates. The server never has access to the private key — it only serves the pre-signed bundle. Even if the server or Railway account is compromised, an attacker cannot forge a signed update.
+
+**Update bundle:** Single signed archive of all updatable files, built and signed locally from the `space-os/` directory. The signed artifact is committed to the repo and served by the server. Excluded from the bundle: `main.py`, `update_key.py`, `secrets.py`, and `os_hash`.
+
+**Safe write process using `.updating` flag:**
+
+The `.updating` file is written to the board's local filesystem (flash storage, same location as the OS files). `main.py` manages both writing and reading it. The flow:
+
+1. `main.py` writes `.updating` flag to flash
+2. Downloads the bundle and verifies the Ed25519 signature
+3. Writes each new file with a `.new` suffix (e.g., `app.py.new`, `player.py.new`)
+4. Removes the old files, renames `.new` → original
+5. Writes the new hash to `os_hash`
+6. Removes `.updating` flag
+7. Calls `machine.reset()`
+
+The flag matters on the *next boot*. `main.py` checks first thing: does `.updating` exist? If yes, the last update was interrupted (power loss, crash, corrupt download). It cleans up any `.new` partial files and retries the full update from scratch. If no `.updating` file exists, boot continues normally.
+
+The board can only get stuck if `main.py` itself is corrupt — which can't happen because it's excluded from OTA updates.
+
+**Rollback:** Revert the commit and redeploy. Next time boards check in (on boot or via the Ably notification on the new deployment), the hash won't match and they'll pull the reverted version.
+
+**Board self-detection:**
+
+`app.py` detects the board type at startup by trying each Pimoroni module import in sequence, catching `ImportError` to find the correct one — only the matching module exists on each board's firmware:
+
+```python
+try:
+    from cosmic import CosmicUnicorn
+    ...
+except ImportError:
+    try:
+        from galactic import GalacticUnicorn
+        ...
+    except ImportError:
+        from stellar import StellarUnicorn
+        ...
 ```
-The second error is that the button is entirely grayed out sometimes and the cursor is the blocked/error cursor. I haven't been able to pinpoint when it becomes grayed out.
-* Another issue is that the frame delay ms rate doesn't seem to be saving to the database when I change it. That should trigger an autosave as well, with at least 500ms of debouncing.
-* Another issue is that the size in the database is not being saved properly. All my DraftGraphic data shows the board size as Galactic. 16x16 is Stellar, 32x32 is Cosmic, and 53x11 is Galactic. When the user updates what size of board they are drafting on, that needs to be reflected in the database as well. Let's make sure everything is synching properly to the database (board type, frame refresh rate, and frame count).
-* Let's add a sub-view to the app dashboard under "Your Art" where Drafts appear. In the draft editor itself, let's add an option to delete a draft and remove it fully from the database. Let's also add the delete option to art pieces as well.
 
+After initialization, dimensions are read directly from the hardware via `gfx.get_bounds()`, and the board type string is derived from the successful import. This eliminates `BOARD_TYPE`, `BOARD_WIDTH`, and `BOARD_HEIGHT` from both `config.py` and `secrets.py`. The detected values are stored as module-level globals and used everywhere that previously referenced `config.BOARD_WIDTH`/`config.BOARD_HEIGHT` — fallback dimensions in sync, render, and the dimension validation in `commands.py`. With self-detection, `config.py` is reduced to just `FIFO_CAP` and `DEFAULT_FPS`, which are the same across all board types and become part of the OTA-updatable codebase. `secrets.py` is reduced to pure identity and connectivity: WiFi credentials, API URL, board ID, and board secret key.
 
-I want to build out a few features, but it will take some careful planning. You are going to write the plan, and claude-code is going to implement it. I want to build the operating system for the pico boards. It will be called SpaceOS as a nod to the space unicorn boards I'm using for this project. The code will be written to a new top-level folder called space-os in the project root. However, you can look at this file if you need any guidance on old prototypes: @pico/message-board.py . The spec for the operating system is in @space-os-spec.md. So follow that. I also need you to add to the plan how the cilent UIs are going to subscribe to ably channels for status. Each user will have two channels, a status channel where the UI and any boards the user has will publish their presence. This way friends can see when their friends and boards are online and users can see when their boards are online. I view elements for boards to have a little status indicator that shows online for items online. This would be a green dot with the message "online". A gray dot with the message "offline" would indicate offline status. Friends are subscribers to the status channel of their friends. Any friend view in the UI will also have this status indicator and it will be based on the presence of the UI. So if I have an active and logged in web browser, then I am reporting a presence which a friend will see in their own active and logged in web browser session. Boards will report their activity as mentioned in the spec. The second ably channel that users have will be a commands channel where the server tells the boards and only the user's web UI whether they have just received a message. The server needs to publish enough information that boards of different sizes can discern whether a published message matches their board size or not. The actual message data is not transmitted over the ably channel, just the fact that there is a message. The command channel is private to only the user's resources. In the application dashboard, there is a space for recent logs. I would like ably messages to be collected there. Only the most recent ones, unless the user opts to view all logs, perhaps for monitoring or troubleshooting reasons. To persist the logs, they should be saved by the client to local storage. Add a feature for a user to clear that local storage. No logs will be collected in the database for this. In the dashboard log preview, only show the latest 10 logs and have it automatically refresh the view when new messages are logged. Keep a timestamp on each.
-Remember, any database queries should be written as edgeql queries, not inline queries in any of the .py files. Pay attention to the CSP I have set up and avoid inline scripts. Leverage HTMX and TailwindCSS design principles wherever possible. Keep the code clean.
+**Immutable files (never updated OTA):**
+- `main.py` — bootstrapper, WiFi connect, update check, signature verification, handoff to `app.py`
+- `update_key.py` — Ed25519 public key
+- `secrets.py` — WiFi credentials, board ID, API URL, board secret key
+- `os_hash` — written by the updater after successful update, not part of the bundle
+
+**Updatable files (everything else in `space-os/`):**
+- `app.py` — hardware init, boot sync, Ably connection, main loop (formerly `main.py`'s contents)
+- `player.py`, `space_pack.py`, `ably_mqtt.py`, `commands.py`, `storage.py`, `wifi.py`, `config.py`
+
+Now I have all the context I need. Here's your refined backlog:
+
+---
+
+# System Updates
+
+**Schema & Editor**
+
+- **Change `frame_delay_ms` to `fps` with a max of 24fps** — The pixel editor and DB schema currently use `frame_delay_ms` (10–2000ms range) to control animation speed. Replace this with an `fps` field (1–24) throughout the stack: the Gel schema (`PixelAnimation.frame_delay_ms` → `PixelAnimation.fps`), the `DraftGraphic` type, the pixel editor UI (`pixel.js` currently clamps delay with `Math.max(100, Math.min(2000, value))`), the space-pack binary builder, and the SpaceOS player. An FPS slider is more intuitive for users than millisecond delay.
+
+- **Raise frame limit to 150** — `PixelAnimation.frames` is currently constrained to `max_value(24)` in the schema and `this.maxFrames = 24` in `pixel.js`. Up this amount to 96 frames.
+
+- **Add the same constraints to `DraftGraphic` as on `PixelAnimation`** — `DraftGraphic` currently has `frames: int16 { default := 1 }` and `frame_delay_ms: int16 { default := 100 }` with no min/max constraints, while `PixelAnimation` enforces `frames` 2–24 and `frame_delay_ms` 10–2000. Add matching constraints to `DraftGraphic` so invalid values are caught at save time rather than when finishing a draft.
+
+**Web UI — Board Management**
+
+- **Remote board configuration and control from web UI** — The board details page (`templates/app/board/details.html`) currently shows hardware info, key provisioning, and a delete button. Extend it into a live control panel: display current board mode (art/inbox), toggle auto-rotate on/off, change display brightness, and push configuration changes to the board over Ably in real time. This turns the boards view into a remote control for each physical board.
+
+**SpaceOS — Connectivity**
+
+- **Support multiple WiFi networks** — `wifi.py` currently connects to a single SSID/password pair from `secrets.py` with 5 retries. Add a list of known networks in config, scan for available SSIDs at boot, and connect to the strongest known network. Also add a web UI settings page where users can manage their board's WiFi network list (add/remove networks, trigger a network scan, and test connectivity) — pushing updates via the board's sync endpoint or Ably.
+
+- **Retry WiFi connection from the main loop** — If WiFi fails at boot, SpaceOS currently runs in offline mode permanently. Add periodic reconnection attempts in the main loop (e.g. every 60s) so the board recovers from temporary network outages without a power cycle. On reconnection, re-acquire the Ably token and re-sync.
+
+**SpaceOS — Display & UX**
+
+- **Choose display mode (art/inbox) from web UI** — Currently the only way to switch between art and inbox is pressing the C button on the physical board. Allow setting the default display mode from the web UI board control panel, pushed to the board via Ably command.
+
+- **Toggle auto-rotate from web UI** — Auto-rotate is currently toggled only via the B button on the board. Expose this as a remote toggle on the web UI board control panel via Ably, and persist the preference so it survives reboots.
+
+- **SpaceOS startup animation** — There's currently no boot splash — the board goes straight from hardware init to WiFi connect with a blank display. Add a short branded startup animation (e.g. a SpaceOS logo or pixel warp effect) that plays during the boot sequence while WiFi connects and sync runs, giving visual feedback that the board is alive.
+
+- **SpaceOS settings mode** — Add an on-board settings mode (accessible via a button combo or long-press) that displays configurable options directly on the LED matrix: brightness level, current WiFi network, display mode, auto-rotate toggle, and board info (ID, firmware version). Navigate with the existing A/B/C/D buttons.
+
+**SpaceOS — Real-time Sync**
+
+- **Listen for Ably messages to sync both art and inbox** — `_process_commands()` currently saves all incoming Ably messages to `/inbox` only. When the user creates new art on the web UI, it should also push to the board's `/art` directory in real time. Add a command type field to Ably payloads (e.g. `"type": "message"` vs `"type": "art_sync"`) and route accordingly in the command handler.
+
+- **Remove old items as new ones arrive (FIFO over Ably)** — The FIFO cap (`config.FIFO_CAP = 20`) is enforced on disk when saving, but the board doesn't inform the web UI which items were evicted. When the board drops old items to make room, publish a status update over Ably so the web UI can reflect what's actually on the board. Also consider sending a "board inventory" on sync so the server knows the board's current state.
+
+**SpaceOS + Web UI — Live Edit**
+
+- **SpaceOS edit mode (live preview)** — Add a mode where the board acts as a live canvas, receiving pixel data frame-by-frame over Ably and rendering it immediately. This enables real-time preview while drawing in the pixel editor — the user sees their art on the physical board as they paint.
+
+- **Web UI edit mode (live preview)** — In the pixel editor, add a "Preview on Board" toggle that streams the current canvas state to a selected board over Ably whenever pixels change. Requires the board to be online and in edit/preview mode. Debounce updates to avoid flooding the MQTT connection (e.g. send at most 10 updates/second).

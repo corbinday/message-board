@@ -9,3 +9,5 @@ To add or modify queries:
 2. Run `npm run generate:queries` to regenerate `api/queries.py`
 
 The generation command runs: `uv run gel-py --target async --file api/queries.py`
+
+When needed, the developer will run this command for you in their dev environment.

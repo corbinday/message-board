@@ -169,11 +169,10 @@ Variables:
           Reverse
         </button>
         <div class="flex items-center gap-1 ml-auto">
-          <label class="font-['Press_Start_2P'] text-[8px] text-slate-400">Delay:</label>
-          <input type="number" data-editor-control="frame-delay" min="100" max="2000"
-            value="{{ frame_delay|default(100) }}"
+          <label class="font-['Press_Start_2P'] text-[8px] text-slate-400">FPS:</label>
+          <input type="number" data-editor-control="fps" min="1" max="24"
+            value="{{ fps|default(10) }}"
             class="w-16 bg-slate-800 border border-slate-700 p-1 text-white font-['Press_Start_2P'] text-[8px] focus:border-pico-blue focus:outline-none">
-          <span class="font-['Press_Start_2P'] text-[8px] text-slate-400">ms</span>
         </div>
       </div>
       <!-- Frame Thumbnails -->

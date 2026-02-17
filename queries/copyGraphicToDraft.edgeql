@@ -12,5 +12,5 @@ insert DraftGraphic {
   binary := source.binary,
   size := source.size,
   frames := source[is PixelAnimation].frames ?? 1,
-  frame_delay_ms := source[is PixelAnimation].frame_delay_ms ?? 100
+  fps := source[is PixelAnimation].fps ?? 10
 }

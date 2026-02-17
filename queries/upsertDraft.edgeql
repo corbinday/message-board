@@ -13,7 +13,7 @@ with
     set {
       binary := <bytes>$data,
       frames := <int16>$frames,
-      frame_delay_ms := <int16>$frame_delay_ms,
+      fps := <int16>$fps,
       size := <BoardType>$size,
       active_board := (select Board filter .id = <optional uuid>$board_id),
       updated_at := datetime_of_statement()
@@ -22,10 +22,10 @@ with
     insert DraftGraphic {
       binary := <bytes>$data,
       frames := <int16>$frames,
-      frame_delay_ms := <int16>$frame_delay_ms,
+      fps := <int16>$fps,
       size := <BoardType>$size,
       creator := user,
       active_board := (select Board filter .id = <optional uuid>$board_id)
     }
   )
-select upserted { id, frames, frame_delay_ms, updated_at }
+select upserted { id, frames, fps, updated_at }

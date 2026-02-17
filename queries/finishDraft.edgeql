@@ -16,7 +16,7 @@ with
     insert PixelAnimation {
       binary := draft.binary,
       frames := draft.frames,
-      frame_delay_ms := draft.frame_delay_ms,
+      fps := draft.fps,
       size := draft.size,
       creator := user
     }
