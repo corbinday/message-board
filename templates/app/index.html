@@ -307,12 +307,12 @@
           <div
             class="rounded-md bg-slate-900 p-2 border border-slate-700 shadow-xl overflow-hidden flex items-center justify-center">
             {% if message.graphic.frames > 1 %}
-            <pixel-animation src="{{ url_for('app.serve_graphic', graphic_id=message.graphic.id) }}"
+            <pixel-animation data-pixel-download-target src="{{ url_for('app.serve_graphic', graphic_id=message.graphic.id) }}"
               frame-width="{{ 16 if message.graphic.size.value == 'Stellar' else (53 if message.graphic.size.value == 'Galactic' else 32) }}"
               frame-height="{{ 16 if message.graphic.size.value == 'Stellar' else (11 if message.graphic.size.value == 'Galactic' else 32) }}"
               class="max-w-full h-auto" speed="{{ message.graphic.frame_delay_ms }}"></pixel-animation>
             {% else %}
-            <pixel-art src="{{ url_for('app.serve_graphic', graphic_id=message.graphic.id) }}"
+            <pixel-art data-pixel-download-target src="{{ url_for('app.serve_graphic', graphic_id=message.graphic.id) }}"
               class="max-w-full h-auto"></pixel-art>
             {% endif %}
           </div>

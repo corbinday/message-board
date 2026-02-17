@@ -2425,8 +2425,10 @@ document.addEventListener('click', (event) => {
   const card =
     button.closest('[data-pixel-card]') || button.closest('.group') || button;
 
+  // Prefer explicit target in mixed cards (e.g. avatar + artwork).
+  const explicitTarget = card.querySelector('[data-pixel-download-target]');
   const pixelElements = card.querySelectorAll('pixel-art, pixel-animation');
-  const pixelElement = pixelElements[pixelElements.length - 1];
+  const pixelElement = explicitTarget || pixelElements[pixelElements.length - 1];
   if (!pixelElement || typeof pixelElement.download !== 'function') return;
 
   const filename = button.getAttribute('data-download-filename') || 'pixel-art.png';
