@@ -2425,7 +2425,8 @@ document.addEventListener('click', (event) => {
   const card =
     button.closest('[data-pixel-card]') || button.closest('.group') || button;
 
-  const pixelElement = card.querySelector('pixel-art, pixel-animation');
+  const pixelElements = card.querySelectorAll('pixel-art, pixel-animation');
+  const pixelElement = pixelElements[pixelElements.length - 1];
   if (!pixelElement || typeof pixelElement.download !== 'function') return;
 
   const filename = button.getAttribute('data-download-filename') || 'pixel-art.png';
