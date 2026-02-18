@@ -7,6 +7,7 @@ __pycache__/
 .env
 .python-version
 gel.local.toml
+space-os/secrets.py
 
 # Node modules
 node_modules/
