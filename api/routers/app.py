@@ -477,14 +477,14 @@ async def update_board_settings(
     except Exception as e:
         logger.warning(f"Ably command publish failed (non-fatal): {e}")
 
-    # Return updated control panel HTML
+    # Return only the control panel fragment for HTMX outerHTML swap
     context = get_context(
         request,
         board=board,
         board_inventory=None,
         wifi_key_provisioned=bool(getattr(board, "wifi_encryption_key", None)),
     )
-    return templates.TemplateResponse("app/board/details.html", context)
+    return templates.TemplateResponse("app/board/_control_panel.html", context)
 
 
 @router.post(
@@ -1329,12 +1329,21 @@ async def space_pack(
     }).encode("utf-8")
 
     # Raw pixel data from PNG -> extract RGB888
-    # The graphic binary is stored as PNG, we need to decode it to raw RGB
+    # The graphic binary is stored as PNG, we need to decode it to raw RGB.
+    # Images may have alpha transparency. The web UI (pixel.js) renders using
+    # canvas getImageData() which returns pre-multiplied alpha — so semi-transparent
+    # pixels appear darker (blended against a black background). We must match
+    # that behavior here by compositing RGBA onto black before extracting RGB.
     from PIL import Image
     import io
 
     img = Image.open(io.BytesIO(graphic_binary))
-    img = img.convert("RGB")
+    if img.mode == "RGBA":
+        background = Image.new("RGB", img.size, (0, 0, 0))
+        background.paste(img, mask=img.split()[3])
+        img = background
+    else:
+        img = img.convert("RGB")
 
     # Animations are stored as HORIZONTAL spritesheets (frames side-by-side).
     # The board expects frames as sequential blocks of (frame_width * frame_height * 3) bytes.
