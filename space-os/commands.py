@@ -11,6 +11,7 @@ VALID_TYPES = {
     "set_auto_rotate",# Toggle auto-rotate
     "set_brightness", # Set brightness level
     "sync_request",   # Request full re-sync
+    "wifi_update",    # Encrypted WiFi credentials
 }
 
 

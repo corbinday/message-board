@@ -96,21 +96,10 @@ module default {
             constraint max_value(1.0);
         };
 
-        # WiFi profiles managed from the web UI
-        multi wifi_profiles: BoardWifiProfile {
-            on source delete delete target;
-        };
-    }
-
-    type BoardWifiProfile {
-        required ssid: str;
-        required password: str;
-        priority: int16 {
-            default := 0;
-        };
-        created_at: datetime {
-            default := datetime_of_statement();
-        };
+        # Symmetric key for encrypting WiFi credentials sent via Ably.
+        # Generated at provisioning, stored in secrets.py on the board.
+        # WiFi passwords are NEVER stored in the database.
+        wifi_encryption_key: str;
     }
 
     type Message {

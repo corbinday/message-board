@@ -2,7 +2,15 @@
 #
 # Shared command types used between the web backend and SpaceOS firmware.
 # The backend publishes these via Ably; the firmware validates and routes them.
+#
+# WiFi credentials are encrypted with AES-128-CBC using a per-board symmetric
+# key before being sent over Ably. The key is generated at provisioning and
+# lives only in the DB (for encryption) and in secrets.py on the device
+# (for decryption). WiFi passwords are NEVER stored in the database.
 
+import base64
+import json
+import os
 from enum import Enum
 from typing import Optional
 
@@ -21,6 +29,9 @@ class CommandType(str, Enum):
 
     # Sync commands
     SYNC_REQUEST = "sync_request"        # Request board to re-sync from server
+
+    # WiFi commands (encrypted payload)
+    WIFI_UPDATE = "wifi_update"          # Send encrypted WiFi creds to board
 
 
 def build_message_sync(message_id: str, width: int, height: int, frames: int, fps: int) -> dict:
@@ -76,6 +87,48 @@ def build_sync_request() -> dict:
     return {
         "type": CommandType.SYNC_REQUEST.value,
     }
+
+
+def build_wifi_update(networks: list[dict], wifi_encryption_key: str) -> dict:
+    """
+    Build an encrypted wifi_update command envelope.
+
+    The WiFi credentials are AES-128-CBC encrypted so they are opaque to Ably
+    and to anyone without the board's wifi_encryption_key.
+
+    Args:
+        networks: List of {"ssid": "...", "password": "...", "priority": 0}
+        wifi_encryption_key: Base64-encoded 16-byte AES key (from Board model)
+
+    Returns:
+        Command envelope with encrypted payload.
+    """
+    from cryptography.hazmat.primitives.ciphers import Cipher, algorithms, modes
+    from cryptography.hazmat.primitives import padding
+
+    key = base64.b64decode(wifi_encryption_key)
+    iv = os.urandom(16)
+
+    plaintext = json.dumps(networks).encode("utf-8")
+
+    # PKCS7 pad to AES block size
+    padder = padding.PKCS7(128).padder()
+    padded = padder.update(plaintext) + padder.finalize()
+
+    cipher = Cipher(algorithms.AES(key), modes.CBC(iv))
+    encryptor = cipher.encryptor()
+    ciphertext = encryptor.update(padded) + encryptor.finalize()
+
+    return {
+        "type": CommandType.WIFI_UPDATE.value,
+        "iv": base64.b64encode(iv).decode("ascii"),
+        "payload": base64.b64encode(ciphertext).decode("ascii"),
+    }
+
+
+def generate_wifi_encryption_key() -> str:
+    """Generate a new random AES-128 key, returned as base64 string."""
+    return base64.b64encode(os.urandom(16)).decode("ascii")
 
 
 def validate_command_envelope(payload: dict) -> Optional[str]:

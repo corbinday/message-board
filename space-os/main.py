@@ -8,6 +8,7 @@ import urequests
 
 import config
 import wifi
+import wifi_store
 import ably_mqtt
 import commands
 import space_pack
@@ -92,17 +93,6 @@ def _fetch_server_settings():
             _auto_rotate = data.get("auto_rotate", False)
             _brightness = data.get("brightness", 0.5)
 
-            # Update WiFi networks from server if available
-            server_networks = data.get("wifi_profiles", [])
-            if server_networks:
-                config.WIFI_NETWORKS = server_networks
-                # Ensure primary network remains as fallback
-                if not any(n.get("ssid") == config.WIFI_SSID for n in config.WIFI_NETWORKS):
-                    config.WIFI_NETWORKS.append({
-                        "ssid": config.WIFI_SSID,
-                        "password": config.WIFI_PASSWORD,
-                    })
-
             _save_local_settings()
             print(f"[SETTINGS] Server settings applied: mode={mode} auto_rotate={_auto_rotate} brightness={_brightness}")
         else:
@@ -184,9 +174,12 @@ def _get_ably_token():
 
 def _establish_connection():
     """Connect to WiFi, sync, and establish Ably MQTT. Returns True if online."""
-    # Connect WiFi — try multi-network first, fall back to single SSID
-    if len(config.WIFI_NETWORKS) > 1:
-        ip_config = wifi.connect_best(config.WIFI_NETWORKS)
+    # Load known networks from local storage (includes primary from secrets.py)
+    known = wifi_store.load_networks()
+
+    # Connect WiFi — try multi-network if we have more than one
+    if len(known) > 1:
+        ip_config = wifi.connect_best(known)
     else:
         ip_config = wifi.connect(config.WIFI_SSID, config.WIFI_PASSWORD)
 
@@ -194,7 +187,7 @@ def _establish_connection():
         print("[BOOT] WiFi failed. Running in offline mode.")
         return False
 
-    # Fetch server settings (includes WiFi profile updates)
+    # Fetch server settings (display mode, auto-rotate, brightness)
     _fetch_server_settings()
 
     # Sync recent messages from server
@@ -220,8 +213,9 @@ def _attempt_reconnect():
     """Attempt to reconnect WiFi and re-establish Ably."""
     print("[RECONNECT] Attempting WiFi reconnection...")
 
+    known = wifi_store.load_networks()
     ip_config = wifi.reconnect(
-        known_networks=config.WIFI_NETWORKS if len(config.WIFI_NETWORKS) > 1 else None,
+        known_networks=known if len(known) > 1 else None,
         ssid=config.WIFI_SSID,
         password=config.WIFI_PASSWORD,
     )
@@ -455,6 +449,10 @@ def _process_commands():
             _message_list = storage.list_messages(_current_dir)
             _render_current()
             _publish_inventory()
+
+        elif cmd_type == "wifi_update":
+            print("[CMD] Encrypted WiFi update received")
+            wifi_store.handle_wifi_update(payload)
 
         else:
             print(f"[CMD] Unknown command type: {cmd_type}")

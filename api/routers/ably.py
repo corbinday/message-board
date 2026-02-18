@@ -194,7 +194,7 @@ async def board_device_settings(
     if not check_password_hash(board.secret_key_hash, x_board_secret):
         raise HTTPException(status_code=403, detail="Invalid secret key")
 
-    # Fetch full board settings including WiFi profiles
+    # Fetch board settings (no WiFi — those are sent encrypted via Ably)
     try:
         if hasattr(q, "selectBoardSettingsForDevice"):
             settings = await q.selectBoardSettingsForDevice(
@@ -211,18 +211,7 @@ async def board_device_settings(
             "display_mode": "inbox",
             "auto_rotate": False,
             "brightness": 0.5,
-            "wifi_profiles": [],
         })
-
-    # Build WiFi profiles list
-    wifi_list = []
-    if hasattr(settings, "wifi_profiles") and settings.wifi_profiles:
-        for profile in settings.wifi_profiles:
-            wifi_list.append({
-                "ssid": profile.ssid,
-                "password": profile.password,
-                "priority": profile.priority,
-            })
 
     display_mode_str = "inbox"
     if hasattr(settings, "display_mode") and settings.display_mode:
@@ -234,5 +223,4 @@ async def board_device_settings(
         "display_mode": display_mode_str,
         "auto_rotate": getattr(settings, "auto_rotate", False) or False,
         "brightness": getattr(settings, "brightness", 0.5) or 0.5,
-        "wifi_profiles": wifi_list,
     })

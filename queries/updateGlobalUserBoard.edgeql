@@ -10,7 +10,8 @@ with
     set {
       boardType := <optional BoardType>$board_type ?? .boardType,
       name := <optional str>$name ?? .name,
-      secret_key_hash := <optional str>$secret_key_hash ?? .secret_key_hash
+      secret_key_hash := <optional str>$secret_key_hash ?? .secret_key_hash,
+      wifi_encryption_key := <optional str>$wifi_encryption_key ?? .wifi_encryption_key
     }
   )
 select updated_board{*};

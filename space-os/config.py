@@ -7,16 +7,17 @@ except ImportError:
     print("[FATAL] secrets.py not found. Generate one from the web dashboard.")
     raise SystemExit
 
-# WiFi - primary network from secrets.py
+# WiFi - primary network from secrets.py (provisioned via secrets.py download)
 WIFI_SSID = secrets["ssid"]
 WIFI_PASSWORD = secrets["password"]
 
-# WiFi - multiple known networks (loaded from secrets or fetched from server)
-# Each entry: {"ssid": "...", "password": "..."}
-WIFI_NETWORKS = secrets.get("wifi_networks", [])
-# Always include the primary network as fallback
-if WIFI_SSID and not any(n.get("ssid") == WIFI_SSID for n in WIFI_NETWORKS):
-    WIFI_NETWORKS.append({"ssid": WIFI_SSID, "password": WIFI_PASSWORD})
+# WiFi encryption key — AES-128 key (base64) for decrypting WiFi credentials
+# received via Ably. Generated at provisioning, stored in secrets.py.
+WIFI_ENCRYPTION_KEY = secrets.get("wifi_encryption_key", "")
+
+# WiFi networks file — additional networks received via encrypted Ably commands
+# are stored here on the device's local filesystem (never sent to the server DB).
+WIFI_NETWORKS_FILE = "/wifi_networks.json"
 
 # Server
 API_URL = secrets["api_url"]

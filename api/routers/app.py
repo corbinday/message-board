@@ -25,6 +25,8 @@ from api.command_schema import (
     build_set_auto_rotate,
     build_set_brightness,
     build_sync_request,
+    build_wifi_update,
+    generate_wifi_encryption_key,
 )
 
 router = APIRouter()
@@ -214,19 +216,11 @@ async def board_details(request: Request, board_id: str, client: AuthenticatedCl
     if not board:
         raise HTTPException(status_code=404, detail="Board does not exist!")
 
-    # Load WiFi profiles for this board
-    wifi_profiles = []
-    if hasattr(q, "selectBoardWifiProfiles"):
-        try:
-            wifi_profiles = await q.selectBoardWifiProfiles(client, board_id=board_id)
-        except Exception as e:
-            logger.error(f"Error loading WiFi profiles: {e}")
-
     context = get_context(
         request,
         board=board,
-        wifi_profiles=wifi_profiles,
         board_inventory=None,
+        wifi_key_provisioned=bool(getattr(board, "wifi_encryption_key", None)),
     )
     return templates.TemplateResponse("app/board/details.html", context)
 
@@ -251,6 +245,9 @@ async def download_config(
     size_map = {"Stellar": (16, 16), "Galactic": (53, 11), "Cosmic": (32, 32)}
     board_width, board_height = size_map.get(board_type_str, (32, 32))
 
+    # Get the wifi_encryption_key from the board (generated at provisioning)
+    wifi_key = getattr(board, "wifi_encryption_key", "") if board else ""
+
     # Collect data from the form
     context = {
         "board_id": board_id,
@@ -263,6 +260,7 @@ async def download_config(
         "board_type": board_type_str,
         "board_width": board_width,
         "board_height": board_height,
+        "wifi_encryption_key": wifi_key or "",
     }
 
     # Render the Python config file using the .j2 template
@@ -369,16 +367,22 @@ async def register_board(request: Request, board_id: str, client: AuthenticatedC
     # 2. Salt and Hash it
     hashed_key = generate_password_hash(raw_key, method="scrypt")
 
+    # 3. Generate WiFi encryption key (AES-128)
+    wifi_key = generate_wifi_encryption_key()
+
     try:
-        # 3. Update the board in Gel
+        # 4. Update the board in Gel
         updated_board = await q.updateGlobalUserBoard(
-            client, board_id=board_id, secret_key_hash=hashed_key
+            client,
+            board_id=board_id,
+            secret_key_hash=hashed_key,
+            wifi_encryption_key=wifi_key,
         )
 
         if not updated_board:
             raise HTTPException(status_code=404, detail="Board not found!")
 
-        # 4. Return the one-time view
+        # 5. Return the one-time view
         context = get_context(request, raw_key=raw_key, board_id=board_id)
         return templates.TemplateResponse("app/board/key-details.html", context)
 
@@ -474,18 +478,11 @@ async def update_board_settings(
         logger.warning(f"Ably command publish failed (non-fatal): {e}")
 
     # Return updated control panel HTML
-    wifi_profiles = []
-    if hasattr(q, "selectBoardWifiProfiles"):
-        try:
-            wifi_profiles = await q.selectBoardWifiProfiles(client, board_id=board_id)
-        except Exception:
-            pass
-
     context = get_context(
         request,
         board=board,
-        wifi_profiles=wifi_profiles,
         board_inventory=None,
+        wifi_key_provisioned=bool(getattr(board, "wifi_encryption_key", None)),
     )
     return templates.TemplateResponse("app/board/details.html", context)
 
@@ -575,16 +572,16 @@ async def board_push_command(
 
 
 # =============================================================================
-# WiFi Profile Routes
+# WiFi Routes (Encrypted Send-to-Board)
 # =============================================================================
 
 
 @router.post(
     "/board/{board_id}/wifi",
     response_class=HTMLResponse,
-    name="app.add_board_wifi",
+    name="app.send_board_wifi",
 )
-async def add_board_wifi(
+async def send_board_wifi(
     request: Request,
     board_id: str,
     client: AuthenticatedClient,
@@ -592,79 +589,60 @@ async def add_board_wifi(
     wifi_password: str = Form(...),
     priority: int = Form(0),
 ):
-    """Add a WiFi profile to a board."""
-    templates = get_templates(request)
+    """
+    Encrypt WiFi credentials and send them to the board via Ably.
+
+    WiFi passwords are NEVER stored in the database. They're encrypted with
+    the board's wifi_encryption_key (AES-128-CBC) and sent as an ephemeral
+    Ably message that only the board can decrypt.
+    """
+    board = await q.selectGlobalUserBoard(client, board_id=board_id)
+    if not board:
+        raise HTTPException(status_code=404, detail="Board not found")
+
+    wifi_key = getattr(board, "wifi_encryption_key", None)
+    if not wifi_key:
+        return HTMLResponse(
+            '<div class="text-red-400 text-xs p-2">'
+            "Board has no WiFi encryption key. Regenerate the board's access key first."
+            "</div>",
+            status_code=400,
+        )
+
+    networks = [{"ssid": ssid, "password": wifi_password, "priority": priority}]
 
     try:
-        if hasattr(q, "insertBoardWifiProfile"):
-            await q.insertBoardWifiProfile(
-                client,
-                board_id=board_id,
-                ssid=ssid,
-                password=wifi_password,
-                priority=priority,
+        ably_key = os.getenv("ABLY_API_KEY", "")
+        if not ably_key:
+            return HTMLResponse(
+                '<div class="text-red-400 text-xs p-2">Ably not configured.</div>',
+                status_code=503,
             )
+
+        from ably import AblyRest
+
+        ably = AblyRest(ably_key)
+        user = await q.selectGlobalUser(client)
+        if not user:
+            raise HTTPException(status_code=401)
+
+        command_channel = ably.channels.get(f"commands:{user.id}")
+        encrypted_cmd = build_wifi_update(networks, wifi_key)
+        await command_channel.publish("control", encrypted_cmd)
+
+        return HTMLResponse(
+            '<div class="text-pico-green text-xs p-2">'
+            f'WiFi credentials for "{ssid}" encrypted and sent to board. '
+            "The board will save them locally on next receive."
+            "</div>"
+        )
+
     except Exception as e:
-        logger.error(f"Error adding WiFi profile: {e}")
-
-    # Re-render the WiFi profiles section
-    board = await q.selectGlobalUserBoard(client, board_id=board_id)
-    wifi_profiles = []
-    if hasattr(q, "selectBoardWifiProfiles"):
-        try:
-            wifi_profiles = await q.selectBoardWifiProfiles(client, board_id=board_id)
-        except Exception:
-            pass
-
-    context = get_context(
-        request,
-        board=board,
-        wifi_profiles=wifi_profiles,
-        board_inventory=None,
-    )
-    return templates.TemplateResponse("app/board/details.html", context)
-
-
-@router.delete(
-    "/board/{board_id}/wifi/{profile_id}",
-    response_class=HTMLResponse,
-    name="app.delete_board_wifi",
-)
-async def delete_board_wifi(
-    request: Request,
-    board_id: str,
-    profile_id: str,
-    client: AuthenticatedClient,
-):
-    """Delete a WiFi profile from a board."""
-    templates = get_templates(request)
-
-    try:
-        if hasattr(q, "deleteBoardWifiProfile"):
-            await q.deleteBoardWifiProfile(
-                client,
-                board_id=board_id,
-                profile_id=profile_id,
-            )
-    except Exception as e:
-        logger.error(f"Error deleting WiFi profile: {e}")
-
-    # Re-render the WiFi profiles section
-    board = await q.selectGlobalUserBoard(client, board_id=board_id)
-    wifi_profiles = []
-    if hasattr(q, "selectBoardWifiProfiles"):
-        try:
-            wifi_profiles = await q.selectBoardWifiProfiles(client, board_id=board_id)
-        except Exception:
-            pass
-
-    context = get_context(
-        request,
-        board=board,
-        wifi_profiles=wifi_profiles,
-        board_inventory=None,
-    )
-    return templates.TemplateResponse("app/board/details.html", context)
+        logger.error(f"Error sending WiFi to board: {e}")
+        return HTMLResponse(
+            f'<div class="text-red-400 text-xs p-2">Failed to send: {str(e)}</div>',
+            status_code=500,
+        )
 
 
 # =============================================================================
