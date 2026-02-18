@@ -5,6 +5,10 @@
       "sha384": "I/1k8/ZyVX+NEwHPTSERh1wUM5W3ShaSCIat0stCfYY2hQuHoEEyKxDDT25Ua5lk",
       "version": "b261f97ff6333e4f"
     },
+    "js/board-controls.js": {
+      "sha384": "8OfdrbUCYp8UDWaRTOSK7nqo6MsGck7+otBcdm8o94fBWuw6PXhZuJLy3ValD1t3",
+      "version": "8160e79bec712b0e"
+    },
     "js/htmx.min.js": {
       "sha384": "Ri8up/SiblE6wBETLc3+o4905XRyjy/tp0qz7g/qDmkyre0ncpVywAdvFSwAKYdV",
       "version": "b386eaa18ff22b61"
@@ -14,5 +18,5 @@
       "version": "51a06672d80fed19"
     }
   },
-  "generated_at": "2026-02-17T22:13:44.979496+00:00"
+  "generated_at": "2026-02-18T19:03:20.267376+00:00"
 }

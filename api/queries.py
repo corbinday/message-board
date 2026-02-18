@@ -20,6 +20,7 @@
 #     'queries/rejectFriendRequest.edgeql'
 #     'queries/searchUserByUsername.edgeql'
 #     'queries/selectBoardBySecretKey.edgeql'
+#     'queries/selectBoardSettingsForDevice.edgeql'
 #     'queries/selectDraft.edgeql'
 #     'queries/selectFriendRequests.edgeql'
 #     'queries/selectFriendRequestsSent.edgeql'
@@ -36,6 +37,7 @@
 #     'queries/selectUserGraphics.edgeql'
 #     'queries/selectUserMessages.edgeql'
 #     'queries/selectUserMessagesRecent.edgeql'
+#     'queries/updateBoardSettings.edgeql'
 #     'queries/updateGlobalUser.edgeql'
 #     'queries/updateGlobalUserBoard.edgeql'
 #     'queries/upsertDraft.edgeql'
@@ -78,6 +80,16 @@ class BoardType02(enum.Enum):
     STELLAR = "Stellar"
     GALACTIC = "Galactic"
     COSMIC = "Cosmic"
+
+
+class DisplayMode(enum.Enum):
+    INBOX = "inbox"
+    ART = "art"
+
+
+class DisplayMode02(enum.Enum):
+    INBOX = "inbox"
+    ART = "art"
 
 
 @dataclasses.dataclass
@@ -148,6 +160,16 @@ class selectBoardBySecretKeyResult(NoPydanticValidation):
 
 
 @dataclasses.dataclass
+class selectBoardSettingsForDeviceResult(NoPydanticValidation):
+    id: uuid.UUID
+    boardType: BoardType02
+    display_mode: DisplayMode | None
+    auto_rotate: bool | None
+    brightness: float | None
+    owner_id: uuid.UUID
+
+
+@dataclasses.dataclass
 class selectDraftResult(NoPydanticValidation):
     id: uuid.UUID
     binary: bytes
@@ -195,6 +217,10 @@ class selectGlobalUserBoardResult(NoPydanticValidation):
     secret_key_hash: str | None
     secret_updated_at: datetime.datetime | None
     last_connected_at: datetime.datetime | None
+    auto_rotate: bool | None
+    brightness: float | None
+    display_mode: DisplayMode | None
+    wifi_encryption_key: str | None
 
 
 @dataclasses.dataclass
@@ -323,7 +349,11 @@ class selectUserMessagesResultGraphic(NoPydanticValidation):
 
 
 @dataclasses.dataclass
-class updateGlobalUserBoardResult(NoPydanticValidation):
+class updateBoardSettingsResult(NoPydanticValidation):
+    wifi_encryption_key: str | None
+    display_mode: DisplayMode | None
+    brightness: float | None
+    auto_rotate: bool | None
     last_connected_at: datetime.datetime | None
     secret_updated_at: datetime.datetime | None
     secret_key_hash: str | None
@@ -846,6 +876,28 @@ async def selectBoardBySecretKey(
     )
 
 
+async def selectBoardSettingsForDevice(
+    executor: gel.AsyncIOExecutor,
+    *,
+    board_id: uuid.UUID,
+) -> selectBoardSettingsForDeviceResult | None:
+    return await executor.query_single(
+        """\
+        select Board {
+          id,
+          boardType,
+          display_mode,
+          auto_rotate,
+          brightness,
+          owner_id := .owner.id
+        }
+        filter .id = <uuid>$board_id
+        limit 1\
+        """,
+        board_id=board_id,
+    )
+
+
 async def selectDraft(
     executor: gel.AsyncIOExecutor,
     *,
@@ -1218,6 +1270,40 @@ async def selectUserMessagesRecent(
     )
 
 
+async def updateBoardSettings(
+    executor: gel.AsyncIOExecutor,
+    *,
+    board_id: uuid.UUID,
+    display_mode: DisplayMode02 | None = None,
+    auto_rotate: bool | None = None,
+    brightness: float | None = None,
+) -> updateBoardSettingsResult | None:
+    return await executor.query_single(
+        """\
+        with
+          board := select assert_single(
+            select Board {*}
+            filter .id = <uuid>$board_id and assert_single(
+              .owner.identity = global ext::auth::ClientTokenIdentity
+            )
+          ),
+          updated_board := (
+            update board
+            set {
+              display_mode := <optional DisplayMode>$display_mode ?? .display_mode,
+              auto_rotate := <optional bool>$auto_rotate ?? .auto_rotate,
+              brightness := <optional float32>$brightness ?? .brightness
+            }
+          )
+        select updated_board{*};\
+        """,
+        board_id=board_id,
+        display_mode=display_mode,
+        auto_rotate=auto_rotate,
+        brightness=brightness,
+    )
+
+
 async def updateGlobalUser(
     executor: gel.AsyncIOExecutor,
     *,
@@ -1257,7 +1343,8 @@ async def updateGlobalUserBoard(
     board_type: BoardType | None = None,
     name: str | None = None,
     secret_key_hash: str | None = None,
-) -> updateGlobalUserBoardResult | None:
+    wifi_encryption_key: str | None = None,
+) -> updateBoardSettingsResult | None:
     return await executor.query_single(
         """\
         with
@@ -1272,7 +1359,8 @@ async def updateGlobalUserBoard(
             set {
               boardType := <optional BoardType>$board_type ?? .boardType,
               name := <optional str>$name ?? .name,
-              secret_key_hash := <optional str>$secret_key_hash ?? .secret_key_hash
+              secret_key_hash := <optional str>$secret_key_hash ?? .secret_key_hash,
+              wifi_encryption_key := <optional str>$wifi_encryption_key ?? .wifi_encryption_key
             }
           )
         select updated_board{*};\
@@ -1281,6 +1369,7 @@ async def updateGlobalUserBoard(
         board_type=board_type,
         name=name,
         secret_key_hash=secret_key_hash,
+        wifi_encryption_key=wifi_encryption_key,
     )
 
 

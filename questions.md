@@ -177,11 +177,11 @@ Now I have all the context I need. Here's your refined backlog:
 
 # System Updates
 
-**Schema & Editor**
+**Schema & Editor [DONE]**
 
 - **Change `frame_delay_ms` to `fps` with a max of 24fps** — The pixel editor and DB schema currently use `frame_delay_ms` (10–2000ms range) to control animation speed. Replace this with an `fps` field (1–24) throughout the stack: the Gel schema (`PixelAnimation.frame_delay_ms` → `PixelAnimation.fps`), the `DraftGraphic` type, the pixel editor UI (`pixel.js` currently clamps delay with `Math.max(100, Math.min(2000, value))`), the space-pack binary builder, and the SpaceOS player. An FPS slider is more intuitive for users than millisecond delay.
 
-- **Raise frame limit to 150** — `PixelAnimation.frames` is currently constrained to `max_value(24)` in the schema and `this.maxFrames = 24` in `pixel.js`. Up this amount to 96 frames.
+- **Raise frame limit to 96** — `PixelAnimation.frames` is currently constrained to `max_value(24)` in the schema and `this.maxFrames = 24` in `pixel.js`. Up this amount to 96 frames.
 
 - **Add the same constraints to `DraftGraphic` as on `PixelAnimation`** — `DraftGraphic` currently has `frames: int16 { default := 1 }` and `frame_delay_ms: int16 { default := 100 }` with no min/max constraints, while `PixelAnimation` enforces `frames` 2–24 and `frame_delay_ms` 10–2000. Add matching constraints to `DraftGraphic` so invalid values are caught at save time rather than when finishing a draft.
 
