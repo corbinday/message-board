@@ -1,9 +1,13 @@
-# storage.py - LittleFS inbox/art management with FIFO cap
+# storage.py - LittleFS inbox/art management with FIFO cap and eviction telemetry
 import os
 import json
 import gc
 
 import config
+
+
+# Track last eviction for telemetry
+_last_eviction = None
 
 
 def _ensure_dir(path):
@@ -20,6 +24,7 @@ def init():
     _ensure_dir(config.INBOX_DIR)
     _ensure_dir(config.ART_DIR)
     _enforce_fifo(config.INBOX_DIR)
+    _enforce_fifo(config.ART_DIR)
     print("[STORE] Storage initialized.")
 
 
@@ -32,6 +37,10 @@ def save_message(message_id, pixel_data, metadata, directory=None):
         pixel_data: Raw RGB bytes
         metadata: Dict with sender, fps, is_anim
         directory: Target directory (defaults to INBOX_DIR)
+
+    Returns:
+        Eviction info dict if items were evicted, or None.
+        Format: {"evicted": ["uuid1", "uuid2"], "directory": "/inbox"}
     """
     if directory is None:
         directory = config.INBOX_DIR
@@ -49,17 +58,26 @@ def save_message(message_id, pixel_data, metadata, directory=None):
 
     print(f"[STORE] Saved {message_id} to {directory}")
 
-    # Enforce FIFO cap
-    _enforce_fifo(directory)
+    # Enforce FIFO cap and collect eviction info
+    eviction_info = _enforce_fifo(directory)
     gc.collect()
+    return eviction_info
 
 
 def _enforce_fifo(directory):
-    """Delete oldest files when over FIFO cap."""
+    """
+    Delete oldest files when over FIFO cap.
+
+    Returns:
+        Eviction info dict if items were evicted, or None.
+        Format: {"evicted": ["uuid1", "uuid2"], "directory": "/inbox"}
+    """
+    global _last_eviction
+
     try:
         files = os.listdir(directory)
     except OSError:
-        return
+        return None
 
     # Group by UUID (each message has .bin and .json)
     uuids = set()
@@ -68,7 +86,7 @@ def _enforce_fifo(directory):
             uuids.add(f.rsplit(".", 1)[0])
 
     if len(uuids) <= config.FIFO_CAP:
-        return
+        return None
 
     # Sort by file modification time (oldest first)
     # Note: MicroPython os.stat returns tuple, st_mtime is index 8
@@ -85,8 +103,10 @@ def _enforce_fifo(directory):
 
     # Delete oldest until at cap
     to_delete = len(uuids) - config.FIFO_CAP
+    evicted = []
     for i in range(to_delete):
         uid = uuid_times[i][0]
+        evicted.append(uid)
         for ext in (".bin", ".json"):
             path = f"{directory}/{uid}{ext}"
             try:
@@ -96,6 +116,22 @@ def _enforce_fifo(directory):
                 pass
 
     gc.collect()
+
+    if evicted:
+        _last_eviction = evicted[-1]  # Track most recent eviction
+        eviction_info = {
+            "evicted": evicted,
+            "directory": directory,
+        }
+        print(f"[STORE] Evicted {len(evicted)} items from {directory}")
+        return eviction_info
+
+    return None
+
+
+def get_last_eviction():
+    """Return the UUID of the most recently evicted item, or None."""
+    return _last_eviction
 
 
 def list_messages(directory=None):
@@ -170,3 +206,21 @@ def delete_message(message_id, directory=None):
 
     print(f"[STORE] Deleted {message_id}")
     gc.collect()
+
+
+def get_inventory():
+    """
+    Get a snapshot of the board's current file inventory.
+
+    Returns:
+        dict with inbox_count, art_count, inbox_ids, art_ids
+    """
+    inbox_ids = list_messages(config.INBOX_DIR)
+    art_ids = list_messages(config.ART_DIR)
+    return {
+        "inbox_count": len(inbox_ids),
+        "art_count": len(art_ids),
+        "inbox_ids": inbox_ids,
+        "art_ids": art_ids,
+        "last_eviction": _last_eviction,
+    }

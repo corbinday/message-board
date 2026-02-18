@@ -66,6 +66,8 @@ module default {
         }
     }
 
+    scalar type DisplayMode extending enum<inbox, art>;
+
     type Board {
         required owner: User;
         required boardType: BoardType;
@@ -80,6 +82,35 @@ module default {
             )
         }
         last_connected_at: datetime;
+
+        # Persisted board settings
+        display_mode: DisplayMode {
+            default := DisplayMode.inbox;
+        };
+        auto_rotate: bool {
+            default := false;
+        };
+        brightness: float32 {
+            default := 0.5;
+            constraint min_value(0.0);
+            constraint max_value(1.0);
+        };
+
+        # WiFi profiles managed from the web UI
+        multi wifi_profiles: BoardWifiProfile {
+            on source delete delete target;
+        };
+    }
+
+    type BoardWifiProfile {
+        required ssid: str;
+        required password: str;
+        priority: int16 {
+            default := 0;
+        };
+        created_at: datetime {
+            default := datetime_of_statement();
+        };
     }
 
     type Message {

@@ -1,5 +1,8 @@
 # main.py - SpaceOS boot orchestration and main loop
+# v2.0 — Multi-network WiFi, periodic reconnection, startup animation,
+#         on-board settings mode, typed command routing, FIFO telemetry.
 import time
+import json
 import gc
 import urequests
 
@@ -13,14 +16,105 @@ import player
 import buttons
 
 
+# =============================================================================
 # State
+# =============================================================================
+
 _current_dir = config.INBOX_DIR  # Current browsing directory
 _current_index = 0                # Current message index
 _auto_rotate = False              # Auto-rotate mode
 _paused = False                   # Playback paused
+_brightness = 0.5                 # Current brightness (0.0–1.0)
 _message_list = []                # Current directory listing
 _pending_commands = []            # Queue of incoming commands
+_in_settings_mode = False         # Whether on-board settings menu is active
+_settings_index = 0               # Current settings menu item
+_unicorn_hw = None                # Hardware reference for brightness control
 
+
+# =============================================================================
+# Local Settings Persistence
+# =============================================================================
+
+def _load_local_settings():
+    """Load persisted settings from local file."""
+    global _auto_rotate, _brightness, _current_dir
+    try:
+        with open(config.SETTINGS_FILE, "r") as f:
+            settings = json.load(f)
+        _auto_rotate = settings.get("auto_rotate", False)
+        _brightness = settings.get("brightness", 0.5)
+        mode = settings.get("display_mode", "inbox")
+        _current_dir = config.ART_DIR if mode == "art" else config.INBOX_DIR
+        print(f"[SETTINGS] Loaded: mode={mode} auto_rotate={_auto_rotate} brightness={_brightness}")
+    except (OSError, ValueError):
+        print("[SETTINGS] No local settings file, using defaults.")
+
+
+def _save_local_settings():
+    """Persist current settings to local file."""
+    mode = "art" if _current_dir == config.ART_DIR else "inbox"
+    settings = {
+        "display_mode": mode,
+        "auto_rotate": _auto_rotate,
+        "brightness": _brightness,
+    }
+    try:
+        with open(config.SETTINGS_FILE, "w") as f:
+            json.dump(settings, f)
+        print(f"[SETTINGS] Saved: {settings}")
+    except Exception as e:
+        print(f"[SETTINGS] Save failed: {e}")
+
+
+# =============================================================================
+# Server Settings Fetch
+# =============================================================================
+
+def _fetch_server_settings():
+    """Fetch board settings from server and apply them."""
+    global _auto_rotate, _brightness, _current_dir
+    url = f"{config.API_URL}/ably/boards/{config.BOARD_ID}/settings"
+    headers = {
+        "X-Board-Secret": config.BOARD_SECRET_KEY,
+        "Content-Type": "application/json",
+    }
+
+    print(f"[HTTP] POST {url}")
+    try:
+        response = urequests.post(url, headers=headers)
+        if response.status_code == 200:
+            data = response.json()
+            response.close()
+
+            mode = data.get("display_mode", "inbox")
+            _current_dir = config.ART_DIR if mode == "art" else config.INBOX_DIR
+            _auto_rotate = data.get("auto_rotate", False)
+            _brightness = data.get("brightness", 0.5)
+
+            # Update WiFi networks from server if available
+            server_networks = data.get("wifi_profiles", [])
+            if server_networks:
+                config.WIFI_NETWORKS = server_networks
+                # Ensure primary network remains as fallback
+                if not any(n.get("ssid") == config.WIFI_SSID for n in config.WIFI_NETWORKS):
+                    config.WIFI_NETWORKS.append({
+                        "ssid": config.WIFI_SSID,
+                        "password": config.WIFI_PASSWORD,
+                    })
+
+            _save_local_settings()
+            print(f"[SETTINGS] Server settings applied: mode={mode} auto_rotate={_auto_rotate} brightness={_brightness}")
+        else:
+            response.close()
+            print(f"[SETTINGS] Server settings fetch failed: {response.status_code}")
+    except Exception as e:
+        print(f"[SETTINGS] Server settings fetch error: {e}")
+
+
+# =============================================================================
+# Hardware Detection
+# =============================================================================
 
 def _detect_board():
     """Detect board hardware and return (unicorn, graphics, switch constants)."""
@@ -48,6 +142,19 @@ def _detect_board():
         return cu, gfx, cu.SWITCH_A, cu.SWITCH_B, cu.SWITCH_C, cu.SWITCH_D
 
 
+# =============================================================================
+# Startup Animation
+# =============================================================================
+
+def _show_boot_animation(width, height):
+    """Show a branded startup animation during boot sequence."""
+    player.show_warp_animation(width, height, duration_ms=1500)
+
+
+# =============================================================================
+# Network & Ably
+# =============================================================================
+
 def _get_ably_token():
     """Request an Ably token from the server."""
     url = f"{config.API_URL}/ably/boards/{config.BOARD_ID}/token"
@@ -74,6 +181,82 @@ def _get_ably_token():
         print(f"[HTTP] POST {url} EXCEPTION: {e}")
         return None
 
+
+def _establish_connection():
+    """Connect to WiFi, sync, and establish Ably MQTT. Returns True if online."""
+    # Connect WiFi — try multi-network first, fall back to single SSID
+    if len(config.WIFI_NETWORKS) > 1:
+        ip_config = wifi.connect_best(config.WIFI_NETWORKS)
+    else:
+        ip_config = wifi.connect(config.WIFI_SSID, config.WIFI_PASSWORD)
+
+    if ip_config is None:
+        print("[BOOT] WiFi failed. Running in offline mode.")
+        return False
+
+    # Fetch server settings (includes WiFi profile updates)
+    _fetch_server_settings()
+
+    # Sync recent messages from server
+    print("[BOOT] Syncing messages...")
+    _boot_sync()
+
+    # Get Ably token and connect MQTT
+    token = _get_ably_token()
+    if token:
+        try:
+            ably_mqtt.connect(token, on_command=_on_command)
+        except Exception as e:
+            print(f"[BOOT] MQTT connection failed: {e}")
+    else:
+        print("[BOOT] No Ably token. Running without real-time updates.")
+
+    # Publish inventory after sync
+    _publish_inventory()
+    return True
+
+
+def _attempt_reconnect():
+    """Attempt to reconnect WiFi and re-establish Ably."""
+    print("[RECONNECT] Attempting WiFi reconnection...")
+
+    ip_config = wifi.reconnect(
+        known_networks=config.WIFI_NETWORKS if len(config.WIFI_NETWORKS) > 1 else None,
+        ssid=config.WIFI_SSID,
+        password=config.WIFI_PASSWORD,
+    )
+
+    if ip_config is None:
+        print("[RECONNECT] WiFi reconnection failed.")
+        return False
+
+    print(f"[RECONNECT] WiFi reconnected: {ip_config}")
+
+    # Re-acquire Ably token
+    token = _get_ably_token()
+    if token:
+        try:
+            # Disconnect old MQTT if still lingering
+            if ably_mqtt.is_connected():
+                ably_mqtt.disconnect()
+            ably_mqtt.connect(token, on_command=_on_command)
+            print("[RECONNECT] MQTT reconnected.")
+        except Exception as e:
+            print(f"[RECONNECT] MQTT reconnection failed: {e}")
+            return False
+    else:
+        print("[RECONNECT] Failed to get Ably token after reconnect.")
+        return False
+
+    # Re-sync
+    _boot_sync()
+    _publish_inventory()
+    return True
+
+
+# =============================================================================
+# Boot Sync
+# =============================================================================
 
 def _boot_sync():
     """Fetch recent messages from server and download any we don't have locally."""
@@ -183,56 +366,144 @@ def _boot_sync():
     print(f"[SYNC] Synced {synced} new items (art + inbox).")
 
 
+# =============================================================================
+# Inventory Publishing
+# =============================================================================
+
+def _publish_inventory():
+    """Publish current board inventory snapshot via HTTP to the server."""
+    inbox_ids = storage.list_messages(config.INBOX_DIR)
+    art_ids = storage.list_messages(config.ART_DIR)
+    last_eviction = storage.get_last_eviction()
+
+    url = f"{config.API_URL}/ably/boards/{config.BOARD_ID}/inventory"
+    headers = {
+        "X-Board-Secret": config.BOARD_SECRET_KEY,
+        "Content-Type": "application/json",
+    }
+    payload = json.dumps({
+        "inbox_count": len(inbox_ids),
+        "art_count": len(art_ids),
+        "inbox_ids": inbox_ids[:10],  # Send at most 10 IDs to keep payload small
+        "art_ids": art_ids[:10],
+        "last_eviction": last_eviction,
+    })
+
+    try:
+        response = urequests.post(url, headers=headers, data=payload)
+        response.close()
+        print(f"[INVENTORY] Published: inbox={len(inbox_ids)} art={len(art_ids)}")
+    except Exception as e:
+        print(f"[INVENTORY] Publish failed: {e}")
+
+
+# =============================================================================
+# Command Handling (Typed Routing)
+# =============================================================================
+
 def _on_command(payload):
     """Handle incoming Ably command messages."""
     _pending_commands.append(payload)
-    print(f"[MAIN] Command queued: {payload.get('messageId', 'unknown')}")
+    cmd_type = payload.get("type", "unknown")
+    print(f"[MAIN] Command queued: type={cmd_type}")
 
 
 def _process_commands():
-    """Process pending command queue."""
-    global _current_index, _message_list
+    """Process pending command queue with typed routing."""
+    global _current_index, _message_list, _current_dir, _auto_rotate, _brightness, _paused
 
     while _pending_commands:
         payload = _pending_commands.pop(0)
-        result = commands.validate_command(payload)
+        cmd_type = payload.get("type")
 
-        if result is None:
-            continue
+        # Legacy untyped command (backwards compat) — treat as message_sync
+        if cmd_type is None and payload.get("messageId"):
+            cmd_type = "message_sync"
 
-        message_id, width, height, frames, fps = result
-        print(f"[MAIN] Processing message {message_id} ({width}x{height}, {frames}f)")
+        if cmd_type == "message_sync":
+            _handle_content_sync(payload, config.INBOX_DIR)
 
-        # Show warp animation while downloading
-        player.show_warp_animation(width, height)
+        elif cmd_type == "art_sync":
+            _handle_content_sync(payload, config.ART_DIR)
 
-        # Download Space Pack
-        sp = space_pack.download(message_id)
+        elif cmd_type == "set_mode":
+            mode = payload.get("mode", "inbox")
+            new_dir = config.ART_DIR if mode == "art" else config.INBOX_DIR
+            if new_dir != _current_dir:
+                _current_dir = new_dir
+                _current_index = 0
+                _message_list = storage.list_messages(_current_dir)
+                _render_current()
+                _save_local_settings()
+                print(f"[CMD] Mode set to {mode}")
 
-        if sp is None:
-            print("[MAIN] Space Pack download failed")
-            continue
+        elif cmd_type == "set_auto_rotate":
+            _auto_rotate = payload.get("enabled", False)
+            _save_local_settings()
+            print(f"[CMD] Auto-rotate set to {_auto_rotate}")
 
-        # Save to inbox
-        metadata = {
-            "sender": sp["sender"],
-            "fps": sp["fps"],
-            "is_anim": sp["is_anim"],
-            "width": width,
-            "height": height,
-            "frames": frames,
-        }
-        storage.save_message(sp["message_id"], sp["pixel_data"], metadata)
+        elif cmd_type == "set_brightness":
+            _brightness = max(0.0, min(1.0, payload.get("brightness", 0.5)))
+            if _unicorn_hw:
+                _unicorn_hw.set_brightness(_brightness)
+            _save_local_settings()
+            print(f"[CMD] Brightness set to {_brightness}")
 
-        # Refresh message list and display new message
+        elif cmd_type == "sync_request":
+            print("[CMD] Sync request received, re-syncing...")
+            _boot_sync()
+            _message_list = storage.list_messages(_current_dir)
+            _render_current()
+            _publish_inventory()
+
+        else:
+            print(f"[CMD] Unknown command type: {cmd_type}")
+
+
+def _handle_content_sync(payload, target_dir):
+    """Handle message_sync or art_sync command: download and save content."""
+    global _current_index, _message_list
+
+    result = commands.validate_command(payload)
+    if result is None:
+        return
+
+    message_id, width, height, frames, fps = result
+    print(f"[MAIN] Processing {payload.get('type', 'sync')} {message_id} ({width}x{height}, {frames}f) -> {target_dir}")
+
+    # Show warp animation while downloading
+    player.show_warp_animation(width, height)
+
+    # Download Space Pack
+    sp = space_pack.download(message_id)
+    if sp is None:
+        print("[MAIN] Space Pack download failed")
+        return
+
+    # Save to target directory
+    metadata = {
+        "sender": sp["sender"],
+        "fps": sp["fps"],
+        "is_anim": sp["is_anim"],
+        "width": width,
+        "height": height,
+        "frames": frames,
+    }
+    eviction_info = storage.save_message(sp["message_id"], sp["pixel_data"], metadata, directory=target_dir)
+
+    # Publish eviction event if items were evicted
+    if eviction_info and eviction_info.get("evicted"):
+        _publish_eviction_event(eviction_info)
+
+    # If we're currently browsing the target directory, update the view
+    if target_dir == _current_dir:
         _message_list = storage.list_messages(_current_dir)
         if sp["message_id"] in _message_list:
             _current_index = _message_list.index(sp["message_id"])
-
-        # Render the new message immediately
         _render_current()
 
-        # Send read receipt after first animation loop
+    # Send read receipt for inbox messages
+    if target_dir == config.INBOX_DIR:
         if sp["is_anim"] and frames > 1:
             player.play_animation(
                 sp["pixel_data"],
@@ -243,10 +514,37 @@ def _process_commands():
             player.render_static(sp["pixel_data"], width, height)
             ably_mqtt.publish_read_receipt(sp["message_id"])
 
+    # Publish updated inventory
+    _publish_inventory()
+
+
+def _publish_eviction_event(eviction_info):
+    """Publish FIFO eviction event via Ably status channel."""
+    if not ably_mqtt.is_connected():
+        return
+
+    topic = f"status/{config.USER_ID}/{config.BOARD_ID}"
+    payload = json.dumps({
+        "type": "eviction",
+        "evicted": eviction_info.get("evicted", []),
+        "directory": eviction_info.get("directory", ""),
+    })
+    try:
+        ably_mqtt.publish_status(topic, payload)
+    except Exception as e:
+        print(f"[EVICTION] Failed to publish: {e}")
+
+
+# =============================================================================
+# Rendering
+# =============================================================================
 
 def _render_current():
     """Render the currently selected message/art."""
     global _message_list
+
+    if _in_settings_mode:
+        return  # Don't render content while in settings
 
     if not _message_list:
         _message_list = storage.list_messages(_current_dir)
@@ -281,11 +579,141 @@ def _render_current():
         player.render_static(pixel_data, width, height)
 
 
+# =============================================================================
+# Settings Mode (On-Board)
+# =============================================================================
+
+_SETTINGS_ITEMS = ["Brightness", "Mode", "Auto-Rotate", "WiFi", "Board Info", "Exit"]
+
+
+def _enter_settings_mode():
+    """Enter the on-board settings menu."""
+    global _in_settings_mode, _settings_index
+    _in_settings_mode = True
+    _settings_index = 0
+    player.stop_animation()
+    _render_settings()
+    print("[SETTINGS] Entered settings mode")
+
+
+def _exit_settings_mode():
+    """Exit the on-board settings menu and return to content display."""
+    global _in_settings_mode
+    _in_settings_mode = False
+    _save_local_settings()
+    _render_current()
+    print("[SETTINGS] Exited settings mode")
+
+
+def _render_settings():
+    """Render the current settings screen on the display."""
+    if not _in_settings_mode:
+        return
+
+    width = config.BOARD_WIDTH
+    height = config.BOARD_HEIGHT
+    item = _SETTINGS_ITEMS[_settings_index]
+
+    # Build a simple text display using pixel rendering
+    # We'll render colored indicators since full text rendering
+    # is limited on small pixel matrices
+    player.render_settings_screen(width, height, item, _get_setting_value(item))
+
+
+def _get_setting_value(item):
+    """Get the current value string for a settings item."""
+    if item == "Brightness":
+        return f"{int(_brightness * 100)}%"
+    elif item == "Mode":
+        return "Art" if _current_dir == config.ART_DIR else "Inbox"
+    elif item == "Auto-Rotate":
+        return "On" if _auto_rotate else "Off"
+    elif item == "WiFi":
+        ssid = wifi.get_current_ssid()
+        return ssid if ssid else "Disconnected"
+    elif item == "Board Info":
+        return config.BOARD_ID[:8]
+    return ""
+
+
+def _handle_settings_action(action):
+    """Handle button presses while in settings mode."""
+    global _settings_index, _brightness, _auto_rotate, _current_dir, _current_index, _message_list
+
+    if action == buttons.ACTION_SKIP:
+        # A: Next settings item
+        _settings_index = (_settings_index + 1) % len(_SETTINGS_ITEMS)
+        _render_settings()
+
+    elif action == buttons.ACTION_CYCLE:
+        # B: Previous settings item
+        _settings_index = (_settings_index - 1) % len(_SETTINGS_ITEMS)
+        _render_settings()
+
+    elif action == buttons.ACTION_MODE:
+        # C: Modify current setting
+        item = _SETTINGS_ITEMS[_settings_index]
+
+        if item == "Brightness":
+            _brightness = round(_brightness + 0.1, 1)
+            if _brightness > 1.0:
+                _brightness = 0.1
+            if _unicorn_hw:
+                _unicorn_hw.set_brightness(_brightness)
+
+        elif item == "Mode":
+            if _current_dir == config.INBOX_DIR:
+                _current_dir = config.ART_DIR
+            else:
+                _current_dir = config.INBOX_DIR
+            _current_index = 0
+            _message_list = storage.list_messages(_current_dir)
+
+        elif item == "Auto-Rotate":
+            _auto_rotate = not _auto_rotate
+
+        elif item == "Exit":
+            _exit_settings_mode()
+            return
+
+        _render_settings()
+
+    elif action == buttons.ACTION_PLAY_PAUSE:
+        # D short: Select/confirm (exit settings for "Exit" item)
+        item = _SETTINGS_ITEMS[_settings_index]
+        if item == "Exit":
+            _exit_settings_mode()
+        else:
+            # Toggle/cycle the current value
+            _handle_settings_action(buttons.ACTION_MODE)
+
+    elif action == buttons.ACTION_DELETE:
+        # D long: Exit settings mode
+        _exit_settings_mode()
+
+
+# =============================================================================
+# Button Handling
+# =============================================================================
+
 def _handle_actions(actions):
     """Handle button actions."""
     global _current_index, _auto_rotate, _paused, _current_dir, _message_list
 
     for action in actions:
+        # Check for settings mode entry: simultaneous B+C or ACTION_SETTINGS
+        if action == buttons.ACTION_SETTINGS:
+            if _in_settings_mode:
+                _exit_settings_mode()
+            else:
+                _enter_settings_mode()
+            continue
+
+        # Route to settings handler if in settings mode
+        if _in_settings_mode:
+            _handle_settings_action(action)
+            continue
+
         if action == buttons.ACTION_SKIP:
             # A: Skip to next message
             if _message_list:
@@ -295,6 +723,7 @@ def _handle_actions(actions):
         elif action == buttons.ACTION_CYCLE:
             # B: Toggle auto-rotate
             _auto_rotate = not _auto_rotate
+            _save_local_settings()
             print(f"[MAIN] Auto-rotate: {_auto_rotate}")
 
         elif action == buttons.ACTION_MODE:
@@ -306,6 +735,7 @@ def _handle_actions(actions):
             _current_index = 0
             _message_list = storage.list_messages(_current_dir)
             _render_current()
+            _save_local_settings()
             print(f"[MAIN] Mode: {_current_dir}")
 
         elif action == buttons.ACTION_PLAY_PAUSE:
@@ -323,46 +753,44 @@ def _handle_actions(actions):
                 if _current_index >= len(_message_list):
                     _current_index = max(0, len(_message_list) - 1)
                 _render_current()
+                _publish_inventory()
                 print(f"[MAIN] Deleted {msg_id}")
 
 
+# =============================================================================
+# Main Entry Point
+# =============================================================================
+
 def main():
     """SpaceOS boot sequence and main loop."""
-    global _message_list, _current_index, _auto_rotate, _paused
+    global _message_list, _current_index, _auto_rotate, _paused, _brightness, _unicorn_hw
 
     print("=" * 40)
-    print("  SpaceOS v1.1")
+    print("  SpaceOS v2.0")
     print(f"  Board: {config.BOARD_TYPE}")
     print(f"  Size: {config.BOARD_WIDTH}x{config.BOARD_HEIGHT}")
     print("=" * 40)
 
     # 1. Detect and initialize hardware
     cu, gfx, sw_a, sw_b, sw_c, sw_d = _detect_board()
-    cu.set_brightness(0.5)
+    _unicorn_hw = cu
     player.init(cu, gfx)
     buttons.init(cu, sw_a, sw_b, sw_c, sw_d)
 
     # 2. Initialize storage
     storage.init()
 
-    # 3. Connect to WiFi
-    ip_config = wifi.connect(config.WIFI_SSID, config.WIFI_PASSWORD)
-    if ip_config is None:
-        print("[BOOT] WiFi failed. Running in offline mode.")
-    else:
-        # 4. Sync recent messages from server
-        print("[BOOT] Syncing messages...")
-        _boot_sync()
+    # 3. Load local settings (persisted from last session)
+    _load_local_settings()
+    cu.set_brightness(_brightness)
 
-        # 5. Get Ably token and connect MQTT
-        token = _get_ably_token()
-        if token:
-            try:
-                ably_mqtt.connect(token, on_command=_on_command)
-            except Exception as e:
-                print(f"[BOOT] MQTT connection failed: {e}")
-        else:
-            print("[BOOT] No Ably token. Running without real-time updates.")
+    # 4. Show startup animation
+    _show_boot_animation(config.BOARD_WIDTH, config.BOARD_HEIGHT)
+
+    # 5. Connect to WiFi, sync, and establish Ably
+    is_online = _establish_connection()
+    if not is_online:
+        print("[BOOT] Running in offline mode.")
 
     # 6. Load initial message list
     _message_list = storage.list_messages(_current_dir)
@@ -375,10 +803,13 @@ def main():
 
     # 7. Main loop
     auto_rotate_timer = time.ticks_ms()
+    reconnect_timer = time.ticks_ms()
     AUTO_ROTATE_INTERVAL = 10000  # 10 seconds
     _rotate_pending = False  # True when timer expired but animation still playing
 
     while True:
+        now = time.ticks_ms()
+
         # Check MQTT messages
         if ably_mqtt.is_connected():
             ably_mqtt.check_messages()
@@ -387,37 +818,55 @@ def main():
         if _pending_commands:
             _process_commands()
 
+        # Periodic WiFi reconnection (if offline)
+        if not wifi.is_connected():
+            if time.ticks_diff(now, reconnect_timer) > config.RECONNECT_INTERVAL_MS:
+                reconnect_timer = now
+                if _attempt_reconnect():
+                    # Refresh display after reconnect
+                    _message_list = storage.list_messages(_current_dir)
+                    _render_current()
+        elif not ably_mqtt.is_connected():
+            # WiFi is up but MQTT died — try to re-establish
+            if time.ticks_diff(now, reconnect_timer) > config.RECONNECT_INTERVAL_MS:
+                reconnect_timer = now
+                token = _get_ably_token()
+                if token:
+                    try:
+                        ably_mqtt.connect(token, on_command=_on_command)
+                        print("[RECONNECT] MQTT re-established.")
+                    except Exception as e:
+                        print(f"[RECONNECT] MQTT reconnect failed: {e}")
+
         # Poll buttons
         actions = buttons.poll()
         if actions:
             _handle_actions(actions)
-            auto_rotate_timer = time.ticks_ms()
+            auto_rotate_timer = now
             _rotate_pending = False
 
-        # Advance animation frames (non-blocking)
-        loop_done = player.tick()
+        # Advance animation frames (non-blocking) — skip if in settings mode
+        if not _in_settings_mode:
+            loop_done = player.tick()
 
-        # If auto-rotate is pending and animation just finished a loop, transition now
-        if _rotate_pending and loop_done:
-            _rotate_pending = False
-            _current_index = (_current_index + 1) % len(_message_list)
-            _render_current()
-            auto_rotate_timer = time.ticks_ms()
+            # If auto-rotate is pending and animation just finished a loop, transition now
+            if _rotate_pending and loop_done:
+                _rotate_pending = False
+                _current_index = (_current_index + 1) % len(_message_list)
+                _render_current()
+                auto_rotate_timer = now
 
-        # Auto-rotate timer check
-        if _auto_rotate and not _paused and _message_list and not _rotate_pending:
-            if time.ticks_diff(time.ticks_ms(), auto_rotate_timer) > AUTO_ROTATE_INTERVAL:
-                if player.is_animating() and player.loop_count() < 1:
-                    # Animation hasn't completed first loop yet — wait for it
-                    _rotate_pending = True
-                elif player.is_animating():
-                    # Animation has looped at least once, wait for current loop to finish
-                    _rotate_pending = True
-                else:
-                    # Static image or no animation — rotate immediately
-                    _current_index = (_current_index + 1) % len(_message_list)
-                    _render_current()
-                    auto_rotate_timer = time.ticks_ms()
+            # Auto-rotate timer check
+            if _auto_rotate and not _paused and _message_list and not _rotate_pending:
+                if time.ticks_diff(now, auto_rotate_timer) > AUTO_ROTATE_INTERVAL:
+                    if player.is_animating() and player.loop_count() < 1:
+                        _rotate_pending = True
+                    elif player.is_animating():
+                        _rotate_pending = True
+                    else:
+                        _current_index = (_current_index + 1) % len(_message_list)
+                        _render_current()
+                        auto_rotate_timer = now
 
         # Small delay to prevent tight loop
         time.sleep(0.02)

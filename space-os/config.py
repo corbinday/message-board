@@ -7,9 +7,16 @@ except ImportError:
     print("[FATAL] secrets.py not found. Generate one from the web dashboard.")
     raise SystemExit
 
-# WiFi
+# WiFi - primary network from secrets.py
 WIFI_SSID = secrets["ssid"]
 WIFI_PASSWORD = secrets["password"]
+
+# WiFi - multiple known networks (loaded from secrets or fetched from server)
+# Each entry: {"ssid": "...", "password": "..."}
+WIFI_NETWORKS = secrets.get("wifi_networks", [])
+# Always include the primary network as fallback
+if WIFI_SSID and not any(n.get("ssid") == WIFI_SSID for n in WIFI_NETWORKS):
+    WIFI_NETWORKS.append({"ssid": WIFI_SSID, "password": WIFI_PASSWORD})
 
 # Server
 API_URL = secrets["api_url"]
@@ -36,3 +43,9 @@ FIFO_CAP = 20
 
 # Animation
 DEFAULT_FPS = 10
+
+# Reconnection
+RECONNECT_INTERVAL_MS = 60000  # 60 seconds between reconnection attempts
+
+# Local settings file (persisted on device between reboots)
+SETTINGS_FILE = "/settings.json"

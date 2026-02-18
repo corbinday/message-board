@@ -18,6 +18,14 @@ from api.dependencies import (
 )
 import api.queries as q
 from api.queries import BoardType
+from api.command_schema import (
+    build_message_sync,
+    build_art_sync,
+    build_set_mode,
+    build_set_auto_rotate,
+    build_set_brightness,
+    build_sync_request,
+)
 
 router = APIRouter()
 logger = logging.getLogger(__name__)
@@ -205,7 +213,21 @@ async def board_details(request: Request, board_id: str, client: AuthenticatedCl
     board = await q.selectGlobalUserBoard(client, board_id=board_id)
     if not board:
         raise HTTPException(status_code=404, detail="Board does not exist!")
-    context = get_context(request, board=board)
+
+    # Load WiFi profiles for this board
+    wifi_profiles = []
+    if hasattr(q, "selectBoardWifiProfiles"):
+        try:
+            wifi_profiles = await q.selectBoardWifiProfiles(client, board_id=board_id)
+        except Exception as e:
+            logger.error(f"Error loading WiFi profiles: {e}")
+
+    context = get_context(
+        request,
+        board=board,
+        wifi_profiles=wifi_profiles,
+        board_inventory=None,
+    )
     return templates.TemplateResponse("app/board/details.html", context)
 
 
@@ -367,6 +389,282 @@ async def register_board(request: Request, board_id: str, client: AuthenticatedC
             f'<div class="text-red-500 bg-red-900/20 p-4 rounded">Failed to generate key: {str(e)}</div>',
             status_code=400,
         )
+
+
+# =============================================================================
+# Board Settings & Control Routes
+# =============================================================================
+
+
+@router.post(
+    "/board/{board_id}/settings",
+    response_class=HTMLResponse,
+    name="app.update_board_settings",
+)
+async def update_board_settings(
+    request: Request,
+    board_id: str,
+    client: AuthenticatedClient,
+    display_mode: str = Form(None),
+    auto_rotate: str = Form(None),
+    brightness: str = Form(None),
+):
+    """Update board settings and publish control commands to board via Ably."""
+    templates = get_templates(request)
+
+    # Build update kwargs
+    update_kwargs = {}
+    if display_mode is not None:
+        update_kwargs["display_mode"] = display_mode
+    if auto_rotate is not None:
+        update_kwargs["auto_rotate"] = auto_rotate.lower() == "true"
+    if brightness is not None:
+        # Brightness comes as 0-100 from slider, convert to 0.0-1.0
+        try:
+            brightness_val = float(brightness) / 100.0
+            brightness_val = max(0.0, min(1.0, brightness_val))
+            update_kwargs["brightness"] = brightness_val
+        except (ValueError, TypeError):
+            pass
+
+    # Persist settings in database
+    try:
+        if hasattr(q, "updateBoardSettings"):
+            board = await q.updateBoardSettings(
+                client,
+                board_id=board_id,
+                display_mode=update_kwargs.get("display_mode"),
+                auto_rotate=update_kwargs.get("auto_rotate"),
+                brightness=update_kwargs.get("brightness"),
+            )
+        else:
+            board = await q.selectGlobalUserBoard(client, board_id=board_id)
+    except Exception as e:
+        logger.error(f"Error updating board settings: {e}")
+        board = await q.selectGlobalUserBoard(client, board_id=board_id)
+
+    # Publish control commands to board via Ably
+    try:
+        ably_key = os.getenv("ABLY_API_KEY", "")
+        if ably_key and board:
+            from ably import AblyRest
+
+            ably = AblyRest(ably_key)
+            user = await q.selectGlobalUser(client)
+            if user:
+                command_channel = ably.channels.get(f"commands:{user.id}")
+
+                if display_mode is not None:
+                    await command_channel.publish(
+                        "control", build_set_mode(display_mode)
+                    )
+
+                if auto_rotate is not None:
+                    await command_channel.publish(
+                        "control",
+                        build_set_auto_rotate(auto_rotate.lower() == "true"),
+                    )
+
+                if "brightness" in update_kwargs:
+                    await command_channel.publish(
+                        "control",
+                        build_set_brightness(update_kwargs["brightness"]),
+                    )
+    except Exception as e:
+        logger.warning(f"Ably command publish failed (non-fatal): {e}")
+
+    # Return updated control panel HTML
+    wifi_profiles = []
+    if hasattr(q, "selectBoardWifiProfiles"):
+        try:
+            wifi_profiles = await q.selectBoardWifiProfiles(client, board_id=board_id)
+        except Exception:
+            pass
+
+    context = get_context(
+        request,
+        board=board,
+        wifi_profiles=wifi_profiles,
+        board_inventory=None,
+    )
+    return templates.TemplateResponse("app/board/details.html", context)
+
+
+@router.post(
+    "/board/{board_id}/sync-request",
+    response_class=HTMLResponse,
+    name="app.board_sync_request",
+)
+async def board_sync_request(
+    request: Request,
+    board_id: str,
+    client: AuthenticatedClient,
+):
+    """Send a sync request command to the board via Ably."""
+    try:
+        ably_key = os.getenv("ABLY_API_KEY", "")
+        if ably_key:
+            from ably import AblyRest
+
+            ably = AblyRest(ably_key)
+            user = await q.selectGlobalUser(client)
+            if user:
+                command_channel = ably.channels.get(f"commands:{user.id}")
+                await command_channel.publish("control", build_sync_request())
+
+        return HTMLResponse(
+            '<p class="text-pico-green text-xs">Sync request sent to board.</p>'
+        )
+    except Exception as e:
+        logger.error(f"Error sending sync request: {e}")
+        return HTMLResponse(
+            f'<p class="text-red-400 text-xs">Failed to send sync request.</p>',
+            status_code=500,
+        )
+
+
+@router.post(
+    "/board/{board_id}/command",
+    response_class=HTMLResponse,
+    name="app.board_push_command",
+)
+async def board_push_command(
+    request: Request,
+    board_id: str,
+    client: AuthenticatedClient,
+    command: str = Form(...),
+):
+    """Publish a control command to the board via Ably."""
+    try:
+        ably_key = os.getenv("ABLY_API_KEY", "")
+        if not ably_key:
+            return HTMLResponse(
+                '<span class="text-red-400">Ably not configured</span>',
+                status_code=503,
+            )
+
+        from ably import AblyRest
+
+        ably = AblyRest(ably_key)
+        user = await q.selectGlobalUser(client)
+        if not user:
+            return HTMLResponse(
+                '<span class="text-red-400">User not found</span>',
+                status_code=401,
+            )
+
+        command_channel = ably.channels.get(f"commands:{user.id}")
+
+        # Map command string to typed envelope
+        if command == "sync_request":
+            await command_channel.publish("control", build_sync_request())
+        else:
+            return HTMLResponse(
+                f'<span class="text-red-400">Unknown command: {command}</span>',
+                status_code=400,
+            )
+
+        return HTMLResponse('<span class="text-pico-green">Command sent</span>')
+
+    except Exception as e:
+        logger.error(f"Error pushing command: {e}")
+        return HTMLResponse(
+            f'<span class="text-red-400">Failed: {str(e)}</span>',
+            status_code=500,
+        )
+
+
+# =============================================================================
+# WiFi Profile Routes
+# =============================================================================
+
+
+@router.post(
+    "/board/{board_id}/wifi",
+    response_class=HTMLResponse,
+    name="app.add_board_wifi",
+)
+async def add_board_wifi(
+    request: Request,
+    board_id: str,
+    client: AuthenticatedClient,
+    ssid: str = Form(...),
+    wifi_password: str = Form(...),
+    priority: int = Form(0),
+):
+    """Add a WiFi profile to a board."""
+    templates = get_templates(request)
+
+    try:
+        if hasattr(q, "insertBoardWifiProfile"):
+            await q.insertBoardWifiProfile(
+                client,
+                board_id=board_id,
+                ssid=ssid,
+                password=wifi_password,
+                priority=priority,
+            )
+    except Exception as e:
+        logger.error(f"Error adding WiFi profile: {e}")
+
+    # Re-render the WiFi profiles section
+    board = await q.selectGlobalUserBoard(client, board_id=board_id)
+    wifi_profiles = []
+    if hasattr(q, "selectBoardWifiProfiles"):
+        try:
+            wifi_profiles = await q.selectBoardWifiProfiles(client, board_id=board_id)
+        except Exception:
+            pass
+
+    context = get_context(
+        request,
+        board=board,
+        wifi_profiles=wifi_profiles,
+        board_inventory=None,
+    )
+    return templates.TemplateResponse("app/board/details.html", context)
+
+
+@router.delete(
+    "/board/{board_id}/wifi/{profile_id}",
+    response_class=HTMLResponse,
+    name="app.delete_board_wifi",
+)
+async def delete_board_wifi(
+    request: Request,
+    board_id: str,
+    profile_id: str,
+    client: AuthenticatedClient,
+):
+    """Delete a WiFi profile from a board."""
+    templates = get_templates(request)
+
+    try:
+        if hasattr(q, "deleteBoardWifiProfile"):
+            await q.deleteBoardWifiProfile(
+                client,
+                board_id=board_id,
+                profile_id=profile_id,
+            )
+    except Exception as e:
+        logger.error(f"Error deleting WiFi profile: {e}")
+
+    # Re-render the WiFi profiles section
+    board = await q.selectGlobalUserBoard(client, board_id=board_id)
+    wifi_profiles = []
+    if hasattr(q, "selectBoardWifiProfiles"):
+        try:
+            wifi_profiles = await q.selectBoardWifiProfiles(client, board_id=board_id)
+        except Exception:
+            pass
+
+    context = get_context(
+        request,
+        board=board,
+        wifi_profiles=wifi_profiles,
+        board_inventory=None,
+    )
+    return templates.TemplateResponse("app/board/details.html", context)
 
 
 # =============================================================================
@@ -823,13 +1121,13 @@ async def send_message(
                         width, height = 32, 32
 
                     command_channel = ably.channels.get(f"commands:{recipient_id}")
-                    await command_channel.publish("new_message", {
-                        "messageId": str(message_result.id),
-                        "width": width,
-                        "height": height,
-                        "frames": draft.frames,
-                        "fps": draft.fps,
-                    })
+                    await command_channel.publish("new_message", build_message_sync(
+                        message_id=str(message_result.id),
+                        width=width,
+                        height=height,
+                        frames=draft.frames,
+                        fps=draft.fps,
+                    ))
                     logger.info(f"Ably command published for message {message_result.id}")
             except Exception as ably_err:
                 logger.warning(f"Ably command publish failed (non-fatal): {ably_err}")

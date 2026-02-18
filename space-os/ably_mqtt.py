@@ -138,6 +138,17 @@ def publish_read_receipt(message_id):
         print(f"[MQTT] Error sending read receipt: {e}")
 
 
+def publish_status(topic, payload):
+    """Publish an arbitrary status message to a given topic."""
+    if not _client or not _connected:
+        return
+    try:
+        _client.publish(topic, payload, qos=1)
+        print(f"[MQTT] Status published to {topic}")
+    except Exception as e:
+        print(f"[MQTT] Error publishing status: {e}")
+
+
 def disconnect():
     """Gracefully disconnect from MQTT."""
     global _client, _connected

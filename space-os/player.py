@@ -239,3 +239,171 @@ def clear_display():
     _graphics.set_pen(_graphics.create_pen(0, 0, 0))
     _graphics.clear()
     _unicorn.update(_graphics)
+
+
+# =============================================================================
+# Settings Screen Rendering
+# =============================================================================
+
+# Color scheme for settings menu items
+_SETTINGS_COLORS = {
+    "Brightness": (255, 200, 50),   # Yellow
+    "Mode": (50, 150, 255),         # Blue
+    "Auto-Rotate": (50, 255, 100),  # Green
+    "WiFi": (200, 100, 255),        # Purple
+    "Board Info": (100, 200, 200),  # Cyan
+    "Exit": (255, 80, 80),          # Red
+}
+
+
+def render_settings_screen(width, height, item_name, value_str):
+    """
+    Render a settings screen on the pixel display.
+
+    Since these are small pixel matrices (16x16 to 53x11), we use a
+    visual indicator approach:
+    - Top section: colored bar identifying the setting
+    - Middle: value indicator (brightness bar, mode icon, toggle dot)
+    - Bottom: navigation hints
+    """
+    if not _graphics or not _unicorn:
+        return
+
+    global _anim_active
+    _anim_active = False
+
+    _graphics.set_pen(_graphics.create_pen(0, 0, 0))
+    _graphics.clear()
+
+    color = _SETTINGS_COLORS.get(item_name, (200, 200, 200))
+    r, g, b = color
+
+    # Top bar: colored indicator for the current setting (2 rows)
+    bar_pen = _graphics.create_pen(r, g, b)
+    _graphics.set_pen(bar_pen)
+    for x in range(width):
+        _graphics.pixel(x, 0)
+        _graphics.pixel(x, 1)
+
+    # Middle section: value visualization
+    mid_y = height // 2
+
+    if item_name == "Brightness":
+        # Brightness bar: fill proportional to value
+        try:
+            pct = int(value_str.replace("%", "")) / 100.0
+        except (ValueError, AttributeError):
+            pct = 0.5
+        fill_width = max(1, int(width * pct))
+        bright_pen = _graphics.create_pen(
+            int(255 * pct), int(200 * pct), int(50 * pct)
+        )
+        _graphics.set_pen(bright_pen)
+        for x in range(fill_width):
+            for y_off in range(-1, 2):
+                py = mid_y + y_off
+                if 0 <= py < height:
+                    _graphics.pixel(x, py)
+
+    elif item_name == "Mode":
+        # Mode: show "I" pattern for inbox, "A" pattern for art
+        mode_pen = _graphics.create_pen(r, g, b)
+        _graphics.set_pen(mode_pen)
+        cx = width // 2
+        if value_str == "Inbox":
+            # Vertical bar for "I"
+            for y_off in range(-2, 3):
+                py = mid_y + y_off
+                if 0 <= py < height:
+                    _graphics.pixel(cx, py)
+            # Top and bottom horizontal bars
+            for x_off in range(-1, 2):
+                px = cx + x_off
+                if 0 <= px < width:
+                    _graphics.pixel(px, mid_y - 2)
+                    _graphics.pixel(px, mid_y + 2)
+        else:
+            # Diamond for "A"
+            offsets = [(0, -2), (-1, -1), (1, -1), (-2, 0), (2, 0),
+                       (-1, 0), (1, 0), (-2, 1), (2, 1), (-2, 2), (2, 2)]
+            for dx, dy in offsets:
+                px, py = cx + dx, mid_y + dy
+                if 0 <= px < width and 0 <= py < height:
+                    _graphics.pixel(px, py)
+
+    elif item_name == "Auto-Rotate":
+        # Toggle: green dot for On, dim dot for Off
+        if value_str == "On":
+            on_pen = _graphics.create_pen(0, 255, 0)
+        else:
+            on_pen = _graphics.create_pen(60, 60, 60)
+        _graphics.set_pen(on_pen)
+        cx = width // 2
+        for dx in range(-1, 2):
+            for dy in range(-1, 2):
+                px, py = cx + dx, mid_y + dy
+                if 0 <= px < width and 0 <= py < height:
+                    _graphics.pixel(px, py)
+
+    elif item_name == "WiFi":
+        # WiFi: show signal strength arcs or disconnected X
+        wifi_pen = _graphics.create_pen(r, g, b)
+        _graphics.set_pen(wifi_pen)
+        cx = width // 2
+        if value_str == "Disconnected":
+            # Draw X
+            for i in range(-2, 3):
+                px1, py1 = cx + i, mid_y + i
+                px2, py2 = cx + i, mid_y - i
+                if 0 <= px1 < width and 0 <= py1 < height:
+                    _graphics.pixel(px1, py1)
+                if 0 <= px2 < width and 0 <= py2 < height:
+                    _graphics.pixel(px2, py2)
+        else:
+            # Draw simple arc pattern
+            _graphics.pixel(cx, mid_y + 1)
+            for dx in range(-1, 2):
+                py = mid_y
+                px = cx + dx
+                if 0 <= px < width and 0 <= py < height:
+                    _graphics.pixel(px, py)
+            for dx in range(-2, 3):
+                py = mid_y - 1
+                px = cx + dx
+                if 0 <= px < width and 0 <= py < height:
+                    _graphics.pixel(px, py)
+
+    elif item_name == "Board Info":
+        # Show board ID as a pattern of lit pixels
+        info_pen = _graphics.create_pen(r, g, b)
+        _graphics.set_pen(info_pen)
+        # Use hash of value to create a unique pattern
+        for i, ch in enumerate(value_str[:8]):
+            val = ord(ch)
+            x = (i * 3) % width
+            y = mid_y + (val % 3) - 1
+            if 0 <= x < width and 0 <= y < height:
+                _graphics.pixel(x, y)
+                if x + 1 < width:
+                    _graphics.pixel(x + 1, y)
+
+    elif item_name == "Exit":
+        # Arrow pointing right (exit)
+        exit_pen = _graphics.create_pen(r, g, b)
+        _graphics.set_pen(exit_pen)
+        cx = width // 2
+        for dx in range(-2, 3):
+            _graphics.pixel(cx + dx, mid_y)
+        _graphics.pixel(cx + 2, mid_y - 1)
+        _graphics.pixel(cx + 2, mid_y + 1)
+        _graphics.pixel(cx + 1, mid_y - 2)
+        _graphics.pixel(cx + 1, mid_y + 2)
+
+    # Bottom row: dim navigation hint dots
+    hint_pen = _graphics.create_pen(30, 30, 30)
+    _graphics.set_pen(hint_pen)
+    for x in range(0, width, 3):
+        _graphics.pixel(x, height - 1)
+
+    _unicorn.update(_graphics)
+    gc.collect()
