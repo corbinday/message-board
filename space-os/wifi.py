@@ -54,7 +54,8 @@ def connect_best(known_networks, max_retries=3, retry_delay=3):
         print(f"[NET] Already connected: {_wlan.ifconfig()}")
         return _wlan.ifconfig()
 
-    _wlan.active(True)
+    # Ensure a clean CYW43 state before scanning
+    _reset_wlan()
 
     # Scan for available SSIDs
     available = _scan_networks()
@@ -89,6 +90,17 @@ def connect_best(known_networks, max_retries=3, retry_delay=3):
     return None
 
 
+def _reset_wlan():
+    """Deactivate and reactivate the WLAN interface to reset the CYW43 chip."""
+    global _wlan
+    if _wlan is None:
+        _wlan = net.WLAN(net.STA_IF)
+    _wlan.active(False)
+    time.sleep(1)
+    _wlan.active(True)
+    time.sleep(1)
+
+
 def connect(ssid, password, max_retries=5, retry_delay=3):
     """Connect to a specific WiFi network with retry logic. Returns IP config or None."""
     global _wlan
@@ -99,11 +111,18 @@ def connect(ssid, password, max_retries=5, retry_delay=3):
         print(f"[NET] Already connected: {_wlan.ifconfig()}")
         return _wlan.ifconfig()
 
-    _wlan.active(True)
+    # Ensure a clean CYW43 state before first connection attempt
+    _reset_wlan()
 
     for attempt in range(1, max_retries + 1):
         print(f"[NET] Connecting to {ssid} (attempt {attempt}/{max_retries})...")
-        _wlan.connect(ssid, password)
+        try:
+            _wlan.connect(ssid, password)
+        except OSError as e:
+            print(f"[NET] connect() raised OSError: {e}")
+            _reset_wlan()
+            time.sleep(retry_delay)
+            continue
 
         wait = 10
         while wait > 0:
@@ -146,9 +165,8 @@ def reconnect(known_networks=None, ssid=None, password=None):
             _wlan.disconnect()
         except Exception:
             pass
-        _wlan.active(False)
-        time.sleep(1)
         _wlan = None
+    _reset_wlan()
 
     if known_networks:
         return connect_best(known_networks, max_retries=2, retry_delay=2)
