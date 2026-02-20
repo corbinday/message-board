@@ -37,6 +37,8 @@
 #     'queries/selectUserGraphics.edgeql'
 #     'queries/selectUserMessages.edgeql'
 #     'queries/selectUserMessagesRecent.edgeql'
+#     'queries/updateBoardLastConnected.edgeql'
+#     'queries/updateBoardOTAEnabled.edgeql'
 #     'queries/updateBoardSettings.edgeql'
 #     'queries/updateGlobalUser.edgeql'
 #     'queries/updateGlobalUserBoard.edgeql'
@@ -156,6 +158,7 @@ class selectBoardBySecretKeyResult(NoPydanticValidation):
     boardType: BoardType02
     name: str | None
     secret_key_hash: str | None
+    ota_updates_enabled: bool | None
     owner_id: uuid.UUID
 
 
@@ -221,6 +224,7 @@ class selectGlobalUserBoardResult(NoPydanticValidation):
     brightness: float | None
     display_mode: DisplayMode | None
     wifi_encryption_key: str | None
+    ota_updates_enabled: bool | None
 
 
 @dataclasses.dataclass
@@ -349,7 +353,8 @@ class selectUserMessagesResultGraphic(NoPydanticValidation):
 
 
 @dataclasses.dataclass
-class updateBoardSettingsResult(NoPydanticValidation):
+class updateBoardOTAEnabledResult(NoPydanticValidation):
+    ota_updates_enabled: bool | None
     wifi_encryption_key: str | None
     display_mode: DisplayMode | None
     brightness: float | None
@@ -867,6 +872,7 @@ async def selectBoardBySecretKey(
           boardType,
           name,
           secret_key_hash,
+          ota_updates_enabled,
           owner_id := .owner.id
         }
         filter .id = <uuid>$board_id
@@ -1270,6 +1276,49 @@ async def selectUserMessagesRecent(
     )
 
 
+async def updateBoardLastConnected(
+    executor: gel.AsyncIOExecutor,
+    *,
+    board_id: uuid.UUID,
+) -> deleteGlobalUserBoardResult | None:
+    return await executor.query_single(
+        """\
+        update Board
+        filter .id = <uuid>$board_id
+        set { last_connected_at := datetime_of_statement() };\
+        """,
+        board_id=board_id,
+    )
+
+
+async def updateBoardOTAEnabled(
+    executor: gel.AsyncIOExecutor,
+    *,
+    board_id: uuid.UUID,
+    ota_updates_enabled: bool,
+) -> updateBoardOTAEnabledResult | None:
+    return await executor.query_single(
+        """\
+        with
+          board := select assert_single(
+            select Board {*}
+            filter .id = <uuid>$board_id and assert_single(
+              .owner.identity = global ext::auth::ClientTokenIdentity
+            )
+          ),
+          updated_board := (
+            update board
+            set {
+              ota_updates_enabled := <bool>$ota_updates_enabled
+            }
+          )
+        select updated_board{*};\
+        """,
+        board_id=board_id,
+        ota_updates_enabled=ota_updates_enabled,
+    )
+
+
 async def updateBoardSettings(
     executor: gel.AsyncIOExecutor,
     *,
@@ -1277,7 +1326,7 @@ async def updateBoardSettings(
     display_mode: DisplayMode02 | None = None,
     auto_rotate: bool | None = None,
     brightness: float | None = None,
-) -> updateBoardSettingsResult | None:
+) -> updateBoardOTAEnabledResult | None:
     return await executor.query_single(
         """\
         with
@@ -1344,7 +1393,7 @@ async def updateGlobalUserBoard(
     name: str | None = None,
     secret_key_hash: str | None = None,
     wifi_encryption_key: str | None = None,
-) -> updateBoardSettingsResult | None:
+) -> updateBoardOTAEnabledResult | None:
     return await executor.query_single(
         """\
         with
