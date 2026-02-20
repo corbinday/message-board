@@ -10,7 +10,8 @@
         "dev:assets": "uv run -- python scripts/generate_asset_hashes.py --watch",
         "dev": "concurrently --raw \"npm run dev:api\" \"npm run dev:css\" \"npm run dev:assets\"",
         "assets:generate": "uv run -- python scripts/generate_asset_hashes.py --once",
-        "generate:queries": "uv run gel-py --target async --file api/queries.py"
+        "generate:queries": "uv run gel-py --target async --file api/queries.py",
+        "sign:spaceos": "uv run scripts/sign_spaceos.py --1password 'op://PMB/SpaceOS Key/private key' --account my"
     },
     "devDependencies": {
         "concurrently": "^9.1.0",

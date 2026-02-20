@@ -64,6 +64,49 @@ def save_message(message_id, pixel_data, metadata, directory=None):
     return eviction_info
 
 
+def save_message_from_file(message_id, pixel_tmp_path, metadata, directory=None):
+    """
+    Save a message where pixel data is already on disk at pixel_tmp_path.
+
+    Renames the temp file into the correct storage location (same filesystem,
+    so this is O(1) — no copy). Use this after download_streaming() to avoid
+    ever holding large pixel buffers in RAM.
+
+    Returns eviction info dict if items were evicted, or None.
+    """
+    if directory is None:
+        directory = config.INBOX_DIR
+    _ensure_dir(directory)
+
+    bin_path = f"{directory}/{message_id}.bin"
+    try:
+        os.rename(pixel_tmp_path, bin_path)
+    except OSError:
+        # Fallback: copy then delete (shouldn't happen on single LittleFS volume)
+        try:
+            with open(pixel_tmp_path, "rb") as src, open(bin_path, "wb") as dst:
+                while True:
+                    chunk = src.read(4096)
+                    if not chunk:
+                        break
+                    dst.write(chunk)
+                    gc.collect()
+            os.remove(pixel_tmp_path)
+        except Exception as e:
+            print(f"[STORE] Failed to move temp file: {e}")
+            return None
+
+    json_path = f"{directory}/{message_id}.json"
+    with open(json_path, "w") as f:
+        json.dump(metadata, f)
+
+    print(f"[STORE] Saved {message_id} to {directory}")
+
+    eviction_info = _enforce_fifo(directory)
+    gc.collect()
+    return eviction_info
+
+
 def _enforce_fifo(directory):
     """
     Delete oldest files when over FIFO cap.

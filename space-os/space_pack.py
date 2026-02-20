@@ -1,4 +1,5 @@
 # space_pack.py - Download and parse Space Pack binary from server
+import os
 import struct
 import json
 import gc
@@ -117,3 +118,113 @@ def parse(data):
         "is_anim": meta.get("is_anim", False),
         "pixel_data": pixel_data,
     }
+
+
+def download_streaming(message_id, pixel_out_path):
+    """
+    Download a Space Pack, streaming pixel data directly to pixel_out_path.
+
+    Avoids the large RAM allocation that download() requires — safe for files
+    that exceed free heap (anything over ~150 KB on the Pico).
+
+    Returns a metadata dict (without pixel_data) on success, or None on failure.
+    The caller is responsible for cleaning up pixel_out_path on failure.
+    """
+    url = f"{config.API_URL}/app/space-pack/{message_id}"
+    headers = {
+        "X-Board-Id": config.BOARD_ID,
+        "X-Board-Secret": config.BOARD_SECRET_KEY,
+    }
+
+    _CHUNK = 4096
+
+    print(f"[HTTP] GET {url}")
+    try:
+        response = urequests.get(url, headers=headers)
+
+        if response.status_code != 200:
+            print(f"[HTTP] {response.status_code}")
+            response.raw.close()
+            return None
+
+        # Parse the fixed 24-byte header inline (magic + uuid + meta_len + pixel_len)
+        header = response.raw.read(24)
+        if len(header) < 24:
+            print(f"[SP] Short header ({len(header)} bytes)")
+            response.raw.close()
+            return None
+
+        if header[:2] != b"SP":
+            print(f"[SP] Invalid magic: {header[:2]}")
+            response.raw.close()
+            return None
+
+        raw_uuid = header[2:18]
+        uid_hex = "".join("{:02x}".format(b) for b in raw_uuid)
+        msg_id = f"{uid_hex[:8]}-{uid_hex[8:12]}-{uid_hex[12:16]}-{uid_hex[16:20]}-{uid_hex[20:]}"
+
+        meta_len = struct.unpack(">H", header[18:20])[0]
+        pixel_len = struct.unpack(">I", header[20:24])[0]
+
+        # Read metadata JSON (always small — a few hundred bytes at most)
+        meta_bytes = response.raw.read(meta_len)
+        if len(meta_bytes) < meta_len:
+            print(f"[SP] Short metadata ({len(meta_bytes)}/{meta_len})")
+            response.raw.close()
+            return None
+
+        try:
+            meta = json.loads(meta_bytes)
+        except Exception as e:
+            print(f"[SP] Metadata parse error: {e}")
+            response.raw.close()
+            return None
+
+        gc.collect()
+
+        # Stream pixel data directly to flash — never held in RAM beyond one chunk
+        remaining = pixel_len
+        try:
+            with open(pixel_out_path, "wb") as f:
+                while remaining > 0:
+                    chunk = response.raw.read(min(_CHUNK, remaining))
+                    if not chunk:
+                        break
+                    f.write(chunk)
+                    remaining -= len(chunk)
+                    gc.collect()
+        except Exception as e:
+            print(f"[SP] Pixel stream error: {e}")
+            response.raw.close()
+            try:
+                os.remove(pixel_out_path)
+            except OSError:
+                pass
+            return None
+
+        response.raw.close()
+
+        if remaining > 0:
+            print(f"[SP] Incomplete pixel data ({remaining} bytes missing)")
+            try:
+                os.remove(pixel_out_path)
+            except OSError:
+                pass
+            return None
+
+        print(f"[SP] Streamed OK: id={msg_id[:12]}... sender={meta.get('sender', '?')} {pixel_len}B pixels")
+        gc.collect()
+        return {
+            "message_id": msg_id,
+            "sender": meta.get("sender", "Unknown"),
+            "fps": meta.get("fps", config.DEFAULT_FPS),
+            "is_anim": meta.get("is_anim", False),
+        }
+
+    except Exception as e:
+        print(f"[HTTP] GET {url} EXCEPTION: {e}")
+        try:
+            os.remove(pixel_out_path)
+        except OSError:
+            pass
+        return None

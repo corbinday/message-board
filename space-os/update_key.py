@@ -7,4 +7,4 @@
 # Replace PUBLIC_KEY with the 32-byte raw public key bytes printed by the script.
 # The private key stays in your password manager and is never committed to the repo.
 
-PUBLIC_KEY = bytes(32)  # placeholder — replace with actual public key before deploying
+PUBLIC_KEY = bytes.fromhex('25430281c582344c96fd25b3917b7536bedc10e3602b16db4556eb3d3b669bf8')

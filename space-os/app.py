@@ -303,13 +303,14 @@ def _boot_sync():
             status = "LOCAL" if item_id in local_art_ids else "NEW"
             print(f"[SYNC]   art[{i}] {item_id[:12]}... {status}")
 
+        _TMP = "/tmp_sp.bin"
         for item in art_items:
             item_id = item.get("messageId", "")
             if item_id in local_art_ids:
                 continue
 
             print(f"[SYNC] Downloading art {item_id[:12]}...")
-            sp = space_pack.download(item_id)
+            sp = space_pack.download_streaming(item_id, _TMP)
             if sp is None:
                 print(f"[SYNC] Failed to download art {item_id[:12]}...")
                 continue
@@ -326,7 +327,7 @@ def _boot_sync():
                 "height": height,
                 "frames": frames,
             }
-            storage.save_message(sp["message_id"], sp["pixel_data"], metadata, directory=config.ART_DIR)
+            storage.save_message_from_file(sp["message_id"], _TMP, metadata, directory=config.ART_DIR)
             synced += 1
             gc.collect()
 
@@ -338,13 +339,14 @@ def _boot_sync():
             status = "LOCAL" if item_id in local_inbox_ids else "NEW"
             print(f"[SYNC]   inbox[{i}] {item_id[:12]}... {status}")
 
+        _TMP = "/tmp_sp.bin"
         for item in inbox_items:
             item_id = item.get("messageId", "")
             if item_id in local_inbox_ids:
                 continue
 
             print(f"[SYNC] Downloading inbox {item_id[:12]}...")
-            sp = space_pack.download(item_id)
+            sp = space_pack.download_streaming(item_id, _TMP)
             if sp is None:
                 print(f"[SYNC] Failed to download inbox {item_id[:12]}...")
                 continue
@@ -361,7 +363,7 @@ def _boot_sync():
                 "height": height,
                 "frames": frames,
             }
-            storage.save_message(sp["message_id"], sp["pixel_data"], metadata, directory=config.INBOX_DIR)
+            storage.save_message_from_file(sp["message_id"], _TMP, metadata, directory=config.INBOX_DIR)
             synced += 1
             gc.collect()
 
