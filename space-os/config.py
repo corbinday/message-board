@@ -1,5 +1,6 @@
 # config.py - SpaceOS Configuration
-# Load device-specific settings from secrets.py on the Pico filesystem
+# Loads device-specific identity and connectivity from secrets.py.
+# Board type and dimensions are detected at runtime by app.py via hardware imports.
 
 try:
     from secrets import secrets
@@ -23,15 +24,9 @@ WIFI_NETWORKS_FILE = "/wifi_networks.json"
 API_URL = secrets["api_url"]
 BOARD_SECRET_KEY = secrets["pmb_secret_key"]
 
-# Board identity (set after first token exchange)
+# Board identity
 BOARD_ID = secrets.get("board_id", "")
 USER_ID = secrets.get("user_id", "")
-
-# Display dimensions (set based on board type)
-# Stellar: 16x16, Galactic: 53x11, Cosmic: 32x32
-BOARD_WIDTH = int(secrets.get("board_width", 32))
-BOARD_HEIGHT = int(secrets.get("board_height", 32))
-BOARD_TYPE = secrets.get("board_type", "Cosmic")
 
 # Ably MQTT
 ABLY_MQTT_HOST = "mqtt.ably.io"

@@ -100,6 +100,12 @@ module default {
         # Generated at provisioning, stored in secrets.py on the board.
         # WiFi passwords are NEVER stored in the database.
         wifi_encryption_key: str;
+
+        # OTA update opt-in. When false, the server will not send updates
+        # to this board via the /api/spaceos/check endpoint.
+        ota_updates_enabled: bool {
+            default := true;
+        };
     }
 
     type Message {

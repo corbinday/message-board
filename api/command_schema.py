@@ -30,6 +30,10 @@ class CommandType(str, Enum):
     # Sync commands
     SYNC_REQUEST = "sync_request"        # Request board to re-sync from server
 
+    # Navigation commands
+    SKIP_NEXT = "skip_next"              # Skip to next animation
+    SKIP_PREV = "skip_prev"              # Skip to previous animation
+
     # WiFi commands (encrypted payload)
     WIFI_UPDATE = "wifi_update"          # Send encrypted WiFi creds to board
 
@@ -86,6 +90,20 @@ def build_sync_request() -> dict:
     """Build a sync_request command envelope."""
     return {
         "type": CommandType.SYNC_REQUEST.value,
+    }
+
+
+def build_skip_next() -> dict:
+    """Build a skip_next command envelope."""
+    return {
+        "type": CommandType.SKIP_NEXT.value,
+    }
+
+
+def build_skip_prev() -> dict:
+    """Build a skip_prev command envelope."""
+    return {
+        "type": CommandType.SKIP_PREV.value,
     }
 
 

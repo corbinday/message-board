@@ -95,10 +95,11 @@ async def board_token(
     owner_id = str(board.owner_id)
 
     # Board capabilities: publish/subscribe to its status channel,
-    # subscribe to command channel
+    # subscribe to command channel, subscribe to global OTA update channel
     capability = {
         f"status/{owner_id}/{board_id}": ["publish", "subscribe"],
         f"commands:{owner_id}": ["subscribe"],
+        "spaceos:system": ["subscribe"],
     }
 
     try:
@@ -106,10 +107,28 @@ async def board_token(
             "client_id": board_id,
             "capability": capability,
         })
-        return JSONResponse({"token": token_details.token})
     except Exception as e:
         logger.error(f"Board Ably token error: {e}")
         raise HTTPException(status_code=500, detail="Token generation failed")
+
+    # Record board connection time
+    try:
+        if hasattr(q, "updateBoardLastConnected"):
+            await q.updateBoardLastConnected(base_client, board_id=UUID(board_id))
+    except Exception as e:
+        logger.warning(f"Could not update board last_connected_at: {e}")
+
+    # Notify web UI that board is online via Ably message
+    try:
+        status_channel = ably.channels.get(f"status:{owner_id}")
+        await status_channel.publish("board_status", {
+            "board_id": board_id,
+            "online": True,
+        })
+    except Exception as e:
+        logger.warning(f"Could not publish board_status event: {e}")
+
+    return JSONResponse({"token": token_details.token})
 
 
 @router.post("/boards/{board_id}/inventory", name="ably.board_inventory")

@@ -1,0 +1,40 @@
+{% if art_ids or inbox_ids %}
+<div class="space-y-3">
+  {% if inbox_ids %}
+  <div>
+    <p class="text-[10px] text-slate-500 uppercase tracking-widest mb-1">Inbox ({{ inbox_ids|length }})</p>
+    <div class="flex flex-wrap gap-1">
+      {% for msg_id in inbox_ids %}
+      <img
+        src="{{ url_for('app.serve_message_graphic', message_id=msg_id) }}"
+        alt="Message {{ loop.index }}"
+        class="w-8 h-8 rounded object-cover bg-slate-800 border border-slate-700"
+        style="image-rendering: pixelated;"
+        loading="lazy"
+        onerror="this.style.display='none'"
+      />
+      {% endfor %}
+    </div>
+  </div>
+  {% endif %}
+  {% if art_ids %}
+  <div>
+    <p class="text-[10px] text-slate-500 uppercase tracking-widest mb-1">Art ({{ art_ids|length }})</p>
+    <div class="flex flex-wrap gap-1">
+      {% for gfx_id in art_ids %}
+      <img
+        src="{{ url_for('app.serve_graphic', graphic_id=gfx_id) }}"
+        alt="Art {{ loop.index }}"
+        class="w-8 h-8 rounded object-cover bg-slate-800 border border-slate-700"
+        style="image-rendering: pixelated;"
+        loading="lazy"
+        onerror="this.style.display='none'"
+      />
+      {% endfor %}
+    </div>
+  </div>
+  {% endif %}
+</div>
+{% else %}
+<p class="text-xs text-slate-500">No inventory data. Sync the board to update.</p>
+{% endif %}

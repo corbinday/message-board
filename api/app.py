@@ -13,6 +13,7 @@ import os
 import secrets
 
 from api.routers import auth, user, message, app as app_routes, ably as ably_routes
+from api.routers import spaceos as spaceos_routes
 from api.dependencies import get_current_user, get_client, OptionalUser
 from api.presence_proxy import start_proxy, stop_proxy
 from api.assets import asset_resolver
@@ -39,6 +40,25 @@ async def lifespan(app: FastAPI):
     import asyncio
 
     proxy_task = asyncio.create_task(start_proxy(lambda: base_client))
+
+    # Notify online boards that a new SpaceOS version may be available.
+    # Boards that receive this reboot immediately so main.py can check for updates.
+    from api.routers.spaceos import load_bundle
+    bundle = load_bundle()
+    if bundle:
+        try:
+            from ably import AblyRest
+            ably_key = os.getenv("ABLY_API_KEY", "")
+            if ably_key:
+                ably = AblyRest(ably_key)
+                channel = ably.channels.get("spaceos:system")
+                await channel.publish("os_update", {"type": "os_update"})
+                logger.info(
+                    f"Published os_update to spaceos:system "
+                    f"(hash={bundle[1][:16]}...)"
+                )
+        except Exception as e:
+            logger.warning(f"Failed to publish OTA startup notification: {e}")
 
     yield
 
@@ -120,6 +140,7 @@ app.include_router(user.router, prefix="/user", tags=["user"])
 app.include_router(message.router, prefix="/message", tags=["message"])
 app.include_router(app_routes.router, prefix="/app", tags=["app"])
 app.include_router(ably_routes.router, prefix="/ably", tags=["ably"])
+app.include_router(spaceos_routes.router, prefix="/api/spaceos", tags=["spaceos"])
 
 
 def get_base_client() -> gel.AsyncIOClient:
@@ -176,6 +197,18 @@ app.state.get_base_client = get_base_client
 async def favicon():
     favicon_path = os.path.join(static_folder, "favicon", "favicon.ico")
     return FileResponse(favicon_path, media_type="image/vnd.microsoft.icon")
+
+
+@app.get("/apple-touch-icon.png")
+async def apple_touch_icon():
+    path = os.path.join(static_folder, "favicon", "apple-touch-icon.png")
+    return FileResponse(path, media_type="image/png")
+
+
+@app.get("/apple-touch-icon-precomposed.png")
+async def apple_touch_icon_precomposed():
+    path = os.path.join(static_folder, "favicon", "apple-touch-icon.png")
+    return FileResponse(path, media_type="image/png")
 
 
 @app.get("/", response_class=HTMLResponse)

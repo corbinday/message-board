@@ -22,7 +22,7 @@
     }
   }
 
-  // Subscribe to board inventory updates via Ably if available
+  // Subscribe to board inventory updates via Ably
   function subscribeToInventory() {
     if (typeof SpaceOSAbly === 'undefined') return;
 
@@ -32,24 +32,21 @@
     const boardId = controlPanel.dataset.boardId;
     if (!boardId) return;
 
-    // The SpaceOSAbly module already connects to Ably and subscribes to status channels.
-    // We can listen for board_inventory events on the status channel.
-    const userIdEl = document.querySelector('[data-current-user-id]');
-    if (!userIdEl) return;
+    // Register callback with the SpaceOSAbly module.
+    // When a board_inventory message arrives for this board, trigger an HTMX
+    // request to refresh the live inventory section.
+    SpaceOSAbly.onBoardInventory(function (data) {
+      if (data.board_id !== boardId) return;
 
-    const userId = userIdEl.dataset.currentUserId;
-    if (!userId || typeof Ably === 'undefined') return;
+      // Build query string with the IDs so the server can render thumbnails
+      const artIds = (data.art_ids || []).join(',');
+      const inboxIds = (data.inbox_ids || []).join(',');
+      const inventoryEl = document.getElementById('board-inventory');
+      if (!inventoryEl) return;
 
-    // Wait for Ably connection to be established, then subscribe to inventory events
-    const checkAbly = setInterval(function () {
-      // Access the internal ably instance through the module's init
-      // Since SpaceOSAbly is an IIFE that doesn't expose the ably instance,
-      // we check if the channel is available via the global Ably connection
-      clearInterval(checkAbly);
-
-      // We'll use a separate lightweight approach: listen for htmx events
-      // that indicate inventory data has been refreshed
-    }, 1000);
+      const url = `/app/board/${boardId}/live-inventory?art_ids=${encodeURIComponent(artIds)}&inbox_ids=${encodeURIComponent(inboxIds)}`;
+      htmx.ajax('GET', url, { target: '#board-inventory', swap: 'innerHTML' });
+    });
   }
 
   // Re-initialize controls after HTMX swaps (since control panel is re-rendered)

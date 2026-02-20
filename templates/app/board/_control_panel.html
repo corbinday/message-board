@@ -80,30 +80,63 @@
     </div>
   </div>
 
-  <!-- Board Inventory / Status -->
+  <!-- Board Inventory -->
   <div class="mb-6">
     <h3 class="text-slate-500 uppercase text-[10px] font-bold tracking-widest mb-2">
-      Board Status
+      Board Inventory
     </h3>
-    <div id="board-inventory" class="text-xs text-slate-400 space-y-1">
-      {% if board_inventory %}
-      <p>Inbox: {{ board_inventory.inbox_count }} items</p>
-      <p>Art: {{ board_inventory.art_count }} items</p>
-      {% if board_inventory.last_eviction %}
-      <p class="text-yellow-500">Last eviction: {{ board_inventory.last_eviction }}</p>
-      {% endif %}
-      {% else %}
-      <p>No inventory data available. Sync the board to update.</p>
-      {% endif %}
+    <div id="board-inventory" class="text-xs text-slate-400">
+      <p>Waiting for board to report inventory&hellip;</p>
     </div>
-    <button
-      class="mt-3 px-4 py-2 text-xs font-bold rounded bg-slate-800 text-slate-400 border-2 border-slate-700 hover:border-slate-500 transition-all"
-      hx-post="{{ url_for('app.board_sync_request', board_id=board.id) }}"
-      hx-target="#board-inventory"
-      hx-swap="innerHTML"
-    >
-      Request Sync
-    </button>
+  </div>
+
+  <!-- OTA Updates -->
+  {% set ota_on = board.ota_updates_enabled | default(true) %}
+  <div class="mb-6">
+    <h3 class="text-slate-500 uppercase text-[10px] font-bold tracking-widest mb-2">
+      OTA Updates
+    </h3>
+    <div id="ota-control" class="flex items-center gap-4">
+      <button
+        class="px-4 py-2 text-xs font-bold rounded transition-all {{ 'bg-green-600 text-white border-2 border-green-500' if ota_on else 'bg-slate-800 text-slate-400 border-2 border-slate-700 hover:border-slate-500' }}"
+        hx-post="{{ url_for('app.update_board_ota', board_id=board.id) }}"
+        hx-vals='{"ota_updates_enabled": "{{ 'false' if ota_on else 'true' }}"}'
+        hx-target="#control-panel"
+        hx-swap="outerHTML"
+      >
+        {{ "Enabled" if ota_on else "Disabled" }}
+      </button>
+      <span class="text-xs text-slate-500">
+        {{ "Board will receive automatic firmware updates." if ota_on else "Board will not receive automatic firmware updates." }}
+      </span>
+    </div>
+  </div>
+
+  <!-- Navigation -->
+  <div class="mb-6">
+    <h3 class="text-slate-500 uppercase text-[10px] font-bold tracking-widest mb-2">
+      Navigation
+    </h3>
+    <div class="flex gap-2">
+      <button
+        class="px-4 py-2 text-xs font-bold rounded bg-slate-800 text-slate-300 border-2 border-slate-700 hover:border-slate-500 transition-all"
+        hx-post="{{ url_for('app.board_push_command', board_id=board.id) }}"
+        hx-vals='{"command": "skip_prev"}'
+        hx-swap="none"
+        title="Previous animation"
+      >
+        ← Prev
+      </button>
+      <button
+        class="px-4 py-2 text-xs font-bold rounded bg-slate-800 text-slate-300 border-2 border-slate-700 hover:border-slate-500 transition-all"
+        hx-post="{{ url_for('app.board_push_command', board_id=board.id) }}"
+        hx-vals='{"command": "skip_next"}'
+        hx-swap="none"
+        title="Next animation"
+      >
+        Next →
+      </button>
+    </div>
   </div>
 
   <!-- Quick Actions -->

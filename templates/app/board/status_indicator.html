@@ -1,5 +1,6 @@
 <div
   id="status-container"
+  data-board-id="{{ board.id }}"
   hx-get="{{ url_for('app.board_status', board_id=board.id) }}"
   hx-trigger="every 60s"
   hx-swap="outerHTML"
@@ -11,21 +12,21 @@
   </h3>
   <div class="flex items-center gap-2">
     {% if is_active %}
-    <span class="relative flex h-2 w-2">
+    <span class="relative flex h-2 w-2" data-presence-indicator>
       <span
         class="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75"
       ></span>
       <span
-        class="relative inline-flex rounded-full h-2 w-2 bg-green-500"
+        class="relative inline-flex rounded-full h-2 w-2 bg-pico-green"
       ></span>
     </span>
-    <p class="text-sm text-green-400 font-medium">Online</p>
+    <p class="text-sm text-pico-green font-medium" data-presence-label>online</p>
     {% elif board.last_connected_at %}
-    <span class="h-2 w-2 rounded-full bg-yellow-500"></span>
-    <p class="text-sm text-yellow-500 font-medium">Inactive</p>
+    <span class="h-2 w-2 rounded-full bg-slate-600" data-presence-indicator title="Offline"></span>
+    <p class="text-sm text-slate-600 font-medium" data-presence-label>offline</p>
     {% else %}
-    <span class="h-2 w-2 rounded-full bg-slate-600"></span>
-    <p class="text-sm text-slate-500 font-medium">Never Seen</p>
+    <span class="h-2 w-2 rounded-full bg-slate-600" data-presence-indicator title="Offline"></span>
+    <p class="text-sm text-slate-500 font-medium" data-presence-label>Never Seen</p>
     {% endif %}
   </div>
   <p class="text-[10px] text-slate-600 mt-1">

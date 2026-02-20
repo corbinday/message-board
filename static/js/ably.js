@@ -179,38 +179,46 @@ const SpaceOSAbly = (() => {
     }
   }
 
+  // =========================================================
+  // BOARD INVENTORY CALLBACKS
+  // =========================================================
+
+  const inventoryCallbacks = [];
+
+  function onBoardInventory(callback) {
+    inventoryCallbacks.push(callback);
+  }
+
+  // =========================================================
+  // PRESENCE / STATUS
+  // =========================================================
+
   function subscribeToPresence() {
     if (!ably || !currentUserId) return;
 
-    // Enter presence on own status channel
     const statusChannel = ably.channels.get(`status:${currentUserId}`);
-    statusChannel.presence.enter({ type: 'web' }, (err) => {
-      if (err) {
-        addLog('ERROR', `Presence enter failed: ${err.message}`);
+
+    // Subscribe to board_status messages (published by server when a board
+    // authenticates). This is the authoritative online signal — boards connect
+    // via MQTT and the server publishes this event.
+    statusChannel.subscribe('board_status', (message) => {
+      const data = message.data || {};
+      const boardId = data.board_id;
+      if (!boardId) return;
+      if (data.online) {
+        addLog('SUCCESS', `Board ${boardId.substring(0, 8)} came online`);
+        setOnline(`[data-board-id="${boardId}"]`, true);
       } else {
-        addLog('INFO', 'Entered presence on status channel');
+        addLog('INFO', `Board ${boardId.substring(0, 8)} went offline`);
+        setOnline(`[data-board-id="${boardId}"]`, false);
       }
     });
 
-    // Subscribe to presence changes on own status channel (for board indicators)
-    statusChannel.presence.subscribe('enter', (member) => {
-      addLog(
-        'SUCCESS',
-        `Board ${member.clientId} came online`
-      );
-      setOnline(`[data-board-id="${member.clientId}"]`, true);
-    });
-
-    statusChannel.presence.subscribe('leave', (member) => {
-      addLog('INFO', `Board ${member.clientId} went offline`);
-      setOnline(`[data-board-id="${member.clientId}"]`, false);
-    });
-
-    // Get initial presence set
-    statusChannel.presence.get((err, members) => {
-      if (err) return;
-      members.forEach((member) => {
-        setOnline(`[data-board-id="${member.clientId}"]`, true);
+    // Subscribe to board_inventory messages and dispatch to registered callbacks
+    statusChannel.subscribe('board_inventory', (message) => {
+      const data = message.data || {};
+      inventoryCallbacks.forEach((cb) => {
+        try { cb(data); } catch (e) { /* ignore */ }
       });
     });
 
@@ -268,6 +276,7 @@ const SpaceOSAbly = (() => {
     clearLogs,
     getLogEntries,
     renderLogs,
+    onBoardInventory,
   };
 })();
 

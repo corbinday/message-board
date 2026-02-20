@@ -25,6 +25,8 @@ from api.command_schema import (
     build_set_auto_rotate,
     build_set_brightness,
     build_sync_request,
+    build_skip_next,
+    build_skip_prev,
     build_wifi_update,
     generate_wifi_encryption_key,
 )
@@ -177,6 +179,53 @@ async def serve_graphic(graphic_id: str, client: AuthenticatedClient):
     except Exception as e:
         logger.error(f"Error serving graphic {graphic_id}: {e}")
         return Response(status_code=500)
+
+
+@router.get("/message/{message_id}/graphic", name="app.serve_message_graphic")
+async def serve_message_graphic(message_id: str, client: AuthenticatedClient):
+    """Serve the graphic binary for a message (used for inbox thumbnails)."""
+    try:
+        msg = await q.selectMessageForSpacePack(client, message_id=UUID(message_id))
+        if not msg or not msg.graphic_binary:
+            return Response(status_code=404)
+        return Response(
+            content=msg.graphic_binary,
+            media_type="image/png",
+            headers={"Cache-Control": "public, max-age=3600"},
+        )
+    except Exception as e:
+        logger.error(f"Error serving message graphic {message_id}: {e}")
+        return Response(status_code=500)
+
+
+@router.get(
+    "/board/{board_id}/live-inventory",
+    response_class=HTMLResponse,
+    name="app.board_live_inventory",
+)
+async def board_live_inventory(
+    request: Request,
+    board_id: str,
+    client: AuthenticatedClient,
+    art_ids: str = Query(""),
+    inbox_ids: str = Query(""),
+):
+    """Render the live inventory partial for a board."""
+    board = await q.selectGlobalUserBoard(client, board_id=board_id)
+    if not board:
+        raise HTTPException(status_code=404)
+
+    art_list = [i.strip() for i in art_ids.split(",") if i.strip()]
+    inbox_list = [i.strip() for i in inbox_ids.split(",") if i.strip()]
+
+    templates = get_templates(request)
+    context = get_context(
+        request,
+        board=board,
+        art_ids=art_list,
+        inbox_ids=inbox_list,
+    )
+    return templates.TemplateResponse("app/board/_live_inventory.html", context)
 
 
 @router.get("/board/add", response_class=HTMLResponse, name="app.add_board")
@@ -488,6 +537,44 @@ async def update_board_settings(
 
 
 @router.post(
+    "/board/{board_id}/ota-updates",
+    response_class=HTMLResponse,
+    name="app.update_board_ota",
+)
+async def update_board_ota(
+    request: Request,
+    board_id: str,
+    client: AuthenticatedClient,
+    ota_updates_enabled: str = Form(...),
+):
+    """Toggle OTA updates for a board. Returns the updated control panel partial."""
+    templates = get_templates(request)
+    enabled = ota_updates_enabled.lower() == "true"
+
+    board = None
+    try:
+        if hasattr(q, "updateBoardOTAEnabled"):
+            board = await q.updateBoardOTAEnabled(
+                client,
+                board_id=board_id,
+                ota_updates_enabled=enabled,
+            )
+        else:
+            board = await q.selectGlobalUserBoard(client, board_id=board_id)
+    except Exception as e:
+        logger.error(f"Error updating OTA enabled for board {board_id}: {e}")
+        board = await q.selectGlobalUserBoard(client, board_id=board_id)
+
+    context = get_context(
+        request,
+        board=board,
+        board_inventory=None,
+        wifi_key_provisioned=bool(getattr(board, "wifi_encryption_key", None)),
+    )
+    return templates.TemplateResponse("app/board/_control_panel.html", context)
+
+
+@router.post(
     "/board/{board_id}/sync-request",
     response_class=HTMLResponse,
     name="app.board_sync_request",
@@ -555,6 +642,10 @@ async def board_push_command(
         # Map command string to typed envelope
         if command == "sync_request":
             await command_channel.publish("control", build_sync_request())
+        elif command == "skip_next":
+            await command_channel.publish("control", build_skip_next())
+        elif command == "skip_prev":
+            await command_channel.publish("control", build_skip_prev())
         else:
             return HTMLResponse(
                 f'<span class="text-red-400">Unknown command: {command}</span>',

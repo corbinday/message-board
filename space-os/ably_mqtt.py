@@ -36,6 +36,14 @@ def _on_message(topic, msg):
         except Exception as e:
             print(f"[MQTT] Error parsing command: {e}")
 
+    # Route global SpaceOS system messages (OTA notifications etc.)
+    elif topic_str == "spaceos:system" and _on_command:
+        try:
+            payload = json.loads(msg_str)
+            _on_command(payload)
+        except Exception as e:
+            print(f"[MQTT] Error parsing spaceos:system message: {e}")
+
 
 def connect(ably_token, on_command=None):
     """
@@ -88,6 +96,10 @@ def connect(ably_token, on_command=None):
     command_topic = f"commands:{config.USER_ID}"
     _client.subscribe(command_topic, qos=1)
     print(f"[MQTT] Subscribed to {command_topic}")
+
+    # Subscribe to global SpaceOS system channel for OTA update notifications
+    _client.subscribe("spaceos:system", qos=1)
+    print("[MQTT] Subscribed to spaceos:system")
 
 
 def check_messages():
