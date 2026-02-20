@@ -197,6 +197,13 @@ def _establish_connection():
         print("[BOOT] WiFi failed. Running in offline mode.")
         return False
 
+    try:
+        import ntptime
+        ntptime.settime()
+        print("[TIME] NTP sync OK")
+    except Exception as e:
+        print(f"[TIME] NTP sync failed: {e}")
+
     _fetch_server_settings()
 
     print("[BOOT] Syncing messages...")
@@ -793,7 +800,9 @@ def run():
     # 7. Main loop
     auto_rotate_timer = time.ticks_ms()
     reconnect_timer = time.ticks_ms()
-    AUTO_ROTATE_INTERVAL = 10000  # 10 seconds
+    heartbeat_timer = time.ticks_ms()
+    AUTO_ROTATE_INTERVAL = 10000   # 10 seconds
+    HEARTBEAT_INTERVAL = 240000    # 4 minutes — keeps last_connected_at fresh on server
     _rotate_pending = False
 
     while True:
@@ -821,6 +830,11 @@ def run():
                         print("[RECONNECT] MQTT re-established.")
                     except Exception as e:
                         print(f"[RECONNECT] MQTT reconnect failed: {e}")
+
+        # Heartbeat: re-publish inventory periodically so server sees us as online
+        if ably_mqtt.is_connected() and time.ticks_diff(now, heartbeat_timer) > HEARTBEAT_INTERVAL:
+            heartbeat_timer = now
+            _publish_inventory()
 
         actions = buttons.poll()
         if actions:

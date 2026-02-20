@@ -15,6 +15,17 @@ import json
 import machine
 import uhashlib
 import urequests
+import builtins
+
+# Patch print() to prefix every line with a UTC timestamp.
+# Before NTP sync the Pico epoch is 2000-01-01, so early boot lines will
+# show that — once NTP runs (in app.py) all subsequent timestamps are correct.
+_orig_print = builtins.print
+def _ts_print(*args, **kwargs):
+    t = time.localtime()
+    prefix = f"{t[0]:04d}-{t[1]:02d}-{t[2]:02d}T{t[3]:02d}:{t[4]:02d}:{t[5]:02d}Z"
+    _orig_print(prefix, *args, **kwargs)
+builtins.print = _ts_print
 
 import config
 import wifi

@@ -168,6 +168,13 @@ async def board_inventory(
 
     body = await request.json()
 
+    # Update last_connected_at so the UI knows the board is still online
+    try:
+        if hasattr(q, "updateBoardLastConnected"):
+            await q.updateBoardLastConnected(base_client, board_id=UUID(board_id))
+    except Exception as e:
+        logger.warning(f"Could not update board last_connected_at: {e}")
+
     # Publish inventory to the board's status channel so the web UI can pick it up
     try:
         ably = _get_ably_client()
