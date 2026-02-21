@@ -8,18 +8,20 @@ _wlan = None
 # CYW43 status codes returned by _wlan.status()
 _STAT_IDLE          =  0
 _STAT_CONNECTING    =  1
-_STAT_WRONG_PASS    = -3
-_STAT_NO_AP         = -2
-_STAT_CONNECT_FAIL  = -1
+_STAT_NOIP          =  2  # Associated at 802.11 level but DHCP not complete yet
 _STAT_GOT_IP        =  3
+_STAT_CONNECT_FAIL  = -1
+_STAT_NO_AP         = -2
+_STAT_WRONG_PASS    = -3
 
 _STAT_NAMES = {
     _STAT_IDLE:         "IDLE",
     _STAT_CONNECTING:   "CONNECTING",
-    _STAT_WRONG_PASS:   "WRONG_PASSWORD",
-    _STAT_NO_AP:        "NO_AP_FOUND",
-    _STAT_CONNECT_FAIL: "CONNECT_FAIL",
+    _STAT_NOIP:         "NOIP(associated,DHCP_pending)",
     _STAT_GOT_IP:       "GOT_IP",
+    _STAT_CONNECT_FAIL: "CONNECT_FAIL",
+    _STAT_NO_AP:        "NO_AP_FOUND",
+    _STAT_WRONG_PASS:   "WRONG_PASSWORD",
 }
 
 # Status codes where retrying the same network is pointless
@@ -134,10 +136,19 @@ def _reset_wlan(hard=False):
         _wlan = net.WLAN(net.STA_IF)
     delay = 3 if hard else 1
     print(f"[NET] Resetting CYW43 ({'hard' if hard else 'soft'}, {delay}s)...")
+    # Disconnect first so the chip doesn't auto-reconnect on activate
+    try:
+        _wlan.disconnect()
+    except Exception:
+        pass
     _wlan.active(False)
     time.sleep(delay)
     _wlan.active(True)
-    time.sleep(delay)
+    # Poll until IDLE rather than sleeping a fixed time
+    for _ in range(delay * 10):
+        if _wlan.status() == _STAT_IDLE:
+            break
+        time.sleep(0.2)
     print(f"[NET] CYW43 reset done. Status: {_status_str()}")
 
 
@@ -164,13 +175,14 @@ def connect(ssid, password, max_retries=5, retry_delay=3):
             time.sleep(retry_delay)
             continue
 
-        # Poll for up to 15 s, logging status every 5 s
+        # Poll for up to 30 s; log every 5 s.
+        # NOIP (status 2) means associated but DHCP still in progress — be patient.
         connected = False
-        for tick in range(15):
+        for tick in range(30):
             if _wlan.isconnected():
                 connected = True
                 break
-            if tick in (4, 9):
+            if tick % 5 == 4:
                 print(f"[NET]   {tick+1}s elapsed, chip={_status_str()}")
             time.sleep(1)
 
