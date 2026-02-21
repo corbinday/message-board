@@ -39,13 +39,82 @@ def _status_str():
         return f"ERR({e})"
 
 
-def _scan_networks():
-    """Scan for available WiFi networks. Returns list of (ssid, rssi) tuples."""
+def _ensure_chip_up():
+    """Bring the CYW43 chip up reliably, retrying activation if it fails.
+
+    The CYW43 driver can silently fail on active(True) — it prints
+    '[CYW43] Failed to start CYW43' but does NOT raise an exception.
+    We detect this by checking active() after the call and retry with
+    progressively longer power-off periods.
+
+    Returns True if the chip is up, False if all attempts failed.
+    """
     global _wlan
     if _wlan is None:
         _wlan = net.WLAN(net.STA_IF)
 
-    _wlan.active(True)
+    # If already active, verify it's responsive
+    if _wlan.active():
+        try:
+            _wlan.status()
+            return True
+        except Exception:
+            pass  # chip is wedged, fall through to reset
+
+    # Progressive power-off durations (seconds) for each attempt
+    power_off_delays = [1, 2, 3, 5]
+
+    for i, delay in enumerate(power_off_delays):
+        attempt = i + 1
+        print(f"[NET] Activating CYW43 (attempt {attempt}/{len(power_off_delays)}, off={delay}s)...")
+
+        # Full power-off cycle
+        try:
+            _wlan.active(False)
+        except Exception:
+            pass
+        time.sleep(delay)
+
+        # Re-create the WLAN object on later attempts to force a clean driver state
+        if attempt >= 3:
+            _wlan = net.WLAN(net.STA_IF)
+
+        _wlan.active(True)
+        time.sleep(0.5)  # brief settle before checking
+
+        # Verify the chip actually came up
+        if not _wlan.active():
+            print(f"[NET] CYW43 activation failed (attempt {attempt})")
+            continue
+
+        # Wait for IDLE status (chip ready for commands)
+        ready = False
+        for _ in range(20):  # up to 4 seconds
+            try:
+                st = _wlan.status()
+                if st == _STAT_IDLE:
+                    ready = True
+                    break
+            except Exception:
+                pass
+            time.sleep(0.2)
+
+        if ready:
+            # Extra settle time for RF calibration after IDLE is reported
+            time.sleep(1)
+            print(f"[NET] CYW43 up and ready (attempt {attempt}). Status: {_status_str()}")
+            return True
+
+        print(f"[NET] CYW43 not reaching IDLE (attempt {attempt}), status: {_status_str()}")
+
+    print("[NET] CYW43 failed to start after all activation attempts")
+    return False
+
+
+def _scan_networks():
+    """Scan for available WiFi networks. Returns list of (ssid, rssi) tuples."""
+    if not _ensure_chip_up():
+        return []
 
     try:
         results = _wlan.scan()
@@ -81,17 +150,14 @@ def connect_best(known_networks, max_retries=3, retry_delay=3):
         IP config tuple or None if all attempts fail.
     """
     global _wlan
-    _wlan = net.WLAN(net.STA_IF)
+    if _wlan is None:
+        _wlan = net.WLAN(net.STA_IF)
 
     if _wlan.isconnected():
         print(f"[NET] Already connected: {_wlan.ifconfig()}")
         return _wlan.ifconfig()
 
-    print(f"[NET] connect_best: chip status before reset = {_status_str()}")
-    # Ensure a clean CYW43 state before scanning
-    _reset_wlan()
-
-    # Scan for available SSIDs
+    # Scan for available SSIDs (this also ensures the chip is up)
     available = _scan_networks()
     available_ssids = {ssid for ssid, _ in available}
 
@@ -117,7 +183,8 @@ def connect_best(known_networks, max_retries=3, retry_delay=3):
     for ssid, password, rssi in candidates:
         print(f"[NET] Trying {ssid} (RSSI: {rssi} dBm)")
         result = connect(
-            ssid, password, max_retries=max_retries, retry_delay=retry_delay
+            ssid, password, max_retries=max_retries, retry_delay=retry_delay,
+            _chip_ready=True,
         )
         if result is not None:
             return result
@@ -130,28 +197,55 @@ def _reset_wlan(hard=False):
     """Deactivate and reactivate the WLAN interface to reset the CYW43 chip.
 
     hard=True uses a longer sleep and is used after repeated failures.
+    Returns True if the chip came back up, False otherwise.
     """
     global _wlan
     if _wlan is None:
         _wlan = net.WLAN(net.STA_IF)
     delay = 3 if hard else 1
     print(f"[NET] Resetting CYW43 ({'hard' if hard else 'soft'}, {delay}s)...")
-    _wlan.active(False)
+    try:
+        _wlan.active(False)
+    except Exception:
+        pass
     time.sleep(delay)
+
+    # Re-create the WLAN object on hard resets for a clean driver state
+    if hard:
+        _wlan = net.WLAN(net.STA_IF)
+
     _wlan.active(True)
+    time.sleep(0.5)
+
+    # Verify activation succeeded
+    if not _wlan.active():
+        print(f"[NET] CYW43 reset failed — chip not active, retrying via _ensure_chip_up()")
+        return _ensure_chip_up()
+
     # Poll until IDLE rather than sleeping a fixed time.
-    # Note: status() can report IDLE before RF calibration finishes (HT not ready),
-    # so we add a 1s settle after detecting IDLE before returning.
     for _ in range(delay * 10):
         if _wlan.status() == _STAT_IDLE:
             break
         time.sleep(0.2)
     time.sleep(1)  # let RF finish calibrating after IDLE is reported
     print(f"[NET] CYW43 reset done. Status: {_status_str()}")
+    return True
 
 
-def connect(ssid, password, max_retries=5, retry_delay=3):
-    """Connect to a specific WiFi network with retry logic. Returns IP config or None."""
+def connect(ssid, password, max_retries=5, retry_delay=3, _chip_ready=False):
+    """Connect to a specific WiFi network with retry logic.
+
+    Args:
+        ssid: Network SSID.
+        password: Network password.
+        max_retries: Number of connection attempts.
+        retry_delay: Seconds between retries.
+        _chip_ready: Internal flag — skip initial reset when called from
+                     connect_best() which already ensured the chip is up.
+
+    Returns:
+        IP config tuple or None.
+    """
     global _wlan
     if _wlan is None:
         _wlan = net.WLAN(net.STA_IF)
@@ -160,8 +254,11 @@ def connect(ssid, password, max_retries=5, retry_delay=3):
         print(f"[NET] Already connected: {_wlan.ifconfig()}")
         return _wlan.ifconfig()
 
-    # Ensure a clean CYW43 state before first connection attempt
-    _reset_wlan()
+    # Ensure the chip is up before first attempt (skip if caller already did it)
+    if not _chip_ready:
+        if not _ensure_chip_up():
+            print(f"[NET] CYW43 chip failed to start — cannot connect to {ssid}")
+            return None
 
     for attempt in range(1, max_retries + 1):
         print(f"[NET] Connecting to {ssid} (attempt {attempt}/{max_retries}, chip={_status_str()})...")
@@ -169,7 +266,10 @@ def connect(ssid, password, max_retries=5, retry_delay=3):
             _wlan.connect(ssid, password)
         except OSError as e:
             print(f"[NET] connect() raised OSError: {e} (chip={_status_str()})")
-            _reset_wlan(hard=(attempt > 1))
+            # The chip is likely wedged — do a full re-init rather than just reset
+            if not _ensure_chip_up():
+                print(f"[NET] CYW43 chip unrecoverable after OSError")
+                return None
             time.sleep(retry_delay)
             continue
 
@@ -207,11 +307,11 @@ def connect(ssid, password, max_retries=5, retry_delay=3):
         except Exception:
             pass
 
-        # After two consecutive soft failures, do a hard reset
+        # After two consecutive failures, do a hard reset
         if attempt >= 2:
             _reset_wlan(hard=True)
         else:
-            time.sleep(retry_delay)
+            _reset_wlan(hard=False)
 
     print(f"[NET] All connection attempts to {ssid} failed.")
     return None
@@ -241,8 +341,6 @@ def reconnect(known_networks=None, ssid=None, password=None):
             _wlan.disconnect()
         except Exception:
             pass
-        _wlan = None
-    _reset_wlan()
 
     if known_networks:
         return connect_best(known_networks, max_retries=2, retry_delay=2)
