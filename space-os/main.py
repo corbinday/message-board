@@ -15,6 +15,7 @@ import json
 import machine
 import uhashlib
 import urequests
+import usocket
 import builtins
 
 # Patch print() to prefix every line with a UTC timestamp.
@@ -208,6 +209,26 @@ def _apply_bundle(bundle_data):
 # OTA check
 # =============================================================================
 
+def _safe_request(url, headers):
+    """Make an HTTP GET with a 30s socket timeout and one retry for cold starts.
+
+    Returns the response object or None.
+    """
+    usocket.setdefaulttimeout(30.0)
+
+    for attempt in range(2):
+        try:
+            print(f"[UPDATE] GET (attempt {attempt + 1}) {url}")
+            return urequests.get(url, headers=headers)
+        except OSError as e:
+            print(f"[UPDATE] Request failed: {e}")
+            if attempt == 0:
+                print("[UPDATE] Retrying in 5s (server may be cold-starting)...")
+                time.sleep(5)
+
+    return None
+
+
 def _check_for_update():
     """
     Query the server for an OTA update.
@@ -221,9 +242,12 @@ def _check_for_update():
         "X-Board-Secret": config.BOARD_SECRET_KEY,
     }
 
-    print(f"[UPDATE] GET {url}")
     try:
-        response = urequests.get(url, headers=headers)
+        response = _safe_request(url, headers)
+        if response is None:
+            print("[UPDATE] OTA check timed out — launching local OS")
+            return False
+
         status = response.status_code
 
         if status == 204:
@@ -257,6 +281,35 @@ def _check_for_update():
 # =============================================================================
 
 def main():
+    # 0. Kill the LEDs immediately to reduce EMI and voltage sag during WiFi.
+    #    Auto-detect board type (Cosmic / Galactic / Stellar) the same way
+    #    app.py does — only the matching module exists on each firmware.
+    _cu = _gfx = None
+    try:
+        from cosmic import CosmicUnicorn
+        from picographics import PicoGraphics, DISPLAY_COSMIC_UNICORN
+        _cu = CosmicUnicorn()
+        _gfx = PicoGraphics(DISPLAY_COSMIC_UNICORN)
+    except ImportError:
+        try:
+            from galactic import GalacticUnicorn
+            from picographics import PicoGraphics, DISPLAY_GALACTIC_UNICORN
+            _cu = GalacticUnicorn()
+            _gfx = PicoGraphics(DISPLAY_GALACTIC_UNICORN)
+        except ImportError:
+            try:
+                from stellar import StellarUnicorn
+                from picographics import PicoGraphics, DISPLAY_STELLAR_UNICORN
+                _cu = StellarUnicorn()
+                _gfx = PicoGraphics(DISPLAY_STELLAR_UNICORN)
+            except ImportError:
+                pass
+    if _cu and _gfx:
+        _gfx.set_pen(_gfx.create_pen(0, 0, 0))
+        _gfx.clear()
+        _cu.update(_gfx)
+    del _cu, _gfx
+
     print("=" * 40)
     print("  SpaceOS Bootstrapper")
     print(f"  Board: {config.BOARD_ID[:8] if config.BOARD_ID else 'unregistered'}")
@@ -296,7 +349,8 @@ def main():
     # 4. Hand off to the updatable OS — free bootstrapper-only modules first
     import sys
     import gc
-    for mod in ("urequests", "ecdsa_p256", "uhashlib"):
+    for mod in ("urequests", "ecdsa_p256", "uhashlib", "usocket",
+                 "cosmic", "galactic", "stellar", "picographics"):
         try:
             del sys.modules[mod]
         except KeyError:
