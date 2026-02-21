@@ -5,6 +5,37 @@ import network as net
 
 _wlan = None
 
+# CYW43 status codes returned by _wlan.status()
+_STAT_IDLE          =  0
+_STAT_CONNECTING    =  1
+_STAT_WRONG_PASS    = -3
+_STAT_NO_AP         = -2
+_STAT_CONNECT_FAIL  = -1
+_STAT_GOT_IP        =  3
+
+_STAT_NAMES = {
+    _STAT_IDLE:         "IDLE",
+    _STAT_CONNECTING:   "CONNECTING",
+    _STAT_WRONG_PASS:   "WRONG_PASSWORD",
+    _STAT_NO_AP:        "NO_AP_FOUND",
+    _STAT_CONNECT_FAIL: "CONNECT_FAIL",
+    _STAT_GOT_IP:       "GOT_IP",
+}
+
+# Status codes where retrying the same network is pointless
+_FATAL_STATUSES = {_STAT_WRONG_PASS, _STAT_NO_AP}
+
+
+def _status_str():
+    """Return a human-readable string for the current WLAN status code."""
+    if _wlan is None:
+        return "NO_WLAN"
+    try:
+        code = _wlan.status()
+        return _STAT_NAMES.get(code, f"UNKNOWN({code})")
+    except Exception as e:
+        return f"ERR({e})"
+
 
 def _scan_networks():
     """Scan for available WiFi networks. Returns list of (ssid, rssi) tuples."""
@@ -54,6 +85,7 @@ def connect_best(known_networks, max_retries=3, retry_delay=3):
         print(f"[NET] Already connected: {_wlan.ifconfig()}")
         return _wlan.ifconfig()
 
+    print(f"[NET] connect_best: chip status before reset = {_status_str()}")
     # Ensure a clean CYW43 state before scanning
     _reset_wlan()
 
@@ -92,15 +124,21 @@ def connect_best(known_networks, max_retries=3, retry_delay=3):
     return None
 
 
-def _reset_wlan():
-    """Deactivate and reactivate the WLAN interface to reset the CYW43 chip."""
+def _reset_wlan(hard=False):
+    """Deactivate and reactivate the WLAN interface to reset the CYW43 chip.
+
+    hard=True uses a longer sleep and is used after repeated failures.
+    """
     global _wlan
     if _wlan is None:
         _wlan = net.WLAN(net.STA_IF)
+    delay = 3 if hard else 1
+    print(f"[NET] Resetting CYW43 ({'hard' if hard else 'soft'}, {delay}s)...")
     _wlan.active(False)
-    time.sleep(1)
+    time.sleep(delay)
     _wlan.active(True)
-    time.sleep(1)
+    time.sleep(delay)
+    print(f"[NET] CYW43 reset done. Status: {_status_str()}")
 
 
 def connect(ssid, password, max_retries=5, retry_delay=3):
@@ -117,27 +155,53 @@ def connect(ssid, password, max_retries=5, retry_delay=3):
     _reset_wlan()
 
     for attempt in range(1, max_retries + 1):
-        print(f"[NET] Connecting to {ssid} (attempt {attempt}/{max_retries})...")
+        print(f"[NET] Connecting to {ssid} (attempt {attempt}/{max_retries}, chip={_status_str()})...")
         try:
             _wlan.connect(ssid, password)
         except OSError as e:
-            print(f"[NET] connect() raised OSError: {e}")
-            _reset_wlan()
+            print(f"[NET] connect() raised OSError: {e} (chip={_status_str()})")
+            _reset_wlan(hard=(attempt > 1))
             time.sleep(retry_delay)
             continue
 
-        wait = 10
-        while wait > 0:
+        # Poll for up to 15 s, logging status every 5 s
+        connected = False
+        for tick in range(15):
             if _wlan.isconnected():
-                config = _wlan.ifconfig()
-                print(f"[NET] Connected: {config}")
-                return config
-            wait -= 1
+                connected = True
+                break
+            if tick in (4, 9):
+                print(f"[NET]   {tick+1}s elapsed, chip={_status_str()}")
             time.sleep(1)
 
-        print(f"[NET] Attempt {attempt} failed.")
-        _wlan.disconnect()
-        time.sleep(retry_delay)
+        if connected:
+            config = _wlan.ifconfig()
+            print(f"[NET] Connected to {ssid}: ip={config[0]} gw={config[2]}")
+            return config
+
+        status_code = None
+        try:
+            status_code = _wlan.status()
+        except Exception:
+            pass
+        status_label = _STAT_NAMES.get(status_code, f"UNKNOWN({status_code})")
+        print(f"[NET] Attempt {attempt} failed — chip status: {status_label}")
+
+        # Don't retry if the failure is definitive
+        if status_code in _FATAL_STATUSES:
+            print(f"[NET] Fatal status ({status_label}) — skipping remaining retries for {ssid}")
+            break
+
+        try:
+            _wlan.disconnect()
+        except Exception:
+            pass
+
+        # After two consecutive soft failures, do a hard reset
+        if attempt >= 2:
+            _reset_wlan(hard=True)
+        else:
+            time.sleep(retry_delay)
 
     print(f"[NET] All connection attempts to {ssid} failed.")
     return None
