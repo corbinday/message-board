@@ -11,11 +11,9 @@
 # This file intentionally stays small. All normal OS functionality lives in app.py.
 import os
 import time
-import json
 import machine
 import uhashlib
 import urequests
-import usocket
 import builtins
 
 # Patch print() to prefix every line with a UTC timestamp.
@@ -210,12 +208,10 @@ def _apply_bundle(bundle_data):
 # =============================================================================
 
 def _safe_request(url, headers):
-    """Make an HTTP GET with a 30s socket timeout and one retry for cold starts.
+    """Make an HTTP GET with one retry for cold starts.
 
     Returns the response object or None.
     """
-    usocket.setdefaulttimeout(30.0)
-
     for attempt in range(2):
         try:
             print(f"[UPDATE] GET (attempt {attempt + 1}) {url}")
@@ -342,14 +338,17 @@ def main():
         updated = _check_for_update()
         if updated:
             print("[BOOT] Update applied — rebooting...")
-            wifi.disconnect()
+            try:
+                wifi.disconnect()
+            except Exception:
+                pass
             machine.reset()
             # never reached
 
     # 4. Hand off to the updatable OS — free bootstrapper-only modules first
     import sys
     import gc
-    for mod in ("urequests", "ecdsa_p256", "uhashlib", "usocket",
+    for mod in ("urequests", "ecdsa_p256", "uhashlib", "socket",
                  "cosmic", "galactic", "stellar", "picographics"):
         try:
             del sys.modules[mod]

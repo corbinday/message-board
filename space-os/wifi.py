@@ -60,3 +60,58 @@ def connect(ssid, password, max_retries=3):
         time.sleep(2.0)
 
     return None
+
+
+def disconnect():
+    """Disconnect WiFi and power down the radio."""
+    wlan = net.WLAN(net.STA_IF)
+    try:
+        wlan.disconnect()
+    except Exception:
+        pass
+    try:
+        wlan.active(False)
+    except Exception:
+        pass
+
+
+def is_connected():
+    """Check if WiFi is currently connected."""
+    try:
+        wlan = net.WLAN(net.STA_IF)
+        return wlan.isconnected()
+    except Exception:
+        return False
+
+
+def reconnect(known_networks=None, ssid=None, password=None):
+    """Attempt to reconnect to WiFi. Used for periodic reconnection."""
+    if is_connected():
+        return net.WLAN(net.STA_IF).ifconfig()
+
+    if ssid and password:
+        return connect(ssid, password, max_retries=2)
+
+    return None
+
+
+def get_current_ssid():
+    """Return the SSID of the currently connected network, or None."""
+    try:
+        wlan = net.WLAN(net.STA_IF)
+        if wlan.isconnected():
+            return wlan.config("essid") or None
+    except Exception:
+        pass
+    return None
+
+
+def get_signal_strength():
+    """Return the RSSI of the current connection, or None."""
+    try:
+        wlan = net.WLAN(net.STA_IF)
+        if wlan.isconnected():
+            return wlan.status("rssi")
+    except Exception:
+        pass
+    return None
