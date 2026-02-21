@@ -136,19 +136,17 @@ def _reset_wlan(hard=False):
         _wlan = net.WLAN(net.STA_IF)
     delay = 3 if hard else 1
     print(f"[NET] Resetting CYW43 ({'hard' if hard else 'soft'}, {delay}s)...")
-    # Disconnect first so the chip doesn't auto-reconnect on activate
-    try:
-        _wlan.disconnect()
-    except Exception:
-        pass
     _wlan.active(False)
     time.sleep(delay)
     _wlan.active(True)
-    # Poll until IDLE rather than sleeping a fixed time
+    # Poll until IDLE rather than sleeping a fixed time.
+    # Note: status() can report IDLE before RF calibration finishes (HT not ready),
+    # so we add a 1s settle after detecting IDLE before returning.
     for _ in range(delay * 10):
         if _wlan.status() == _STAT_IDLE:
             break
         time.sleep(0.2)
+    time.sleep(1)  # let RF finish calibrating after IDLE is reported
     print(f"[NET] CYW43 reset done. Status: {_status_str()}")
 
 
