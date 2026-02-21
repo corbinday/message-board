@@ -5,7 +5,6 @@
 # and stored locally on the device filesystem. They NEVER touch the server DB.
 
 import json
-import os
 from ubinascii import a2b_base64
 
 import config
@@ -67,17 +66,23 @@ def load_networks():
     try:
         with open(config.WIFI_NETWORKS_FILE, "r") as f:
             networks = json.load(f)
-        print(f"[WIFI] Loaded {len(networks)} network(s) from {config.WIFI_NETWORKS_FILE}")
+        print(
+            f"[WIFI] Loaded {len(networks)} network(s) from {config.WIFI_NETWORKS_FILE}"
+        )
     except (OSError, ValueError):
         pass
 
     # Ensure the primary provisioned network is always included as fallback
-    if config.WIFI_SSID and not any(n.get("ssid") == config.WIFI_SSID for n in networks):
-        networks.append({
-            "ssid": config.WIFI_SSID,
-            "password": config.WIFI_PASSWORD,
-            "priority": -1,  # Lowest priority — other networks take precedence
-        })
+    if config.WIFI_SSID and not any(
+        n.get("ssid") == config.WIFI_SSID for n in networks
+    ):
+        networks.append(
+            {
+                "ssid": config.WIFI_SSID,
+                "password": config.WIFI_PASSWORD,
+                "priority": -1,  # Lowest priority — other networks take precedence
+            }
+        )
 
     return networks
 

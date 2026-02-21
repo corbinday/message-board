@@ -30,7 +30,7 @@ builtins.print = _ts_print
 import config
 import wifi
 import wifi_store
-import ed25519
+import ecdsa_p256
 import update_key
 
 
@@ -113,7 +113,7 @@ def _apply_bundle(bundle_data):
 
     # --- Ed25519 signature verification ---
     print("[UPDATE] Verifying signature (this may take a moment)...")
-    if not ed25519.verify(update_key.PUBLIC_KEY, payload, signature):
+    if not ecdsa_p256.verify(update_key.PUBLIC_KEY, payload, signature):
         print("[UPDATE] Signature verification FAILED — aborting update")
         return False
     print("[UPDATE] Signature OK")
@@ -289,6 +289,7 @@ def main():
         updated = _check_for_update()
         if updated:
             print("[BOOT] Update applied — rebooting...")
+            wifi.disconnect()
             machine.reset()
             # never reached
 

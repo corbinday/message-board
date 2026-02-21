@@ -1,10 +1,12 @@
-# update_key.py - Ed25519 public key for OTA update verification
+# update_key.py - ECDSA P-256 public key for OTA update verification
 # IMMUTABLE — never included in OTA bundles, never updated remotely.
 #
-# To generate a keypair:
+# To generate a new keypair:
 #   python scripts/sign_spaceos.py --generate-key
 #
-# Replace PUBLIC_KEY with the 32-byte raw public key bytes printed by the script.
-# The private key stays in your password manager and is never committed to the repo.
+# Replace PUBLIC_KEY with the 64-byte raw X||Y hex printed by that command.
+# The private key stays in your password manager and is never committed.
 
-PUBLIC_KEY = bytes.fromhex('25430281c582344c96fd25b3917b7536bedc10e3602b16db4556eb3d3b669bf8')
+PUBLIC_KEY = bytes.fromhex(
+    "bfbf1db21b45aa4f4b0a5e4a848af813c5c81b9d555a1e276cd9b781d22124ca29d38caf8911c55449c318f213e92dc2a0d3d254a65070db51a044e907564811"
+)

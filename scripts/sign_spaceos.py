@@ -89,8 +89,10 @@ def build_payload(space_os_dir: Path) -> bytes:
 
 def _load_private_key_from_bytes(key_data: bytes):
     """
-    Parse an Ed25519 private key from raw bytes (PEM or hex seed).
-    Returns a (sign_fn, pub_bytes) tuple.
+    Parse an ECDSA P-256 private key from PEM bytes.
+    Returns a (sign_fn, pub_bytes) tuple where:
+      sign_fn(payload) -> 64-byte raw R||S signature
+      pub_bytes        -> 64-byte raw X||Y public key
     """
     try:
         from cryptography.hazmat.primitives.serialization import (
@@ -98,7 +100,13 @@ def _load_private_key_from_bytes(key_data: bytes):
             Encoding,
             PublicFormat,
         )
-        from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PrivateKey
+        from cryptography.hazmat.primitives.asymmetric.ec import (
+            EllipticCurvePrivateKey,
+            ECDSA,
+            SECP256R1,
+        )
+        from cryptography.hazmat.primitives.asymmetric.utils import decode_dss_signature
+        from cryptography.hazmat.primitives import hashes
     except ImportError:
         print(
             "ERROR: 'cryptography' package not installed.\n"
@@ -107,40 +115,34 @@ def _load_private_key_from_bytes(key_data: bytes):
         )
         sys.exit(1)
 
-    private_key = None
+    try:
+        private_key = load_pem_private_key(key_data, password=None)
+    except Exception as e:
+        print(f"ERROR loading PEM key: {e}", file=sys.stderr)
+        sys.exit(1)
 
-    # Try PEM first
-    if b"-----" in key_data:
-        try:
-            pk = load_pem_private_key(key_data, password=None)
-            if not isinstance(pk, Ed25519PrivateKey):
-                print("ERROR: PEM key is not Ed25519.", file=sys.stderr)
-                sys.exit(1)
-            private_key = pk
-        except Exception as e:
-            print(f"ERROR loading PEM key: {e}", file=sys.stderr)
-            sys.exit(1)
-    else:
-        # Try raw hex seed (32 bytes → 64 hex chars)
-        try:
-            seed = bytes.fromhex(key_data.decode().strip())
-            if len(seed) != 32:
-                raise ValueError(f"Expected 32-byte seed, got {len(seed)} bytes")
-            private_key = Ed25519PrivateKey.from_private_bytes(seed)
-        except Exception as e:
-            print(f"ERROR loading hex seed key: {e}", file=sys.stderr)
-            sys.exit(1)
+    if not isinstance(private_key, EllipticCurvePrivateKey):
+        print("ERROR: Key is not an EC key. Generate one with --generate-key.", file=sys.stderr)
+        sys.exit(1)
+    if private_key.curve.name != "secp256r1":
+        print(f"ERROR: Expected secp256r1 (P-256), got {private_key.curve.name}.", file=sys.stderr)
+        sys.exit(1)
 
-    pub_bytes = private_key.public_key().public_bytes(Encoding.Raw, PublicFormat.Raw)
+    # 64-byte uncompressed public key, drop the 0x04 prefix byte
+    pub_bytes = private_key.public_key().public_bytes(
+        Encoding.X962, PublicFormat.UncompressedPoint
+    )[1:]
 
     def sign(payload: bytes) -> bytes:
-        return private_key.sign(payload)
+        der_sig = private_key.sign(payload, ECDSA(hashes.SHA256()))
+        r, s = decode_dss_signature(der_sig)
+        return r.to_bytes(32, "big") + s.to_bytes(32, "big")
 
     return sign, pub_bytes
 
 
 def _load_private_key(key_path: Path):
-    """Load an Ed25519 private key from a PEM file or a raw hex-encoded seed file."""
+    """Load an ECDSA P-256 private key from a PEM file."""
     return _load_private_key_from_bytes(key_path.read_bytes())
 
 
@@ -196,9 +198,9 @@ async def _resolve_key_from_1password(secret_ref: str, account_name: str) -> byt
 
 
 def cmd_generate_key(args):
-    """Generate a new Ed25519 keypair and print instructions."""
+    """Generate a new ECDSA P-256 keypair and print instructions."""
     try:
-        from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PrivateKey
+        from cryptography.hazmat.primitives.asymmetric.ec import generate_private_key, SECP256R1
         from cryptography.hazmat.primitives.serialization import (
             Encoding,
             PrivateFormat,
@@ -209,14 +211,17 @@ def cmd_generate_key(args):
         print("ERROR: pip install cryptography", file=sys.stderr)
         sys.exit(1)
 
-    private_key = Ed25519PrivateKey.generate()
-    pub_bytes = private_key.public_key().public_bytes(Encoding.Raw, PublicFormat.Raw)
+    private_key = generate_private_key(SECP256R1())
+    # 64-byte raw X||Y (uncompressed, drop 0x04 prefix)
+    pub_bytes = private_key.public_key().public_bytes(
+        Encoding.X962, PublicFormat.UncompressedPoint
+    )[1:]
     pem = private_key.private_bytes(Encoding.PEM, PrivateFormat.PKCS8, NoEncryption())
 
-    print("\n=== Ed25519 Keypair Generated ===\n")
+    print("\n=== ECDSA P-256 Keypair Generated ===\n")
     print("PRIVATE KEY (PEM) — store in your password manager, never commit:")
     print(pem.decode())
-    print("PUBLIC KEY (hex) — copy into space-os/update_key.py:")
+    print("PUBLIC KEY (hex, 64 bytes X||Y) — copy into space-os/update_key.py:")
     print(pub_bytes.hex())
     print(f"\nIn update_key.py, set:")
     print(f"  PUBLIC_KEY = bytes.fromhex('{pub_bytes.hex()}')")
@@ -301,12 +306,12 @@ def main():
     parser.add_argument(
         "--generate-key",
         action="store_true",
-        help="Generate a new Ed25519 keypair and print instructions",
+        help="Generate a new ECDSA P-256 keypair and print instructions",
     )
     parser.add_argument(
         "--key",
         metavar="PATH",
-        help="Path to Ed25519 private key (PEM or raw 32-byte hex seed)",
+        help="Path to ECDSA P-256 private key (PEM)",
     )
     parser.add_argument(
         "--1password",

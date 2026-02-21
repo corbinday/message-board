@@ -48,7 +48,9 @@ def download(message_id):
 
         result = parse(data)
         if result:
-            print(f"[SP] Parsed OK: id={result['message_id'][:12]}... sender={result['sender']} anim={result['is_anim']} fps={result['fps']}")
+            print(
+                f"[SP] Parsed OK: id={result['message_id'][:12]}... sender={result['sender']} anim={result['is_anim']} fps={result['fps']}"
+            )
         return result
 
     except Exception as e:
@@ -79,7 +81,9 @@ def parse(data):
     # Convert to hex string for display/storage
     msg_id = "".join("{:02x}".format(b) for b in raw_uuid)
     # Format as UUID string: 8-4-4-4-12
-    msg_id = f"{msg_id[:8]}-{msg_id[8:12]}-{msg_id[12:16]}-{msg_id[16:20]}-{msg_id[20:]}"
+    msg_id = (
+        f"{msg_id[:8]}-{msg_id[8:12]}-{msg_id[12:16]}-{msg_id[16:20]}-{msg_id[20:]}"
+    )
 
     # Meta length (uint16, big-endian)
     meta_len = struct.unpack(">H", data[18:20])[0]
@@ -106,7 +110,9 @@ def parse(data):
     pixel_data = data[pixel_start : pixel_start + pixel_len]
 
     if len(pixel_data) != pixel_len:
-        print(f"[SP] Pixel data length mismatch: expected {pixel_len}, got {len(pixel_data)}")
+        print(
+            f"[SP] Pixel data length mismatch: expected {pixel_len}, got {len(pixel_data)}"
+        )
         return None
 
     gc.collect()
@@ -212,7 +218,9 @@ def download_streaming(message_id, pixel_out_path):
                 pass
             return None
 
-        print(f"[SP] Streamed OK: id={msg_id[:12]}... sender={meta.get('sender', '?')} {pixel_len}B pixels")
+        print(
+            f"[SP] Streamed OK: id={msg_id[:12]}... sender={meta.get('sender', '?')} {pixel_len}B pixels"
+        )
         gc.collect()
         return {
             "message_id": msg_id,

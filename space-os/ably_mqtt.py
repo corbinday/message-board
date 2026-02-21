@@ -79,7 +79,9 @@ def connect(ably_token, on_command=None):
     # Set message callback
     _client.set_callback(_on_message)
 
-    print(f"[MQTT] Connecting to {config.ABLY_MQTT_HOST}:{config.ABLY_MQTT_PORT} as {client_id}")
+    print(
+        f"[MQTT] Connecting to {config.ABLY_MQTT_HOST}:{config.ABLY_MQTT_PORT} as {client_id}"
+    )
     print(f"[MQTT] Token: {ably_token[:20]}...")
     _client.connect()
     _connected = True
@@ -138,11 +140,13 @@ def publish_read_receipt(message_id):
         return
 
     topic = f"status/{config.USER_ID}/{config.BOARD_ID}"
-    payload = json.dumps({
-        "action": "mark_read",
-        "msg_id": message_id,
-        "type": "read_receipt",
-    })
+    payload = json.dumps(
+        {
+            "action": "mark_read",
+            "msg_id": message_id,
+            "type": "read_receipt",
+        }
+    )
     try:
         _client.publish(topic, payload, qos=1)
         print(f"[MQTT] Read receipt sent for {message_id}")

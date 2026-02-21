@@ -82,7 +82,9 @@ def connect_best(known_networks, max_retries=3, retry_delay=3):
 
     for ssid, password, rssi in candidates:
         print(f"[NET] Trying {ssid} (RSSI: {rssi} dBm)")
-        result = connect(ssid, password, max_retries=max_retries, retry_delay=retry_delay)
+        result = connect(
+            ssid, password, max_retries=max_retries, retry_delay=retry_delay
+        )
         if result is not None:
             return result
 

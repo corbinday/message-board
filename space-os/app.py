@@ -484,6 +484,7 @@ def _process_commands():
             # A new SpaceOS version is available. Reboot now so main.py
             # can download and apply the update.
             print("[CMD] OTA update available — rebooting to apply...")
+            wifi.disconnect()
             machine.reset()
 
         else:
