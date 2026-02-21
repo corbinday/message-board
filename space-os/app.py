@@ -205,9 +205,13 @@ def _establish_connection():
         print(f"[TIME] NTP sync failed: {e}")
 
     _fetch_server_settings()
+    gc.collect()
+    time.sleep(1)
 
     print("[BOOT] Syncing messages...")
     _boot_sync()
+    gc.collect()
+    time.sleep(1)
 
     token = _get_ably_token()
     if token:
