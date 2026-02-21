@@ -1,101 +1,62 @@
-# wifi.py - Streamlined, Patient WiFi for Pico 2 W / Space Unicorn
+# wifi.py - The "First-Time Success" Version
 import time
 import rp2
 import network as net
+import gc
 
-# Status Codes
-STAT_IDLE = 0
-STAT_CONNECTING = 1
-STAT_NOIP = 2 
 STAT_GOT_IP = 3
-STAT_WRONG_PASS = -3
-STAT_NO_AP = -2
 
-_wlan = None
-
-def get_wlan():
-    global _wlan
-    if _wlan is None:
-        _wlan = net.WLAN(net.STA_IF)
-    return _wlan
-
-def _setup_chip():
-    """Configure radio settings once per boot."""
-    wlan = get_wlan()
+def connect(ssid, password, max_retries=3):
+    wlan = net.WLAN(net.STA_IF)
+    
+    # 1. THE "SILENCE" PERIOD
+    # If we just rebooted, the router needs a moment to realize we're gone.
+    print("[NET] Cooling down radio...")
+    wlan.active(False)
+    time.sleep(3.0) 
+    
+    wlan.active(True)
     try:
         rp2.country("US")
     except:
         pass
-    wlan.active(True)
-    # Disable power management for stable OTA transfers
-    # 0xa11140 is the 'High Performance' magic constant
+
+    # 2. THE "PRE-FLIGHT" SCAN
+    # This wakes up the antenna and finds the correct channel frequency.
+    # Without this, the first connect() call often 'misses' the router.
+    print("[NET] Scanning for channel calibration...")
+    try:
+        wlan.scan()
+        time.sleep(1.0)
+    except:
+        pass
+
+    # 3. DISABLE POWER MANAGEMENT IMMEDIATELY
     try:
         wlan.config(pm=0xa11140)
     except:
         pass
-    return wlan
-
-def connect(ssid, password, max_retries=3):
-    wlan = _setup_chip()
-    
-    if wlan.isconnected():
-        return wlan.ifconfig()
 
     for attempt in range(1, max_retries + 1):
         print(f"[NET] Connecting to {ssid} (Attempt {attempt})...")
         wlan.connect(ssid, password)
         
-        # Patience loop: Wait up to 20 seconds for IP
-        for _ in range(20):
+        # 4. PATIENT DHCP WAIT
+        # Xfinity gateways are slow. We wait up to 30 seconds.
+        for i in range(30):
             status = wlan.status()
-            
             if status == STAT_GOT_IP:
                 conf = wlan.ifconfig()
                 print(f"[NET] Connected! IP: {conf[0]}")
                 return conf
             
-            if status == STAT_WRONG_PASS:
-                print("[NET] Fatal: Wrong Password")
-                return None
-            
-            if status == STAT_NOIP:
-                # Progress! We are associated, just waiting on Xfinity DHCP
-                if _ % 5 == 0: print("[NET] Associated, waiting for IP...")
+            if i % 5 == 0 and i > 0:
+                print(f"[NET]   ...still waiting for IP ({i}s)")
             
             time.sleep(1)
         
-        print(f"[NET] Attempt {attempt} timed out. Resetting radio...")
+        print(f"[NET] Attempt {attempt} timed out. Resetting...")
         wlan.disconnect()
-        time.sleep(1)
+        time.sleep(2.0)
 
     return None
-
-def connect_best(known_networks):
-    """Simple scan-and-connect."""
-    wlan = _setup_chip()
-    print("[NET] Scanning...")
-    try:
-        # Get visible SSIDs
-        visible = [r[0].decode('utf-8') for r in wlan.scan() if r[0]]
-    except:
-        visible = []
-
-    # Filter known networks to only those visible
-    to_try = [n for n in known_networks if n['ssid'] in visible]
-    
-    # If scan failed or found nothing, try all known blindly
-    if not to_try:
-        to_try = known_networks
-
-    for net_info in to_try:
-        res = connect(net_info['ssid'], net_info['password'])
-        if res: return res
-    return None
-
-def is_connected():
-    return get_wlan().isconnected()
-
-def disconnect():
-    wlan = get_wlan()
-    wlan.disconnect()
-    wlan.active(False)
