@@ -348,7 +348,7 @@ def main():
     # 4. Hand off to the updatable OS — free bootstrapper-only modules first
     import sys
     import gc
-    for mod in ("urequests", "ecdsa_p256", "uhashlib", "socket",
+    for mod in ("ecdsa_p256", "uhashlib",
                  "cosmic", "galactic", "stellar", "picographics"):
         try:
             del sys.modules[mod]
