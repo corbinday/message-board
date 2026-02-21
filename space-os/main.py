@@ -293,7 +293,16 @@ def main():
             machine.reset()
             # never reached
 
-    # 4. Hand off to the updatable OS
+    # 4. Hand off to the updatable OS — free bootstrapper-only modules first
+    import sys
+    import gc
+    for mod in ("urequests", "ecdsa_p256", "uhashlib"):
+        try:
+            del sys.modules[mod]
+        except KeyError:
+            pass
+    gc.collect()
+
     print("[BOOT] Launching SpaceOS...")
     import app
     app.run()
