@@ -104,7 +104,15 @@ class CSPNonceMiddleware(BaseHTTPMiddleware):
         # Generate nonce and store in request state
         request.state.nonce = secrets.token_urlsafe(16)
 
-        response = await call_next(request)
+        try:
+            response = await call_next(request)
+        except gel.errors.QueryAssertionError as exc:
+            if "JWT is expired" in str(exc):
+                logger.warning("Expired JWT detected, redirecting to signin")
+                response = RedirectResponse(url="/auth/ui/signin", status_code=302)
+                response.delete_cookie("gel-auth-token", path="/")
+                return response
+            raise
 
         # Apply CSP header
         nonce = request.state.nonce
